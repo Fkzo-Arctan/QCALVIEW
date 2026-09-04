@@ -1,6 +1,6 @@
 # Contributing to QCALVIEW
 
-QCALVIEW is developed by **Fabrice Kerzerho — ArcTan°** and is released under the GNU GPL v3.0 or later.
+QCALVIEW is developed by **Fabrice Kerzerho - ArcTan°** and is released under the GNU GPL v3.0 or later.
 
 ## Development principles
 
