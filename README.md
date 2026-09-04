@@ -25,7 +25,7 @@ Other internal experimental modules remain development-only until they are ready
 ## Open-source development
 QCALVIEW is made available as open-source software. Its development, maintenance, QGIS compatibility work, bug fixing and new capabilities are sponsored primarily by ArcTan° and may also be supported by users and partners.
 
-Once the public GitHub repository and GitHub Sponsors profile are enabled, the repository **Sponsor** button can be used to support continued development. The funding configuration is prepared in `.github/FUNDING.yml` and only needs the final GitHub Sponsors handle.
+Development of QCALVIEW can be supported through GitHub Sponsors when the sponsorship profile becomes available.
 
 ## Documentation
 See `docs/` for the user manual and licensing notes.
