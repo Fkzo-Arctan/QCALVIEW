@@ -1,0 +1,92 @@
+{
+  "id": "pv_tracker",
+  "name": "Tracker photovoltaïque mono-axe",
+  "description": "Rangée de tracker mono-axe : surface pivotant autour d’un tube de torsion longitudinal, porté par plusieurs pieux centraux espacés le long de la rangée.",
+  "geometry": [
+    "line"
+  ],
+  "generator": "pv_surface",
+  "parameters": {
+    "pv_mode": {
+      "default": "tracker",
+      "label": "Mode photovoltaïque",
+      "choices": [
+        {
+          "value": "tracker",
+          "label": "Tracker mono-axe"
+        }
+      ]
+    },
+    "tilt_deg": {
+      "field": "tilt",
+      "default": 0.0,
+      "min": -60.0,
+      "max": 60.0,
+      "step": 1.0,
+      "decimals": 1,
+      "label": "Angle instantané du tracker (°)"
+    },
+    "azimuth_deg": {
+      "field": "azimuth",
+      "default": 180.0,
+      "min": 0.0,
+      "max": 360.0,
+      "step": 1.0,
+      "decimals": 1,
+      "label": "Azimut du côté haut (°)"
+    },
+    "table_width_m": {
+      "field": "width",
+      "default": 4.5,
+      "min": 0.1,
+      "max": 20.0,
+      "step": 0.1,
+      "decimals": 2,
+      "label": "Largeur de la table (m)"
+    },
+    "tracker_axis_height_m": {
+      "default": 2.0,
+      "min": 0.2,
+      "max": 10.0,
+      "step": 0.1,
+      "decimals": 2,
+      "label": "Hauteur de l’axe de rotation (m)"
+    },
+    "show_supports": {
+      "default": true,
+      "label": "Afficher les pieux centraux"
+    },
+    "tracker_support_width_m": {
+      "default": 0.14,
+      "min": 0.02,
+      "max": 0.5,
+      "step": 0.01,
+      "decimals": 3,
+      "label": "Épaisseur des pieux centraux (m)"
+    },
+    "tracker_post_spacing_m": {
+      "default": 8.0,
+      "min": 1.0,
+      "max": 30.0,
+      "step": 0.5,
+      "decimals": 1,
+      "label": "Espacement des pieux (m)"
+    },
+    "show_torque_tube": {
+      "default": true,
+      "label": "Afficher le tube de torsion"
+    }
+  },
+  "appearance": {
+    "pattern": "pv",
+    "fill_alpha": 255,
+    "outline_alpha": 255
+  },
+  "lod": {
+    "detailed_min_px": 16,
+    "simple_min_px": 2
+  },
+  "category": "Énergie / ENR",
+  "taxonomy_type": "solar_panels",
+  "taxonomy_family": "trackers"
+}

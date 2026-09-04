@@ -1,0 +1,88 @@
+{
+  "id": "wind_turbine",
+  "name": "Éolienne schématique",
+  "description": "Silhouette vectorielle paramétrique : mât conique, nacelle et rotor trois pales.",
+  "geometry": [
+    "point",
+    "polygon"
+  ],
+  "generator": "wind_turbine",
+  "parameters": {
+    "hub_height_m": {
+      "source": "layer_height",
+      "default": 120.0,
+      "label": "Hauteur moyeu (m)"
+    },
+    "rotor_diameter_m": {
+      "field": "rotor_d",
+      "default": 160.0,
+      "label": "Diamètre rotor (m)"
+    },
+    "tower_base_width_m": {
+      "default": 6.0,
+      "label": "Largeur mât base (m)"
+    },
+    "tower_top_width_m": {
+      "default": 3.0,
+      "label": "Largeur mât sommet (m)"
+    },
+    "nacelle_length_m": {
+      "default": 12.0,
+      "label": "Longueur nacelle (m)"
+    },
+    "blade_root_width_m": {
+      "default": 5.0,
+      "label": "Largeur pale racine (m)"
+    },
+    "blade_tip_width_m": {
+      "default": 1.2,
+      "label": "Largeur pale bout (m)"
+    },
+    "rotor_angle_deg": {
+      "field": "rotor_ang",
+      "default": 0.0
+    },
+    "orientation_mode": {
+      "default": "face_camera",
+      "label": "Orientation du rotor",
+      "choices": [
+        {
+          "value": "face_camera",
+          "label": "Face caméra (défaut)"
+        },
+        {
+          "value": "oriented",
+          "label": "Azimut commun"
+        }
+      ]
+    },
+    "azimuth_deg": {
+      "default": 0.0,
+      "label": "Azimut commun nacelle/vent (°)"
+    },
+    "spacing_m": {
+      "default": 300.0,
+      "label": "Espacement dispersion polygonale (m)"
+    },
+    "position_jitter": {
+      "default": 0.1,
+      "label": "Irrégularité position (0–0,45)"
+    },
+    "max_instances": {
+      "default": 100,
+      "label": "Nombre maximum sur polygone"
+    }
+  },
+  "appearance": {
+    "pattern": "solid",
+    "fill_alpha": 255,
+    "outline_alpha": 255
+  },
+  "lod": {
+    "detailed_min_px": 35,
+    "simple_min_px": 4
+  },
+  "category": "Énergie / ENR",
+  "taxonomy_type": "wind_turbines",
+  "taxonomy_family": "standard_3_blade"
+}

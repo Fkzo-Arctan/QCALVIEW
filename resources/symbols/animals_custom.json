@@ -1,0 +1,46 @@
+{
+  "id": "animals_custom",
+  "name": "Animal — modèle personnalisé",
+  "category": "Bibliothèque personnalisée",
+  "taxonomy_type": "animals",
+  "taxonomy_family": "all",
+  "description": "Générateur générique pour un modèle SVG/PNG personnalisé de cette catégorie.",
+  "geometry": [
+    "point",
+    "polygon"
+  ],
+  "generator": "billboard_svg",
+  "fallback": "animal",
+  "parameters": {
+    "height_m": {
+      "source": "layer_height",
+      "default": 1.5,
+      "label": "Hauteur (m)"
+    },
+    "width_m": {
+      "default": 2.0,
+      "field": "qcv_width",
+      "label": "Largeur (m)"
+    },
+    "svg": "",
+    "spacing_m": {
+      "default": 5.0,
+      "label": "Espacement dispersion polygonale (m)"
+    },
+    "position_jitter": {
+      "default": 0.18,
+      "label": "Irrégularité position (0–0,45)"
+    },
+    "max_instances": {
+      "default": 400,
+      "label": "Nombre maximum sur polygone"
+    }
+  },
+  "appearance": {
+    "fill_alpha": 255
+  },
+  "lod": {
+    "detailed_min_px": 12,
+    "simple_min_px": 2
+  }
+}

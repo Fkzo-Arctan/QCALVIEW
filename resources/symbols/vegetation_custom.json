@@ -1,0 +1,80 @@
+{
+  "id": "vegetation_custom",
+  "name": "Végétation — modèle personnalisé",
+  "category": "Végétation",
+  "taxonomy_type": "vegetation",
+  "taxonomy_family": "all",
+  "description": "Générateur générique pour utiliser des SVG/PNG personnalisés de végétation sur points, lignes ou polygones.",
+  "geometry": [
+    "point",
+    "line",
+    "polygon"
+  ],
+  "generator": "vegetation_adaptive",
+  "fallback": "tree",
+  "parameters": {
+    "height_m": {
+      "source": "layer_height",
+      "default": 5.0,
+      "label": "Hauteur (m)"
+    },
+    "width_m": {
+      "default": 3.0,
+      "field": "qcv_width",
+      "label": "Largeur individu (m)"
+    },
+    "svg": "",
+    "line_mode": {
+      "default": "alignment",
+      "label": "Ligne : représentation",
+      "choices": [
+        {
+          "value": "alignment",
+          "label": "Alignement d’individus"
+        },
+        {
+          "value": "ribbon",
+          "label": "Ruban végétal continu"
+        }
+      ]
+    },
+    "polygon_mode": {
+      "default": "instances",
+      "label": "Polygone : représentation",
+      "choices": [
+        {
+          "value": "instances",
+          "label": "Peuplement d’individus"
+        },
+        {
+          "value": "mass",
+          "label": "Masse végétale"
+        }
+      ]
+    },
+    "spacing_m": {
+      "default": 3.0,
+      "field": "qcv_spacing",
+      "label": "Espacement individus (m)"
+    },
+    "size_variation": {
+      "default": 0.08,
+      "label": "Variation taille"
+    },
+    "position_jitter": {
+      "default": 0.1,
+      "label": "Irrégularité positions"
+    },
+    "max_instances": {
+      "default": 400,
+      "label": "Nombre max. d’individus"
+    }
+  },
+  "appearance": {
+    "fill_alpha": 255
+  },
+  "lod": {
+    "detailed_min_px": 12,
+    "simple_min_px": 2
+  }
+}

@@ -1,0 +1,46 @@
+{
+  "id": "wind_turbine_silhouette",
+  "name": "Éolienne — silhouette personnalisée",
+  "category": "Bibliothèque personnalisée",
+  "taxonomy_type": "wind_turbines",
+  "taxonomy_family": "silhouettes",
+  "description": "Générateur générique pour un modèle SVG/PNG personnalisé de cette catégorie.",
+  "geometry": [
+    "point",
+    "polygon"
+  ],
+  "generator": "billboard_svg",
+  "fallback": "generic",
+  "parameters": {
+    "height_m": {
+      "source": "layer_height",
+      "default": 200.0,
+      "label": "Hauteur (m)"
+    },
+    "width_m": {
+      "default": 160.0,
+      "field": "qcv_width",
+      "label": "Largeur (m)"
+    },
+    "svg": "",
+    "spacing_m": {
+      "default": 300.0,
+      "label": "Espacement dispersion polygonale (m)"
+    },
+    "position_jitter": {
+      "default": 0.1,
+      "label": "Irrégularité position (0–0,45)"
+    },
+    "max_instances": {
+      "default": 100,
+      "label": "Nombre maximum sur polygone"
+    }
+  },
+  "appearance": {
+    "fill_alpha": 255
+  },
+  "lod": {
+    "detailed_min_px": 12,
+    "simple_min_px": 2
+  }
+}

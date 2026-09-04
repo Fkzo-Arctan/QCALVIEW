@@ -1,0 +1,94 @@
+{
+  "id": "tree_conifer_spruce",
+  "name": "Résineux — épicéa/sapin",
+  "category": "Végétation",
+  "description": "Conifère adaptatif : individu sur point, alignement/ruban sur ligne, massif ou peuplement sur polygone.",
+  "geometry": [
+    "point",
+    "line",
+    "polygon"
+  ],
+  "generator": "vegetation_adaptive",
+  "fallback": "tree_conifer",
+  "parameters": {
+    "height_m": {
+      "source": "layer_height",
+      "default": 12.0,
+      "label": "Hauteur (m)"
+    },
+    "width_m": {
+      "default": 5.0,
+      "field": "qcv_width",
+      "label": "Largeur individu (m)"
+    },
+    "svg": "assets/tree_conifer_spruce.svg",
+    "line_mode": {
+      "default": "alignment",
+      "label": "Ligne : représentation",
+      "choices": [
+        {
+          "value": "alignment",
+          "label": "Alignement d’individus"
+        },
+        {
+          "value": "ribbon",
+          "label": "Ruban végétal continu"
+        }
+      ]
+    },
+    "polygon_mode": {
+      "default": "mass",
+      "label": "Polygone : représentation",
+      "choices": [
+        {
+          "value": "mass",
+          "label": "Masse végétale"
+        },
+        {
+          "value": "instances",
+          "label": "Peuplement d’individus"
+        }
+      ]
+    },
+    "spacing_m": {
+      "default": 6.0,
+      "field": "qcv_spacing",
+      "label": "Espacement individus (m)"
+    },
+    "size_variation": {
+      "default": 0.08,
+      "label": "Variation taille (0–0,45)"
+    },
+    "position_jitter": {
+      "default": 0.1,
+      "label": "Irrégularité positions (0–0,45)"
+    },
+    "irregularity": {
+      "default": 0.12,
+      "label": "Irrégularité couronne/masse"
+    },
+    "crown_min_ratio": {
+      "default": 0.72,
+      "label": "Ratio hauteur minimale"
+    },
+    "mass_sample_step_m": {
+      "default": 3.0,
+      "label": "Pas silhouette masse (m)"
+    },
+    "max_instances": {
+      "default": 400,
+      "label": "Nombre max. d’individus"
+    }
+  },
+  "appearance": {
+    "pattern": "foliage",
+    "fill_alpha": 255,
+    "outline_alpha": 255
+  },
+  "lod": {
+    "detailed_min_px": 12,
+    "simple_min_px": 2
+  },
+  "taxonomy_type": "vegetation",
+  "taxonomy_family": "conifers"
+}

@@ -1,0 +1,44 @@
+{
+  "id": "fence_generic",
+  "name": "Clôture générique",
+  "description": "Clôture le long d’une polyligne ou du périmètre extérieur d’un polygone. Aucune dispersion surfacique.",
+  "geometry": [
+    "line",
+    "polygon"
+  ],
+  "generator": "fence_perimeter",
+  "taxonomy_type": "agriculture_objects",
+  "taxonomy_family": "fences",
+  "parameters": {
+    "height_m": {
+      "default": 1.4,
+      "label": "Hauteur (m)",
+      "source": "layer_height"
+    },
+    "post_width_m": {
+      "default": 0.08,
+      "label": "Épaisseur poteaux (m)",
+      "min": 0.01,
+      "max": 0.15,
+      "step": 0.01,
+      "decimals": 2
+    },
+    "fence_color": {
+      "default": "#6B4F2A",
+      "label": "Couleur clôture",
+      "type": "color"
+    },
+    "post_spacing_m": {
+      "default": 3.0,
+      "label": "Espacement poteaux (m)"
+    },
+    "rail_count": {
+      "default": 2,
+      "label": "Nombre de lisses"
+    }
+  },
+  "appearance": {
+    "fill_alpha": 255,
+    "outline_alpha": 255
+  }
+}

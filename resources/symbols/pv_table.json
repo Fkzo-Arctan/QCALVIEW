@@ -1,0 +1,73 @@
+{
+  "id": "pv_table",
+  "name": "Table photovoltaïque fixe",
+  "description": "Table photovoltaïque fixe inclinée. Le tilt peut atteindre 90°, mais le motif Panneaux verticaux fournit des réglages dédiés.",
+  "geometry": [
+    "polygon",
+    "line"
+  ],
+  "generator": "pv_surface",
+  "parameters": {
+    "pv_mode": {
+      "default": "fixed",
+      "label": "Mode photovoltaïque",
+      "choices": [
+        {
+          "value": "fixed",
+          "label": "Table fixe inclinée"
+        },
+        {
+          "value": "vertical",
+          "label": "Panneau vertical (90°)"
+        }
+      ]
+    },
+    "low_height_m": {
+      "source": "layer_height",
+      "default": 0.8,
+      "label": "Hauteur basse (m)"
+    },
+    "tilt_deg": {
+      "field": "tilt",
+      "default": 20.0,
+      "label": "Inclinaison (°)",
+      "min": 0.0,
+      "max": 90.0,
+      "step": 1.0,
+      "decimals": 1
+    },
+    "azimuth_deg": {
+      "field": "azimuth",
+      "default": 180.0
+    },
+    "table_width_m": {
+      "field": "width",
+      "default": 4.5,
+      "label": "Largeur table (m)"
+    },
+    "show_supports": {
+      "default": true,
+      "label": "Afficher les pieds verticaux"
+    },
+    "support_width_m": {
+      "default": 0.08,
+      "min": 0.01,
+      "max": 0.5,
+      "step": 0.01,
+      "decimals": 3,
+      "label": "Épaisseur des pieds (m)"
+    }
+  },
+  "appearance": {
+    "pattern": "pv",
+    "fill_alpha": 255,
+    "outline_alpha": 255
+  },
+  "lod": {
+    "detailed_min_px": 16,
+    "simple_min_px": 2
+  },
+  "category": "Énergie / ENR",
+  "taxonomy_type": "solar_panels",
+  "taxonomy_family": "pv_tables"
+}

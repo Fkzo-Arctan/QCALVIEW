@@ -1,0 +1,46 @@
+{
+  "id": "person_scale",
+  "name": "Personne — échelle",
+  "category": "Repères",
+  "description": "Silhouette humaine simple pour donner une échelle visuelle aux ouvrages.",
+  "geometry": [
+    "point",
+    "polygon"
+  ],
+  "generator": "billboard_svg",
+  "fallback": "generic",
+  "parameters": {
+    "height_m": {
+      "source": "layer_height",
+      "default": 1.75,
+      "label": "Hauteur (m)"
+    },
+    "width_m": {
+      "default": 0.6,
+      "field": "qcv_width",
+      "label": "Largeur (m)"
+    },
+    "svg": "assets/person.svg",
+    "spacing_m": {
+      "default": 5.0,
+      "label": "Espacement dispersion polygonale (m)"
+    },
+    "position_jitter": {
+      "default": 0.18,
+      "label": "Irrégularité position (0–0,45)"
+    },
+    "max_instances": {
+      "default": 400,
+      "label": "Nombre maximum sur polygone"
+    }
+  },
+  "appearance": {
+    "fill_alpha": 255
+  },
+  "lod": {
+    "detailed_min_px": 12,
+    "simple_min_px": 2
+  },
+  "taxonomy_type": "people",
+  "taxonomy_family": "silhouettes"
+}

@@ -1,0 +1,39 @@
+{
+  "id": "wind_turbines_custom",
+  "name": "Éolienne — modèle graphique personnalisé",
+  "description": "Silhouette SVG/PNG personnalisée. Sur polygone, instances réparties de façon déterministe dans la surface.",
+  "geometry": [
+    "point",
+    "polygon"
+  ],
+  "generator": "billboard_svg",
+  "taxonomy_type": "wind_turbines",
+  "taxonomy_family": "all",
+  "fallback": "generic",
+  "parameters": {
+    "height_m": {
+      "default": 200.0,
+      "label": "Hauteur du modèle (m)"
+    },
+    "width_m": {
+      "default": 160.0,
+      "label": "Largeur du modèle (m)"
+    },
+    "spacing_m": {
+      "default": 300.0,
+      "label": "Espacement dispersion polygonale (m)"
+    },
+    "position_jitter": {
+      "default": 0.1,
+      "label": "Irrégularité position (0–0,45)"
+    },
+    "max_instances": {
+      "default": 100,
+      "label": "Nombre maximum sur polygone"
+    }
+  },
+  "appearance": {
+    "fill_alpha": 255,
+    "outline_alpha": 255
+  }
+}

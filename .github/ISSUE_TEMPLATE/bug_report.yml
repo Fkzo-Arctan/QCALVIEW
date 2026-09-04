@@ -1,0 +1,51 @@
+name: Bug report
+description: Report a reproducible QCALVIEW problem.
+title: "[Bug] "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thank you for reporting a QCALVIEW issue. Please remove sensitive project data before attaching files.
+  - type: input
+    id: qcalview
+    attributes:
+      label: QCALVIEW version
+      placeholder: "e.g. ALPHA-40.20"
+    validations:
+      required: true
+  - type: input
+    id: qgis
+    attributes:
+      label: QGIS version
+      placeholder: "e.g. 3.44.x or 4.x"
+    validations:
+      required: true
+  - type: dropdown
+    id: projection
+    attributes:
+      label: Projection mode
+      options:
+        - PINHOLE
+        - CYLINDRICAL
+        - EQUIRECT
+        - Not applicable / unknown
+  - type: textarea
+    id: description
+    attributes:
+      label: Problem description
+      description: What happened, and what did you expect?
+    validations:
+      required: true
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: Steps to reproduce
+      description: Give the shortest reproducible sequence you can.
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: QCALVIEW / QGIS messages
+      description: Paste relevant logs or traceback. Remove private paths/data where necessary.

@@ -1,0 +1,39 @@
+{
+  "id": "other_vehicle_custom",
+  "name": "Autre véhicule — modèle personnalisé",
+  "description": "Modèle SVG/PNG personnalisable.",
+  "geometry": [
+    "point",
+    "polygon"
+  ],
+  "generator": "billboard_svg",
+  "taxonomy_type": "vehicles",
+  "taxonomy_family": "other_vehicles",
+  "fallback": "vehicle",
+  "parameters": {
+    "height_m": {
+      "default": 2.5,
+      "label": "Hauteur du modèle (m)"
+    },
+    "width_m": {
+      "default": 5.0,
+      "label": "Largeur du modèle (m)"
+    },
+    "spacing_m": {
+      "default": 10.0,
+      "label": "Espacement dispersion polygonale (m)"
+    },
+    "position_jitter": {
+      "default": 0.18,
+      "label": "Irrégularité position (0–0,45)"
+    },
+    "max_instances": {
+      "default": 400,
+      "label": "Nombre maximum sur polygone"
+    }
+  },
+  "appearance": {
+    "fill_alpha": 255,
+    "outline_alpha": 255
+  }
+}

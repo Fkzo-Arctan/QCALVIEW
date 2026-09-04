@@ -1,0 +1,34 @@
+{
+  "id": "hedge_generic",
+  "name": "Haie générique",
+  "description": "Ruban végétal continu à sommet irrégulier, destiné aux AVR 0/1 et tests d'occultation.",
+  "geometry": [
+    "line"
+  ],
+  "generator": "vegetation_ribbon",
+  "parameters": {
+    "height_m": {
+      "source": "layer_height",
+      "default": 2.5,
+      "label": "Hauteur (m)"
+    },
+    "sample_step_m": 2.0,
+    "irregularity": {
+      "default": 0.12,
+      "label": "Irrégularité"
+    },
+    "crown_min_ratio": 0.72
+  },
+  "appearance": {
+    "pattern": "foliage",
+    "fill_alpha": 255,
+    "outline_alpha": 255
+  },
+  "lod": {
+    "detailed_min_px": 18,
+    "simple_min_px": 3
+  },
+  "category": "Végétation",
+  "taxonomy_type": "vegetation",
+  "taxonomy_family": "hedges"
+}

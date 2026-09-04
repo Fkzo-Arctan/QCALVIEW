@@ -1,0 +1,1045 @@
+<?xml version='1.0' encoding='utf-8'?>
+<ui version="4.0">
+ <class>QCalViewDockRoot</class>
+ <widget class="QWidget" name="qcvRoot">
+  <property name="geometry">
+   <rect>
+    <x>0</x>
+    <y>0</y>
+    <width>980</width>
+    <height>820</height>
+   </rect>
+  </property>
+  <property name="windowTitle">
+   <string>QCALVIEW</string>
+  </property>
+  <property name="styleSheet">
+   <string notr="true">QFrame#qcvCockpit, QFrame#qcvPreviewPanel { border: 1px solid rgba(120,140,150,90); border-radius: 8px; }
+QFrame#cardPhotoPdv, QFrame#cardCamera, QFrame#cardTheme, QFrame#qcvGridCard { border: 1px solid rgba(120,140,150,60); border-radius: 7px; }
+QLabel#titlePhotoPdv, QLabel#titleCamera, QLabel#titleTheme, QLabel#qcvFieldTitle, QLabel#previewPanelTitle { font-weight: 700; color: #7fb4ff; }
+QLabel#lbl_preview_info { color: #9aa5ad; }
+QLabel#qcvPlaceholderHint { color: #777; font-style: italic; }
+QToolButton { padding: 5px 8px; }</string>
+  </property>
+  <layout class="QVBoxLayout" name="rootLayout">
+   <property name="leftMargin">
+    <number>8</number>
+   </property>
+   <property name="topMargin">
+    <number>8</number>
+   </property>
+   <property name="rightMargin">
+    <number>8</number>
+   </property>
+   <property name="bottomMargin">
+    <number>8</number>
+   </property>
+   <property name="spacing">
+    <number>8</number>
+   </property>
+   <item>
+    <widget class="QFrame" name="qcvCockpit">
+     <property name="sizePolicy">
+      <sizepolicy hsizetype="Preferred" vsizetype="Maximum">
+       <horstretch>0</horstretch>
+       <verstretch>0</verstretch>
+      </sizepolicy>
+     </property>
+     <property name="frameShape">
+      <enum>QFrame::StyledPanel</enum>
+     </property>
+     <property name="frameShadow">
+      <enum>QFrame::Raised</enum>
+     </property>
+     <layout class="QVBoxLayout" name="cockpitLayout">
+      <property name="leftMargin">
+       <number>8</number>
+      </property>
+      <property name="topMargin">
+       <number>6</number>
+      </property>
+      <property name="rightMargin">
+       <number>8</number>
+      </property>
+      <property name="bottomMargin">
+       <number>6</number>
+      </property>
+      <property name="spacing">
+       <number>6</number>
+      </property>
+      <item>
+       <layout class="QHBoxLayout" name="cockpitInfoLayout">
+        <property name="leftMargin">
+         <number>0</number>
+        </property>
+        <property name="topMargin">
+         <number>0</number>
+        </property>
+        <property name="rightMargin">
+         <number>0</number>
+        </property>
+        <property name="bottomMargin">
+         <number>0</number>
+        </property>
+        <property name="spacing">
+         <number>8</number>
+        </property>
+        <item>
+         <widget class="QFrame" name="cardPhotoPdv">
+          <property name="sizePolicy">
+           <sizepolicy hsizetype="Ignored" vsizetype="Fixed">
+            <horstretch>2</horstretch>
+            <verstretch>0</verstretch>
+           </sizepolicy>
+          </property>
+          <property name="frameShape">
+           <enum>QFrame::StyledPanel</enum>
+          </property>
+          <layout class="QHBoxLayout" name="cardPhotoLayout">
+           <property name="leftMargin">
+            <number>8</number>
+           </property>
+           <property name="topMargin">
+            <number>6</number>
+           </property>
+           <property name="rightMargin">
+            <number>8</number>
+           </property>
+           <property name="bottomMargin">
+            <number>6</number>
+           </property>
+           <property name="spacing">
+            <number>8</number>
+           </property>
+           <item>
+            <widget class="QLabel" name="icoPhoto">
+             <property name="minimumSize">
+              <size>
+               <width>26</width>
+               <height>26</height>
+              </size>
+             </property>
+             <property name="pixmap">
+              <pixmap>../resources/icons/photo.svg</pixmap>
+             </property>
+            </widget>
+           </item>
+           <item>
+            <layout class="QVBoxLayout" name="cardPhotoTextLayout">
+             <property name="spacing">
+              <number>2</number>
+             </property>
+             <item>
+              <widget class="QLabel" name="titlePhotoPdv">
+               <property name="text">
+                <string>Point Actif</string>
+               </property>
+               <property name="wordWrap">
+                <bool>true</bool>
+               </property>
+              </widget>
+             </item>
+             <item>
+              <widget class="QLabel" name="lbl_info">
+               <property name="text">
+                <string>Aucune photo</string>
+               </property>
+               <property name="wordWrap">
+                <bool>true</bool>
+               </property>
+              </widget>
+             </item>
+             <item>
+              <widget class="QLabel" name="lbl_current_pdv">
+               <property name="text">
+                <string>Aucun PDV actif</string>
+               </property>
+               <property name="wordWrap">
+                <bool>true</bool>
+               </property>
+              </widget>
+             </item>
+            </layout>
+           </item>
+          </layout>
+         </widget>
+        </item>
+        <item>
+         <widget class="QFrame" name="cardCamera">
+          <property name="sizePolicy">
+           <sizepolicy hsizetype="Ignored" vsizetype="Fixed">
+            <horstretch>2</horstretch>
+            <verstretch>0</verstretch>
+           </sizepolicy>
+          </property>
+          <property name="frameShape">
+           <enum>QFrame::StyledPanel</enum>
+          </property>
+          <layout class="QHBoxLayout" name="cardCameraLayout">
+           <property name="leftMargin">
+            <number>8</number>
+           </property>
+           <property name="topMargin">
+            <number>6</number>
+           </property>
+           <property name="rightMargin">
+            <number>8</number>
+           </property>
+           <property name="bottomMargin">
+            <number>6</number>
+           </property>
+           <property name="spacing">
+            <number>8</number>
+           </property>
+           <item>
+            <widget class="QLabel" name="icoCamera">
+             <property name="minimumSize">
+              <size>
+               <width>26</width>
+               <height>26</height>
+              </size>
+             </property>
+             <property name="pixmap">
+              <pixmap>../resources/icons/camera.svg</pixmap>
+             </property>
+            </widget>
+           </item>
+           <item>
+            <layout class="QVBoxLayout" name="cardCameraTextLayout">
+             <property name="spacing">
+              <number>2</number>
+             </property>
+             <item>
+              <widget class="QLabel" name="titleCamera">
+               <property name="text">
+                <string>Position Caméra</string>
+               </property>
+              </widget>
+             </item>
+             <item>
+              <widget class="QLabel" name="lbl_cockpit_camera">
+               <property name="text">
+                <string>X : —    Y : —\nZ sol : —    Hauteur : —</string>
+               </property>
+               <property name="wordWrap">
+                <bool>true</bool>
+               </property>
+              </widget>
+             </item>
+            </layout>
+           </item>
+          </layout>
+         </widget>
+        </item>
+        <item>
+         <widget class="QFrame" name="cardTheme">
+          <property name="sizePolicy">
+           <sizepolicy hsizetype="Ignored" vsizetype="Fixed">
+            <horstretch>1</horstretch>
+            <verstretch>0</verstretch>
+           </sizepolicy>
+          </property>
+          <property name="frameShape">
+           <enum>QFrame::StyledPanel</enum>
+          </property>
+          <layout class="QHBoxLayout" name="cardThemeLayout">
+           <property name="leftMargin">
+            <number>8</number>
+           </property>
+           <property name="topMargin">
+            <number>6</number>
+           </property>
+           <property name="rightMargin">
+            <number>8</number>
+           </property>
+           <property name="bottomMargin">
+            <number>6</number>
+           </property>
+           <property name="spacing">
+            <number>8</number>
+           </property>
+           <item>
+            <widget class="QLabel" name="icoTheme">
+             <property name="minimumSize">
+              <size>
+               <width>26</width>
+               <height>26</height>
+              </size>
+             </property>
+             <property name="pixmap">
+              <pixmap>../resources/icons/theme.svg</pixmap>
+             </property>
+            </widget>
+           </item>
+           <item>
+            <layout class="QVBoxLayout" name="cardThemeTextLayout">
+             <property name="spacing">
+              <number>2</number>
+             </property>
+             <item>
+              <widget class="QLabel" name="titleTheme">
+               <property name="text">
+                <string>Thème QGIS</string>
+               </property>
+              </widget>
+             </item>
+             <item>
+              <widget class="QComboBox" name="cmb_qgis_theme">
+               <property name="minimumWidth">
+                <number>90</number>
+               </property>
+              </widget>
+             </item>
+            </layout>
+           </item>
+          </layout>
+         </widget>
+        </item>
+       </layout>
+      </item>
+      <item>
+       <layout class="QHBoxLayout" name="cockpitActionsLayout">
+        <property name="leftMargin">
+         <number>0</number>
+        </property>
+        <property name="topMargin">
+         <number>0</number>
+        </property>
+        <property name="rightMargin">
+         <number>0</number>
+        </property>
+        <property name="bottomMargin">
+         <number>0</number>
+        </property>
+        <property name="spacing">
+         <number>8</number>
+        </property>
+        <item>
+         <spacer name="cockpitActionsSpacer">
+          <property name="orientation">
+           <enum>Qt::Horizontal</enum>
+          </property>
+          <property name="sizeHint">
+           <size>
+            <width>20</width>
+            <height>20</height>
+           </size>
+          </property>
+         </spacer>
+        </item>
+        <item>
+         <widget class="QToolButton" name="btn_load">
+          <property name="text">
+           <string>Photo</string>
+          </property>
+          <property name="icon">
+           <iconset>
+            <normaloff>../resources/icons/photo.svg</normaloff>
+           </iconset>
+          </property>
+          <property name="toolButtonStyle">
+           <enum>Qt::ToolButtonTextBesideIcon</enum>
+          </property>
+         </widget>
+        </item>
+        <item>
+         <widget class="QToolButton" name="btn_refresh_top">
+          <property name="text">
+           <string>Aperçu</string>
+          </property>
+          <property name="icon">
+           <iconset>
+            <normaloff>../resources/icons/render.svg</normaloff>
+           </iconset>
+          </property>
+          <property name="toolButtonStyle">
+           <enum>Qt::ToolButtonTextBesideIcon</enum>
+          </property>
+         </widget>
+        </item>
+        <item>
+         <widget class="QToolButton" name="btn_view">
+          <property name="text">
+           <string>Visionneuse</string>
+          </property>
+          <property name="icon">
+           <iconset>
+            <normaloff>../resources/icons/viewer.svg</normaloff>
+           </iconset>
+          </property>
+          <property name="toolButtonStyle">
+           <enum>Qt::ToolButtonTextBesideIcon</enum>
+          </property>
+         </widget>
+        </item>
+        <item>
+         <widget class="QToolButton" name="btn_settings">
+          <property name="text">
+           <string>Param.</string>
+          </property>
+          <property name="icon">
+           <iconset>
+            <normaloff>../resources/icons/settings.svg</normaloff>
+           </iconset>
+          </property>
+          <property name="toolButtonStyle">
+           <enum>Qt::ToolButtonTextBesideIcon</enum>
+          </property>
+         </widget>
+        </item>
+        <item>
+         <widget class="QToolButton" name="btn_fit_window">
+          <property name="text">
+           <string>Adapter</string>
+          </property>
+          <property name="icon">
+           <iconset>
+            <normaloff>../resources/icons/resize.svg</normaloff>
+           </iconset>
+          </property>
+          <property name="toolButtonStyle">
+           <enum>Qt::ToolButtonTextBesideIcon</enum>
+          </property>
+         </widget>
+        </item>
+       </layout>
+      </item>
+     </layout>
+    </widget>
+   </item>
+   <item>
+    <widget class="QWidget" name="body">
+     <layout class="QHBoxLayout" name="bodyLayout">
+      <property name="leftMargin">
+       <number>0</number>
+      </property>
+      <property name="topMargin">
+       <number>0</number>
+      </property>
+      <property name="rightMargin">
+       <number>0</number>
+      </property>
+      <property name="bottomMargin">
+       <number>0</number>
+      </property>
+      <property name="spacing">
+       <number>8</number>
+      </property>
+      <item>
+       <widget class="QTabWidget" name="tabs">
+        <property name="documentMode">
+         <bool>true</bool>
+        </property>
+        <property name="movable">
+         <bool>false</bool>
+        </property>
+        <widget class="QScrollArea" name="tab_camera">
+         <property name="widgetResizable">
+          <bool>true</bool>
+         </property>
+         <property name="frameShape">
+          <enum>QFrame::NoFrame</enum>
+         </property>
+         <attribute name="title">
+          <string>Image / PDV</string>
+         </attribute>
+         <attribute name="icon">
+          <iconset>
+           <normaloff>../resources/icons/photo.svg</normaloff>
+          </iconset>
+         </attribute>
+         <widget class="QWidget" name="tab_camera_inner">
+          <layout class="QVBoxLayout" name="tab_camera_layout">
+           <property name="leftMargin">
+            <number>8</number>
+           </property>
+           <property name="topMargin">
+            <number>8</number>
+           </property>
+           <property name="rightMargin">
+            <number>8</number>
+           </property>
+           <property name="bottomMargin">
+            <number>8</number>
+           </property>
+           <property name="spacing">
+            <number>8</number>
+           </property>
+           <item>
+            <widget class="QWidget" name="placeholder_image_pdv">
+             <property name="minimumHeight">
+              <number>28</number>
+             </property>
+             <layout class="QVBoxLayout" name="placeholder_image_pdv_layout">
+              <property name="leftMargin">
+               <number>0</number>
+              </property>
+              <property name="topMargin">
+               <number>0</number>
+              </property>
+              <property name="rightMargin">
+               <number>0</number>
+              </property>
+              <property name="bottomMargin">
+               <number>0</number>
+              </property>
+              <property name="spacing">
+               <number>8</number>
+              </property>
+              <item>
+               <widget class="QLabel" name="placeholder_image_pdv_hint">
+                <property name="objectName">
+                 <string>qcvPlaceholderHint</string>
+                </property>
+                <property name="text">
+                 <string>Placeholder Qt Designer : Image / PDV — contenu métier injecté par Python.</string>
+                </property>
+                <property name="wordWrap">
+                 <bool>true</bool>
+                </property>
+               </widget>
+              </item>
+             </layout>
+            </widget>
+           </item>
+          </layout>
+         </widget>
+        </widget>
+        <widget class="QScrollArea" name="tab_calage">
+         <property name="widgetResizable">
+          <bool>true</bool>
+         </property>
+         <property name="frameShape">
+          <enum>QFrame::NoFrame</enum>
+         </property>
+         <attribute name="title">
+          <string>Calage</string>
+         </attribute>
+         <attribute name="icon">
+          <iconset>
+           <normaloff>../resources/icons/camera.svg</normaloff>
+          </iconset>
+         </attribute>
+         <widget class="QWidget" name="tab_calage_inner">
+          <layout class="QVBoxLayout" name="tab_calage_layout">
+           <property name="leftMargin">
+            <number>8</number>
+           </property>
+           <property name="topMargin">
+            <number>8</number>
+           </property>
+           <property name="rightMargin">
+            <number>8</number>
+           </property>
+           <property name="bottomMargin">
+            <number>8</number>
+           </property>
+           <property name="spacing">
+            <number>8</number>
+           </property>
+           <item>
+            <widget class="QWidget" name="placeholder_calage">
+             <property name="minimumHeight">
+              <number>28</number>
+             </property>
+             <layout class="QVBoxLayout" name="placeholder_calage_layout">
+              <property name="leftMargin">
+               <number>0</number>
+              </property>
+              <property name="topMargin">
+               <number>0</number>
+              </property>
+              <property name="rightMargin">
+               <number>0</number>
+              </property>
+              <property name="bottomMargin">
+               <number>0</number>
+              </property>
+              <property name="spacing">
+               <number>8</number>
+              </property>
+              <item>
+               <widget class="QLabel" name="placeholder_calage_hint">
+                <property name="objectName">
+                 <string>qcvPlaceholderHint</string>
+                </property>
+                <property name="text">
+                 <string>Placeholder Qt Designer : Calage — contenu métier injecté par Python.</string>
+                </property>
+                <property name="wordWrap">
+                 <bool>true</bool>
+                </property>
+               </widget>
+              </item>
+             </layout>
+            </widget>
+           </item>
+          </layout>
+         </widget>
+        </widget>
+        <widget class="QScrollArea" name="tab_relief">
+         <property name="widgetResizable">
+          <bool>true</bool>
+         </property>
+         <property name="frameShape">
+          <enum>QFrame::NoFrame</enum>
+         </property>
+         <attribute name="title">
+          <string>Relief</string>
+         </attribute>
+         <attribute name="icon">
+          <iconset>
+           <normaloff>../resources/icons/relief.svg</normaloff>
+          </iconset>
+         </attribute>
+         <widget class="QWidget" name="tab_relief_inner">
+          <layout class="QVBoxLayout" name="tab_relief_layout">
+           <property name="leftMargin">
+            <number>8</number>
+           </property>
+           <property name="topMargin">
+            <number>8</number>
+           </property>
+           <property name="rightMargin">
+            <number>8</number>
+           </property>
+           <property name="bottomMargin">
+            <number>8</number>
+           </property>
+           <property name="spacing">
+            <number>8</number>
+           </property>
+           <item>
+            <widget class="QWidget" name="placeholder_relief">
+             <property name="minimumHeight">
+              <number>28</number>
+             </property>
+             <layout class="QVBoxLayout" name="placeholder_relief_layout">
+              <property name="leftMargin">
+               <number>0</number>
+              </property>
+              <property name="topMargin">
+               <number>0</number>
+              </property>
+              <property name="rightMargin">
+               <number>0</number>
+              </property>
+              <property name="bottomMargin">
+               <number>0</number>
+              </property>
+              <property name="spacing">
+               <number>8</number>
+              </property>
+              <item>
+               <widget class="QLabel" name="placeholder_relief_hint">
+                <property name="objectName">
+                 <string>qcvPlaceholderHint</string>
+                </property>
+                <property name="text">
+                 <string>Placeholder Qt Designer : Relief — contenu métier injecté par Python.</string>
+                </property>
+                <property name="wordWrap">
+                 <bool>true</bool>
+                </property>
+               </widget>
+              </item>
+             </layout>
+            </widget>
+           </item>
+          </layout>
+         </widget>
+        </widget>
+        <widget class="QScrollArea" name="tab_layers">
+         <property name="widgetResizable">
+          <bool>true</bool>
+         </property>
+         <property name="frameShape">
+          <enum>QFrame::NoFrame</enum>
+         </property>
+         <attribute name="title">
+          <string>Couches projetées</string>
+         </attribute>
+         <attribute name="icon">
+          <iconset>
+           <normaloff>../resources/icons/layers.svg</normaloff>
+          </iconset>
+         </attribute>
+         <widget class="QWidget" name="tab_layers_inner">
+          <layout class="QVBoxLayout" name="tab_layers_layout">
+           <property name="leftMargin">
+            <number>8</number>
+           </property>
+           <property name="topMargin">
+            <number>8</number>
+           </property>
+           <property name="rightMargin">
+            <number>8</number>
+           </property>
+           <property name="bottomMargin">
+            <number>8</number>
+           </property>
+           <property name="spacing">
+            <number>8</number>
+           </property>
+           <item>
+            <widget class="QWidget" name="placeholder_projected_layers">
+             <property name="minimumHeight">
+              <number>28</number>
+             </property>
+             <layout class="QVBoxLayout" name="placeholder_projected_layers_layout">
+              <property name="leftMargin">
+               <number>0</number>
+              </property>
+              <property name="topMargin">
+               <number>0</number>
+              </property>
+              <property name="rightMargin">
+               <number>0</number>
+              </property>
+              <property name="bottomMargin">
+               <number>0</number>
+              </property>
+              <property name="spacing">
+               <number>8</number>
+              </property>
+              <item>
+               <widget class="QLabel" name="placeholder_projected_layers_hint">
+                <property name="objectName">
+                 <string>qcvPlaceholderHint</string>
+                </property>
+                <property name="text">
+                 <string>Placeholder Qt Designer : Couches projetées — contenu métier injecté par Python.</string>
+                </property>
+                <property name="wordWrap">
+                 <bool>true</bool>
+                </property>
+               </widget>
+              </item>
+             </layout>
+            </widget>
+           </item>
+          </layout>
+         </widget>
+        </widget>
+        <widget class="QScrollArea" name="tab_export">
+         <property name="widgetResizable">
+          <bool>true</bool>
+         </property>
+         <property name="frameShape">
+          <enum>QFrame::NoFrame</enum>
+         </property>
+         <attribute name="title">
+          <string>Export</string>
+         </attribute>
+         <attribute name="icon">
+          <iconset>
+           <normaloff>../resources/icons/export.svg</normaloff>
+          </iconset>
+         </attribute>
+         <widget class="QWidget" name="tab_export_inner">
+          <layout class="QVBoxLayout" name="tab_export_layout">
+           <property name="leftMargin">
+            <number>8</number>
+           </property>
+           <property name="topMargin">
+            <number>8</number>
+           </property>
+           <property name="rightMargin">
+            <number>8</number>
+           </property>
+           <property name="bottomMargin">
+            <number>8</number>
+           </property>
+           <property name="spacing">
+            <number>8</number>
+           </property>
+           <item>
+            <widget class="QWidget" name="placeholder_export">
+             <property name="minimumHeight">
+              <number>28</number>
+             </property>
+             <layout class="QVBoxLayout" name="placeholder_export_layout">
+              <property name="leftMargin">
+               <number>0</number>
+              </property>
+              <property name="topMargin">
+               <number>0</number>
+              </property>
+              <property name="rightMargin">
+               <number>0</number>
+              </property>
+              <property name="bottomMargin">
+               <number>0</number>
+              </property>
+              <property name="spacing">
+               <number>8</number>
+              </property>
+              <item>
+               <widget class="QLabel" name="placeholder_export_hint">
+                <property name="objectName">
+                 <string>qcvPlaceholderHint</string>
+                </property>
+                <property name="text">
+                 <string>Placeholder Qt Designer : Export — contenu métier injecté par Python.</string>
+                </property>
+                <property name="wordWrap">
+                 <bool>true</bool>
+                </property>
+               </widget>
+              </item>
+             </layout>
+            </widget>
+           </item>
+          </layout>
+         </widget>
+        </widget>
+        <widget class="QScrollArea" name="tab_gcp">
+         <property name="widgetResizable">
+          <bool>true</bool>
+         </property>
+         <property name="frameShape">
+          <enum>QFrame::NoFrame</enum>
+         </property>
+         <attribute name="title">
+          <string>Outils expérimentaux</string>
+         </attribute>
+         <attribute name="icon">
+          <iconset>
+           <normaloff>../resources/icons/tools.svg</normaloff>
+          </iconset>
+         </attribute>
+         <widget class="QWidget" name="tab_gcp_inner">
+          <layout class="QVBoxLayout" name="tab_gcp_layout">
+           <property name="leftMargin">
+            <number>8</number>
+           </property>
+           <property name="topMargin">
+            <number>8</number>
+           </property>
+           <property name="rightMargin">
+            <number>8</number>
+           </property>
+           <property name="bottomMargin">
+            <number>8</number>
+           </property>
+           <property name="spacing">
+            <number>8</number>
+           </property>
+           <item>
+            <widget class="QWidget" name="placeholder_experimental">
+             <property name="minimumHeight">
+              <number>28</number>
+             </property>
+             <layout class="QVBoxLayout" name="placeholder_experimental_layout">
+              <property name="leftMargin">
+               <number>0</number>
+              </property>
+              <property name="topMargin">
+               <number>0</number>
+              </property>
+              <property name="rightMargin">
+               <number>0</number>
+              </property>
+              <property name="bottomMargin">
+               <number>0</number>
+              </property>
+              <property name="spacing">
+               <number>8</number>
+              </property>
+              <item>
+               <widget class="QLabel" name="placeholder_experimental_hint">
+                <property name="objectName">
+                 <string>qcvPlaceholderHint</string>
+                </property>
+                <property name="text">
+                 <string>Placeholder Qt Designer : Outils expérimentaux — contenu métier injecté par Python.</string>
+                </property>
+                <property name="wordWrap">
+                 <bool>true</bool>
+                </property>
+               </widget>
+              </item>
+             </layout>
+            </widget>
+           </item>
+          </layout>
+         </widget>
+        </widget>
+       </widget>
+      </item>
+      <item>
+       <widget class="QFrame" name="qcvPreviewPanel">
+        <property name="minimumWidth">
+         <number>180</number>
+        </property>
+        <property name="maximumWidth">
+         <number>380</number>
+        </property>
+        <property name="frameShape">
+         <enum>QFrame::StyledPanel</enum>
+        </property>
+        <layout class="QVBoxLayout" name="previewPanelLayout">
+         <property name="leftMargin">
+          <number>8</number>
+         </property>
+         <property name="topMargin">
+          <number>8</number>
+         </property>
+         <property name="rightMargin">
+          <number>8</number>
+         </property>
+         <property name="bottomMargin">
+          <number>8</number>
+         </property>
+         <property name="spacing">
+          <number>8</number>
+         </property>
+         <item>
+          <layout class="QHBoxLayout" name="previewHeaderLayout">
+           <item>
+            <widget class="QLabel" name="previewPanelTitle">
+             <property name="text">
+              <string>Contrôle photo courante</string>
+             </property>
+            </widget>
+           </item>
+           <item>
+            <spacer name="previewSpacer">
+             <property name="orientation">
+              <enum>Qt::Horizontal</enum>
+             </property>
+             <property name="sizeHint" stdset="0">
+              <size>
+               <width>20</width>
+               <height>20</height>
+              </size>
+             </property>
+            </spacer>
+           </item>
+          </layout>
+         </item>
+         <item>
+          <widget class="QWidget" name="placeholder_preview">
+           <property name="minimumHeight">
+            <number>120</number>
+           </property>
+           <layout class="QVBoxLayout" name="placeholder_preview_layout">
+            <property name="leftMargin">
+             <number>0</number>
+            </property>
+            <property name="topMargin">
+             <number>0</number>
+            </property>
+            <property name="rightMargin">
+             <number>0</number>
+            </property>
+            <property name="bottomMargin">
+             <number>0</number>
+            </property>
+            <item>
+             <widget class="QLabel" name="placeholder_preview_hint">
+              <property name="objectName">
+               <string>qcvPlaceholderHint</string>
+              </property>
+              <property name="text">
+               <string>Placeholder Qt Designer : preview — widget image injecté par Python.</string>
+              </property>
+              <property name="wordWrap">
+               <bool>true</bool>
+              </property>
+             </widget>
+            </item>
+           </layout>
+          </widget>
+         </item>
+         <item>
+          <widget class="QGroupBox" name="quickOptionsGroup">
+           <property name="title">
+            <string>Options rapides</string>
+           </property>
+           <layout class="QGridLayout" name="quickOptionsLayout">
+            <property name="leftMargin">
+             <number>8</number>
+            </property>
+            <property name="topMargin">
+             <number>8</number>
+            </property>
+            <property name="rightMargin">
+             <number>8</number>
+            </property>
+            <property name="bottomMargin">
+             <number>8</number>
+            </property>
+            <item row="0" column="0">
+             <widget class="QLabel" name="qualityLabel">
+              <property name="text">
+               <string>Qualité</string>
+              </property>
+             </widget>
+            </item>
+            <item row="0" column="1">
+             <widget class="QComboBox" name="cmb_quality">
+              <item>
+               <property name="text">
+                <string>25 %</string>
+               </property>
+              </item>
+              <item>
+               <property name="text">
+                <string>50 %</string>
+               </property>
+              </item>
+              <item>
+               <property name="text">
+                <string>100 %</string>
+               </property>
+              </item>
+             </widget>
+            </item>
+            <item row="1" column="0" colspan="2">
+             <widget class="QCheckBox" name="cb_lowlat">
+              <property name="text">
+               <string>Faible latence</string>
+              </property>
+              <property name="checked">
+               <bool>true</bool>
+              </property>
+             </widget>
+            </item>
+            <item row="2" column="0" colspan="2">
+             <widget class="QCheckBox" name="cb_show_labels">
+              <property name="text">
+               <string>Étiquettes</string>
+              </property>
+              <property name="checked">
+               <bool>true</bool>
+              </property>
+             </widget>
+            </item>
+           </layout>
+          </widget>
+         </item>
+         <item>
+          <widget class="QLabel" name="lbl_preview_info">
+           <property name="text">
+            <string>PDV : —
+Projection : —
+Azimut : — · Tangage : — · Roulis : —
+HFOV : — · VFOV : — · Distance max : —</string>
+           </property>
+           <property name="wordWrap">
+            <bool>true</bool>
+           </property>
+          </widget>
+         </item>
+        </layout>
+       </widget>
+      </item>
+     </layout>
+    </widget>
+   </item>
+  </layout>
+ </widget>
+ <resources />
+ <connections />
+</ui>

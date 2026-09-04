@@ -1,0 +1,21 @@
+{
+  "id": "volume",
+  "name": "Volume / bâtiment",
+  "description": "Faces pleines extrudées pour bâtiments, locaux techniques et volumes simples.",
+  "geometry": [
+    "polygon",
+    "line"
+  ],
+  "generator": "extrusion",
+  "parameters": {},
+  "appearance": {
+    "pattern": "solid"
+  },
+  "lod": {
+    "detailed_min_px": 12,
+    "simple_min_px": 2
+  },
+  "category": "Bâtiments / ouvrages",
+  "taxonomy_type": "agriculture_objects",
+  "taxonomy_family": "buildings_structures"
+}

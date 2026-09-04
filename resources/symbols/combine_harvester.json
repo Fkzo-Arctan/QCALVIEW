@@ -1,0 +1,46 @@
+{
+  "id": "combine_harvester",
+  "name": "Moissonneuse-batteuse",
+  "category": "Agriculture",
+  "description": "Silhouette schématique de moissonneuse-batteuse pour mises en situation agricoles.",
+  "geometry": [
+    "point",
+    "polygon"
+  ],
+  "generator": "billboard_svg",
+  "fallback": "vehicle",
+  "parameters": {
+    "height_m": {
+      "source": "layer_height",
+      "default": 4.0,
+      "label": "Hauteur (m)"
+    },
+    "width_m": {
+      "default": 8.5,
+      "field": "qcv_width",
+      "label": "Largeur (m)"
+    },
+    "svg": "assets/combine_harvester.svg",
+    "spacing_m": {
+      "default": 17.0,
+      "label": "Espacement dispersion polygonale (m)"
+    },
+    "position_jitter": {
+      "default": 0.18,
+      "label": "Irrégularité position (0–0,45)"
+    },
+    "max_instances": {
+      "default": 400,
+      "label": "Nombre maximum sur polygone"
+    }
+  },
+  "appearance": {
+    "fill_alpha": 255
+  },
+  "lod": {
+    "detailed_min_px": 12,
+    "simple_min_px": 2
+  },
+  "taxonomy_type": "vehicles",
+  "taxonomy_family": "harvesters"
+}
