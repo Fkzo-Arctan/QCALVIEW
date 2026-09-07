@@ -28,7 +28,6 @@ try:
 except Exception:
     QWidget = QtWidgets.QWidget; QLabel = QtWidgets.QLabel
     QFileDialog = QtWidgets.QFileDialog; QMessageBox = QtWidgets.QMessageBox
-from xml.sax.saxutils import escape as _xml_escape
 
 
 
@@ -305,7 +304,12 @@ def _ascii_safe_text(value, keep_newlines=False):
 
 
 def _xml_text(value):
-    return _xml_escape('' if value is None else str(value), {'"': '&quot;'})
+    """Escape text inserted into the XMP XML packet without invoking an XML parser."""
+    text = '' if value is None else str(value)
+    return (text.replace('&', '&amp;')
+                .replace('<', '&lt;')
+                .replace('>', '&gt;')
+                .replace('"', '&quot;'))
 
 
 def _insert_xmp_packet_jpeg(out_path, xmp_xml):

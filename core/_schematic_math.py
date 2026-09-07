@@ -21,7 +21,7 @@ def clamp(value: float, lo: float, hi: float) -> float:
 
 def deterministic_noise(seed: int, count: int, amplitude: float = 1.0) -> List[float]:
     """Stable pseudo-random values in [-amplitude, +amplitude]."""
-    rnd = random.Random(int(seed) & 0xFFFFFFFF)
+    rnd = random.Random(int(seed) & 0xFFFFFFFF)  # nosec B311 -- deterministic rendering jitter, not cryptography
     amp = abs(float(amplitude))
     return [rnd.uniform(-amp, amp) for _ in range(max(0, int(count)))]
 

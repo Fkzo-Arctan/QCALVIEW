@@ -1244,7 +1244,7 @@ def _points_in_polygon_grid(ring: Sequence[Tuple[float, float]], spacing: float,
     step = max(0.25, float(spacing))
     # Local Random is deterministic and does not affect Python's global RNG.
     import random
-    rnd = random.Random(int(seed) & 0xFFFFFFFF)
+    rnd = random.Random(int(seed) & 0xFFFFFFFF)  # nosec B311 -- deterministic rendering jitter, not cryptography
     out: List[Tuple[float, float]] = []
     row = 0
     y = miny + step * 0.5

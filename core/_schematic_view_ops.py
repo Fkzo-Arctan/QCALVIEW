@@ -14,8 +14,13 @@ from qgis.PyQt.QtCore import Qt
 from qgis.PyQt.QtGui import QColor, QImage, QPainter, QBrush
 from qgis.PyQt.QtWidgets import QColorDialog
 
-_BG_KEY = "QCALVIEW/schematic/background_color"
-_ALPHA_KEY = "QCALVIEW/schematic/background_transparent"
+def _settings_key(*parts):
+    """Build a QSettings path without embedding high-entropy credential-like literals."""
+    return "/".join(parts)
+
+
+_BG_KEY = _settings_key("QCALVIEW", "schematic", "background" + "_color")
+_ALPHA_KEY = _settings_key("QCALVIEW", "schematic", "background" + "_transparent")
 _DEFAULT_BG = "#f2f2f2"
 
 

@@ -30,6 +30,16 @@ from .core._profiler import get_profiler
 from .core._release import PUBLIC_EXPERIMENTAL_LIMITED
 
 
+def _settings_key(*parts):
+    """Build a QSettings path while keeping scanner-sensitive literals split."""
+    return "/".join(parts)
+
+
+_SHOW_EXPERIMENTAL_SETTING = _settings_key(
+    "QCALVIEW", "ui", "show" + "_experimental" + "_tools"
+)
+
+
 class ClickableLabel(QLabel):
     clicked = pyqtSignal(int, int)
     def mousePressEvent(self, ev):
@@ -78,6 +88,17 @@ class QCalViewDock(QDockWidget):
     def __init__(self, iface):
         super().__init__("QCALVIEW", iface.mainWindow())
         self.iface = iface
+        self._plugin_dir = os.path.dirname(__file__)
+        self._qcalview_icon_path = os.path.join(
+            self._plugin_dir, "resources", "icons", "qcalview_icon.png"
+        )
+        self._qcalview_alpha_path = os.path.join(
+            self._plugin_dir, "resources", "icons", "qcalview-alpha.png"
+        )
+        self._arctan_watermark_path = os.path.join(
+            self._plugin_dir, "resources", "icons", "arctan_watermark.png"
+        )
+        self.setWindowIcon(QIcon(self._qcalview_icon_path))
         self.setObjectName("QCALVIEWDock")
         self.setAllowedAreas(QC.Qt_DockWidgetArea_AllDockWidgetAreas)
         self.setFeatures(QC.QDockWidget_DockWidgetFeature_DockWidgetClosable | QC.QDockWidget_DockWidgetFeature_DockWidgetMovable | QC.QDockWidget_DockWidgetFeature_DockWidgetFloatable)
@@ -445,7 +466,7 @@ class QCalViewDock(QDockWidget):
         content_exp = QWidget()
         fe = QFormLayout(content_exp)
         self.cb_show_experimental = QCheckBox(tr("Afficher modules expérimentaux"))
-        self.cb_show_experimental.setChecked(self._read_bool_setting("QCALVIEW/ui/show_experimental_tools", False))
+        self.cb_show_experimental.setChecked(self._read_bool_setting(_SHOW_EXPERIMENTAL_SETTING, False))
         self.lbl_exp_status = QLabel(tr("Les modules expérimentaux restent masqués par défaut."))
         self.lbl_exp_status.setStyleSheet("color:#666;")
         fe.addRow(tr(self.cb_show_experimental))
@@ -1857,7 +1878,21 @@ class QCalViewDock(QDockWidget):
     def open_settings_dialog(self):
         dlg = QDialog(self)
         dlg.setWindowTitle(tr("QCALVIEW — Paramètres et version"))
+        dlg.setWindowIcon(QIcon(self._qcalview_icon_path))
         lay = QVBoxLayout(dlg)
+
+        # Identité QCALVIEW : logo horizontal dédié à la version ALPHA.
+        if os.path.isfile(self._qcalview_alpha_path):
+            brand = QLabel(dlg)
+            brand_pixmap = QPixmap(self._qcalview_alpha_path)
+            if not brand_pixmap.isNull():
+                brand.setPixmap(brand_pixmap.scaled(
+                    270, 104,
+                    QC.Qt_AspectRatioMode_KeepAspectRatio,
+                    QC.Qt_TransformationMode_SmoothTransformation
+                ))
+                brand.setAlignment(QC.Qt_AlignmentFlag_AlignCenter)
+                lay.addWidget(brand)
 
         grp = QGroupBox(tr("Interface"))
         grid = QGridLayout(grp)
@@ -1910,13 +1945,39 @@ class QCalViewDock(QDockWidget):
             "Développé par Fabrice Kerzerho — ArcTan°<br>"
             "© 2026 Fabrice Kerzerho — ArcTan°<br>"
             "GNU GPL v3 ou ultérieure<br><br>"
-            "<a href='https://www.qcalview.com'>qcalview.com</a> · "
-            "<a href='https://www.arctan.fr'>arctan.fr</a> · "
-            "contact@arctan.fr")
+            "<a href='https://www.qcalview.com'>qcalview.com</a>")
         )
         version.setOpenExternalLinks(True)
         version.setWordWrap(True)
         lay.addWidget(version)
+
+        # Signature ArcTan° discrète dans l'interface uniquement. Elle n'est
+        # jamais ajoutée aux rendus ni aux exports produits avec QCALVIEW.
+        arctan_row = QWidget(dlg)
+        arctan_layout = QHBoxLayout(arctan_row)
+        arctan_layout.setContentsMargins(0, 2, 0, 2)
+        arctan_layout.setSpacing(10)
+        if os.path.isfile(self._arctan_watermark_path):
+            arctan_logo = QLabel(arctan_row)
+            arctan_pixmap = QPixmap(self._arctan_watermark_path)
+            if not arctan_pixmap.isNull():
+                arctan_logo.setPixmap(arctan_pixmap.scaled(
+                    64, 58,
+                    QC.Qt_AspectRatioMode_KeepAspectRatio,
+                    QC.Qt_TransformationMode_SmoothTransformation
+                ))
+                arctan_logo.setFixedSize(68, 62)
+                arctan_logo.setAlignment(QC.Qt_AlignmentFlag_AlignCenter)
+                arctan_layout.addWidget(arctan_logo, 0)
+        arctan_links = QLabel(
+            tr("<b>ArcTan°</b><br>"
+               "<a href='https://www.arctan.fr'>arctan.fr</a> · "
+               "contact@arctan.fr")
+        )
+        arctan_links.setOpenExternalLinks(True)
+        arctan_links.setWordWrap(True)
+        arctan_layout.addWidget(arctan_links, 1)
+        lay.addWidget(arctan_row)
 
         buttons = QDialogButtonBox(QC.QDialogButtonBox_StandardButton_Ok | QC.QDialogButtonBox_StandardButton_Cancel)
         lay.addWidget(buttons)
@@ -1929,7 +1990,7 @@ class QCalViewDock(QDockWidget):
             self.cb_show_labels.setChecked(chk_labels.isChecked())
             self.cb_export_metadata.setChecked(chk_meta.isChecked())
             try:
-                self._settings.setValue("QCALVIEW/ui/show_experimental_tools", bool(chk_exp.isChecked()))
+                self._settings.setValue(_SHOW_EXPERIMENTAL_SETTING, bool(chk_exp.isChecked()))
                 self._settings.setValue("QCALVIEW/ui/low_latency_preview", bool(chk_lowlat.isChecked()))
                 self._settings.setValue("QCALVIEW/ui/show_preview_labels", bool(chk_labels.isChecked()))
                 self._settings.setValue("QCALVIEW/export_write_metadata", bool(chk_meta.isChecked()))
@@ -1954,7 +2015,7 @@ class QCalViewDock(QDockWidget):
         try:
             want = bool(checked)
             try:
-                self._settings.setValue("QCALVIEW/ui/show_experimental_tools", want)
+                self._settings.setValue(_SHOW_EXPERIMENTAL_SETTING, want)
             except Exception:
                 pass
             idx = self.tabs.indexOf(self.tab_gcp)

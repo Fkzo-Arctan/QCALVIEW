@@ -152,6 +152,9 @@ def dialog_exec(dialog):
     fn = getattr(dialog, "exec", None)
     if callable(fn):
         return fn()
-    return dialog.exec_()
+    legacy_fn = getattr(dialog, "exec_", None)
+    if callable(legacy_fn):
+        return legacy_fn()
+    raise AttributeError("Dialog object exposes neither exec() nor exec_()")
 
 __all__ = ["QC", "QAction", "QShortcut", "dialog_exec", "enum_int"]

@@ -13,7 +13,7 @@ from __future__ import annotations
 
 import os
 import re
-import xml.etree.ElementTree as ET
+import xml.etree.ElementTree as ET  # nosec B405 -- parses only bundled QCALVIEW .ts catalogs
 
 from qgis.PyQt.QtCore import QCoreApplication, QLocale, QSettings, QTranslator
 
@@ -88,7 +88,7 @@ class _TsRuntimeTranslator(QTranslator):
 
     def _load_ts(self, ts_path):
         try:
-            root = ET.parse(ts_path).getroot()
+            root = ET.parse(ts_path).getroot()  # nosec B314 -- ts_path is resolved inside the plugin i18n directory
         except Exception:
             return
         for ctx in root.findall("context"):

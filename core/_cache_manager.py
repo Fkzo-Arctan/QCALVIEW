@@ -192,7 +192,7 @@ class SmartCacheManager(QObject):
         # Trier pour stabilité
         sorted_items = sorted(params.items())
         json_str = json.dumps(sorted_items, sort_keys=True, default=str)
-        return hashlib.md5(json_str.encode()).hexdigest()
+        return hashlib.sha256(json_str.encode("utf-8")).hexdigest()
 
 
 # --- Intégration dans qcalview_dock.py ---

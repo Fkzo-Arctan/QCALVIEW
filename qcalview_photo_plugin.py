@@ -3,7 +3,9 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 from .core._i18n import tr, install_qcalview_translator, remove_qcalview_translator
 from .core._compat import QC, dialog_exec, QAction
+import os
 from qgis.PyQt.QtCore import Qt
+from qgis.PyQt.QtGui import QIcon
 from qgis.utils import iface
 from qgis.core import Qgis, QgsVectorLayer
 from .qcalview_dock import QCalViewDock
@@ -18,20 +20,43 @@ class QCalViewPlugin:
         self.settings_action = None
         self.layer_context_action = None
         self.dock = None
+        self.plugin_dir = os.path.dirname(__file__)
+        self.icon_path = os.path.join(
+            self.plugin_dir, "resources", "icons", "qcalview_icon.png"
+        )
 
     def initGui(self):
         qcv_log(f"Plugin {RELEASE_LABEL} initialisé", "PLUGIN", "SUCCESS")
-        self.action = QAction(tr("QCALVIEW"), self.iface.mainWindow())
+        plugin_icon = QIcon(self.icon_path)
+        self.action = QAction(plugin_icon, tr("QCALVIEW"), self.iface.mainWindow())
         self.action.triggered.connect(self.toggle_dock)
         self.iface.addPluginToMenu("&QCALVIEW", self.action)
         self.iface.addToolBarIcon(self.action)
-        self.settings_action = QAction(tr("Paramètres QCALVIEW"), self.iface.mainWindow())
+
+        # QGIS crée un sous-menu « QCALVIEW » dans le menu Extensions.
+        # Appliquer aussi l'icône au sous-menu lui-même afin qu'elle soit
+        # visible à gauche du nom du plugin, pas seulement sur son action.
+        try:
+            plugins_menu = self.iface.pluginMenu()
+            for menu_action in plugins_menu.actions():
+                submenu = menu_action.menu()
+                if submenu is None:
+                    continue
+                title = str(submenu.title() or "").replace("&", "").strip()
+                if title == "QCALVIEW":
+                    submenu.setIcon(plugin_icon)
+                    menu_action.setIcon(plugin_icon)
+                    break
+        except Exception as exc:
+            qcv_log(f"Icône du menu QCALVIEW non appliquée : {exc}", "PLUGIN", "WARNING")
+
+        self.settings_action = QAction(plugin_icon, tr("Paramètres QCALVIEW"), self.iface.mainWindow())
         self.settings_action.triggered.connect(self.open_settings)
         self.iface.addPluginToMenu("&QCALVIEW", self.settings_action)
 
         # Raccourci ergonomique dans l'arborescence QGIS : une seule action,
         # uniquement pour les couches vectorielles compatibles avec les overlays.
-        self.layer_context_action = QAction(tr("Ajouter à QCALVIEW"), self.iface.mainWindow())
+        self.layer_context_action = QAction(plugin_icon, tr("Ajouter à QCALVIEW"), self.iface.mainWindow())
         self.layer_context_action.triggered.connect(self.add_active_layer_to_qcalview)
         try:
             self.iface.addCustomActionForLayerType(
