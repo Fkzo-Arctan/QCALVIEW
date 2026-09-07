@@ -58,6 +58,6 @@ See `docs/` for the user manual, current limitations and licensing notes.
 
 ## Licence
 
-QCALVIEW is licensed under the **GNU GPL v3.0 or later**. Copyright © 2026 Fabrice Kerzerho — ArcTan°.
+QCALVIEW is licensed under the [GNU GPL v3.0 or later](LICENSE). Copyright © 2026 Fabrice Kerzerho — ArcTan°.
 
-Redistributions should retain the applicable attribution described in `NOTICE`. QCALVIEW, ArcTan° and their associated logos/visual identity are not licensed for unrestricted branding use under the GPL. See `TRADEMARKS.md`.
+Redistributions should retain the applicable attribution described in [NOTICE](NOTICE). QCALVIEW, ArcTan° and their associated logos/visual identity are not licensed for unrestricted branding use under the GPL. See [trademark policy](TRADEMARKS.md).
