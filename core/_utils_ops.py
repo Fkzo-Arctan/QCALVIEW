@@ -1,6 +1,7 @@
 
 
 
+from ._exceptions import qcv_suppress_exception as _qcv_suppress
 from ._i18n import tr
 from ._compat import QC, dialog_exec, QShortcut, enum_int
 from qgis.PyQt import uic
@@ -62,8 +63,8 @@ def _qgis_style_opacity(layer, renderer=None, symbol=None, fallback=1.0):
                 op *= _opacity_factor(attr(), 1.0)
             elif attr is not None:
                 op *= _opacity_factor(attr, 1.0)
-        except Exception:
-            pass
+        except Exception as _qcv_exc:
+            _qcv_suppress(_qcv_exc, "core/_utils_ops.py:65")
     return max(0.0, min(1.0, op))
 
 def _read_metadata_text_head(path: str, max_bytes: int = 4 * 1024 * 1024) -> str:
@@ -82,8 +83,8 @@ def _parse_xmp_absolute_altitude(path) -> float | None:
         m = re.search(r"(?:drone-dji:)?AbsoluteAltitude[^0-9\-\.]*(-?\d+(?:\.\d+)?)", text, re.I)
         if m:
             return float(m.group(1))
-    except Exception:
-        pass
+    except Exception as _qcv_exc:
+        _qcv_suppress(_qcv_exc, "core/_utils_ops.py:85")
     return None
 
 
@@ -106,13 +107,13 @@ def _parse_xmp_gpano_projection(jpeg_path: str) -> dict:
                 
                 if k.endswith("Pixels"):
                     try: out[k] = int(float(val))
-                    except: out[k] = val
+                    except BaseException: out[k] = val
                 elif k == "UsePanoramaViewer":
                     out[k] = val.lower() in ("true", "1", "yes")
                 else:
                     out[k] = val
-    except Exception:
-        pass
+    except Exception as _qcv_exc:
+        _qcv_suppress(_qcv_exc, "core/_utils_ops.py:114")
     return out
     
 def _rat_to_float(x, default=None):
@@ -123,8 +124,8 @@ def _rat_to_float(x, default=None):
             return float(x[0]) / float(x[1])
         if isinstance(x, (int, float)):
             return float(x)
-    except Exception:
-        pass
+    except Exception as _qcv_exc:
+        _qcv_suppress(_qcv_exc, "core/_utils_ops.py:126")
     return default
 
 def _mm_per_unit(res_unit: int) -> float:
@@ -161,8 +162,8 @@ def _parse_xmp_relative_altitude(path) -> float | None:
         m = re.search(r"(?:drone-dji:)?RelativeAltitude[^0-9\-\.]*(-?\d+(?:\.\d+)?)", text, re.I)
         if m:
             return float(m.group(1))
-    except Exception:
-        pass
+    except Exception as _qcv_exc:
+        _qcv_suppress(_qcv_exc, "core/_utils_ops.py:164")
     return None
 
 def read_exif(path):
@@ -197,8 +198,8 @@ def read_exif(path):
         finally:
             try:
                 Image.MAX_IMAGE_PIXELS = _old_max_pixels
-            except Exception:
-                pass
+            except Exception as _qcv_exc:
+                _qcv_suppress(_qcv_exc, "core/_utils_ops.py:200")
 
         TAGS = ExifTags.TAGS
         GPSTAGS = getattr(ExifTags, "GPSTAGS", {})
@@ -237,15 +238,15 @@ def read_exif(path):
             if (not out['SensorWidthMM']) and out['FocalLength']:
                 try:
                     out['SensorWidthMM'] = float(out['FocalLength']) * 36.0 / float(f35)
-                except Exception:
-                    pass
+                except Exception as _qcv_exc:
+                    _qcv_suppress(_qcv_exc, "core/_utils_ops.py:240")
 
         
         if (out['FocalLength'] and out['SensorWidthMM']):
             try:
                 out['FocalLength35mmEq'] = float(out['FocalLength']) * 36.0 / float(out['SensorWidthMM'])
-            except Exception:
-                pass
+            except Exception as _qcv_exc:
+                _qcv_suppress(_qcv_exc, "core/_utils_ops.py:247")
 
         
         gps = get('GPSInfo', None)
@@ -300,8 +301,8 @@ def read_exif(path):
             if 1.98 <= ratio <= 2.02:
                 out["Projection"] = "equirectangular"
                 out["ProjectionSource"] = "ratio-2:1"
-    except Exception:
-        pass
+    except Exception as _qcv_exc:
+        _qcv_suppress(_qcv_exc, "core/_utils_ops.py:303")
     
     return out
 
@@ -340,7 +341,7 @@ class FmvViewerWindow(QWidget):
             combo.blockSignals(False)
         finally:
             try: combo.blockSignals(False)
-            except Exception: pass
+            except Exception as _qcv_exc: _qcv_suppress(_qcv_exc, "core/_utils_ops.py:343")
             self._pdv_sync_guard = False
 
     def _on_viewer_pdv_changed(self, index):
@@ -355,8 +356,8 @@ class FmvViewerWindow(QWidget):
             owner._camera_select_combo_feature_by_fid(int(fid), autoload=True)
             self.sync_pdv_controls()
             self.update_info()
-        except Exception:
-            pass
+        except Exception as _qcv_exc:
+            _qcv_suppress(_qcv_exc, "core/_utils_ops.py:358")
 
     def _navigate_pdv(self, delta):
         owner = getattr(self, '_owner', None)
@@ -366,8 +367,8 @@ class FmvViewerWindow(QWidget):
             if int(delta) < 0: owner._camera_prev_feature()
             else: owner._camera_next_feature()
             self.sync_pdv_controls()
-        except Exception:
-            pass
+        except Exception as _qcv_exc:
+            _qcv_suppress(_qcv_exc, "core/_utils_ops.py:369")
 
     def _on_live_toggled(self, checked):
         owner = getattr(self, '_owner', None)
@@ -382,7 +383,7 @@ class FmvViewerWindow(QWidget):
             owner._camera_refresh_current_view(force=True)
         except Exception:
             try: owner.force_refresh_now()
-            except Exception: pass
+            except Exception as _qcv_exc: _qcv_suppress(_qcv_exc, "core/_utils_ops.py:385")
 
     def resizeEvent(self, ev):
         super().resizeEvent(ev); self._refresh()
@@ -420,13 +421,13 @@ def _begin_render_field_edit(self, widget=None):
         self._render_edit_pending = True
         try:
             self.debounce.stop()
-        except Exception:
-            pass
+        except Exception as _qcv_exc:
+            _qcv_suppress(_qcv_exc, "core/_utils_ops.py:423")
         try:
             if hasattr(self, '_hq_render_timer'):
                 self._hq_render_timer.stop()
-        except Exception:
-            pass
+        except Exception as _qcv_exc:
+            _qcv_suppress(_qcv_exc, "core/_utils_ops.py:428")
         try:
             sched = getattr(self, 'render_scheduler', None)
             if sched is not None:
@@ -434,10 +435,10 @@ def _begin_render_field_edit(self, widget=None):
                     sched.debounce_timer.stop()
                 if getattr(sched, 'quality_restore_timer', None) is not None:
                     sched.quality_restore_timer.stop()
-        except Exception:
-            pass
-    except Exception:
-        pass
+        except Exception as _qcv_exc:
+            _qcv_suppress(_qcv_exc, "core/_utils_ops.py:437")
+    except Exception as _qcv_exc:
+        _qcv_suppress(_qcv_exc, "core/_utils_ops.py:439")
 
 
 def _end_render_field_edit(self, widget=None):
@@ -461,13 +462,13 @@ def _end_render_field_edit(self, widget=None):
             try:
                 if hasattr(self, '_camera_schedule_autosave'):
                     self._camera_schedule_autosave()
-            except Exception:
-                pass
+            except Exception as _qcv_exc:
+                _qcv_suppress(_qcv_exc, "core/_utils_ops.py:464")
             try:
                 if hasattr(self, '_sync_pdv_qml'):
                     self._sync_pdv_qml()
-            except Exception:
-                pass
+            except Exception as _qcv_exc:
+                _qcv_suppress(_qcv_exc, "core/_utils_ops.py:469")
             
             
             
@@ -487,8 +488,8 @@ def _end_render_field_edit(self, widget=None):
     except Exception:
         try:
             self.render_preview()
-        except Exception:
-            pass
+        except Exception as _qcv_exc:
+            _qcv_suppress(_qcv_exc, "core/_utils_ops.py:490")
 
 
 def _connect_change_to_schedule(self, widget):
@@ -501,29 +502,29 @@ def _connect_change_to_schedule(self, widget):
     if isinstance(widget, (QSpinBox, QDoubleSpinBox)):
         try:
             widget.valueChanged.connect(self.render_preview)
-        except Exception:
-            pass
+        except Exception as _qcv_exc:
+            _qcv_suppress(_qcv_exc, "core/_utils_ops.py:504")
         try:
             le = widget.lineEdit()
             if le is not None:
                 le.textEdited.connect(lambda *_a, w=widget: self._begin_render_field_edit(w))
-        except Exception:
-            pass
+        except Exception as _qcv_exc:
+            _qcv_suppress(_qcv_exc, "core/_utils_ops.py:510")
         try:
             widget.editingFinished.connect(lambda w=widget: self._end_render_field_edit(w))
-        except Exception:
-            pass
+        except Exception as _qcv_exc:
+            _qcv_suppress(_qcv_exc, "core/_utils_ops.py:514")
         return
 
     if isinstance(widget, QLineEdit):
         try:
             widget.textEdited.connect(lambda *_a, w=widget: self._begin_render_field_edit(w))
-        except Exception:
-            pass
+        except Exception as _qcv_exc:
+            _qcv_suppress(_qcv_exc, "core/_utils_ops.py:521")
         try:
             widget.editingFinished.connect(lambda w=widget: self._end_render_field_edit(w))
-        except Exception:
-            pass
+        except Exception as _qcv_exc:
+            _qcv_suppress(_qcv_exc, "core/_utils_ops.py:525")
         return
 
     
@@ -533,13 +534,14 @@ def _connect_change_to_schedule(self, widget):
             try:
                 getattr(widget, sig).connect(self.render_preview)
                 return
-            except Exception:
+            except Exception as _qcv_exc:
+                _qcv_suppress(_qcv_exc, "core/_utils_ops.py:536")
                 continue
 
 def _on_camera_layer_changed(self, layer):
     for sig, func in self._cam_connections:
         try: sig.disconnect(func)
-        except: pass
+        except BaseException as _qcv_exc: _qcv_suppress(_qcv_exc, "core/_utils_ops.py:542")
     self._cam_connections.clear()
     self._cam_layer = layer
     if isinstance(layer, QgsVectorLayer):
@@ -548,13 +550,13 @@ def _on_camera_layer_changed(self, layer):
         
         try:
             layer.featureAdded.connect(lambda *a, **k: self.render_preview()); self._cam_connections.append((layer.featureAdded, self.render_preview))
-        except: pass
+        except BaseException as _qcv_exc: _qcv_suppress(_qcv_exc, "core/_utils_ops.py:551")
         try:
             layer.featureAdded.connect(lambda *a, **k: self.render_preview()); self._cam_connections.append((layer.featureAdded, self.render_preview))
-        except: pass
+        except BaseException as _qcv_exc: _qcv_suppress(_qcv_exc, "core/_utils_ops.py:554")
         try:
             layer.featuresDeleted.connect(lambda *a, **k: self.render_preview()); self._cam_connections.append((layer.featuresDeleted, self.render_preview))
-        except: pass
+        except BaseException as _qcv_exc: _qcv_suppress(_qcv_exc, "core/_utils_ops.py:557")
 
 def load_photo(self):
     path, _ = QFileDialog.getOpenFileName(self, tr("Choisir une photo"), "", tr("Images (*.jpg *.jpeg *.png *.tif *.tiff)"))
@@ -571,8 +573,8 @@ def load_photo(self):
             QMessageBox.warning(self, tr("QCALVIEW — chargement image"),
                                 tr("Impossible de charger cette image.\n\n" + str(e) +
                                 "\n\nConsultez le journal QCALVIEW pour le détail."))
-        except Exception:
-            pass
+        except Exception as _qcv_exc:
+            _qcv_suppress(_qcv_exc, "core/_utils_ops.py:574")
         return False
     self.photo_path = path
     self.image = working_image
@@ -581,16 +583,16 @@ def load_photo(self):
     self._base_cache.clear(); self._z_cache.clear(); self._horizon = None; self._horizon_params = None
     try:
         getattr(self, "_overlay_cache", {}).clear()
-    except Exception:
-        pass
+    except Exception as _qcv_exc:
+        _qcv_suppress(_qcv_exc, "core/_utils_ops.py:584")
     try:
         getattr(self, "_geom_cache", {}).clear()
-    except Exception:
-        pass
+    except Exception as _qcv_exc:
+        _qcv_suppress(_qcv_exc, "core/_utils_ops.py:588")
     try:
         self._layer_cache_versions = {}
-    except Exception:
-        pass
+    except Exception as _qcv_exc:
+        _qcv_suppress(_qcv_exc, "core/_utils_ops.py:592")
 
     ex = read_exif(path); info = []
     try:
@@ -606,8 +608,8 @@ def load_photo(self):
             info.append(f"Source {sw}×{sh} px · proxy {pw}×{ph}")
         if not ex.get('Projection') and sh > 0 and (float(sw) / float(sh)) >= 3.0:
             info.append("Panorama large : projection manuelle conservée")
-    except Exception:
-        pass
+    except Exception as _qcv_exc:
+        _qcv_suppress(_qcv_exc, "core/_utils_ops.py:609")
     
     
     
@@ -637,8 +639,8 @@ def load_photo(self):
                 else:
                     cmb.setCurrentText(mode)
                 updated = True
-            except Exception:
-                pass
+            except Exception as _qcv_exc:
+                _qcv_suppress(_qcv_exc, "core/_utils_ops.py:640")
         
     if not updated:
         self._projection_mode = mode
@@ -691,8 +693,8 @@ def load_photo(self):
             self.cb_360.blockSignals(False)
             self.d_hfov.blockSignals(False)
             self.d_vfov.blockSignals(False)
-        except Exception:
-            pass
+        except Exception as _qcv_exc:
+            _qcv_suppress(_qcv_exc, "core/_utils_ops.py:694")
 
     
     
@@ -759,16 +761,16 @@ def load_photo(self):
 
     try:
         self._camera_assign_current_photo_path(path)
-    except Exception:
-        pass
+    except Exception as _qcv_exc:
+        _qcv_suppress(_qcv_exc, "core/_utils_ops.py:762")
     finally:
         self._camera_loading_feature = prev_loading
 
     self.render_preview()
     try:
         self._camera_schedule_autosave()
-    except Exception:
-        pass
+    except Exception as _qcv_exc:
+        _qcv_suppress(_qcv_exc, "core/_utils_ops.py:770")
     
     try:
         layer = self.cmb_camera.currentLayer()
@@ -776,8 +778,8 @@ def load_photo(self):
             proj_txt = ""
             try:
                 proj_txt = str(self.cmb_proj.currentText()).strip().upper()
-            except Exception:
-                pass
+            except Exception as _qcv_exc:
+                _qcv_suppress(_qcv_exc, "core/_utils_ops.py:779")
             is360 = bool(self._is360_mode()) if hasattr(self, '_is360_mode') else (bool(self.cb_360.isChecked()) and proj_txt in ("EQUIRECT", "EQUIRECTANGULAR", "CYLINDRICAL"))
             md = float(self.d_maxdist.value())
             rng = 200.0 if md <= 0 else max(50.0, min(500.0, md/5.0))
@@ -792,13 +794,13 @@ def load_photo(self):
             layer.triggerRepaint()
             self.iface.mapCanvas().refresh()    
             
-    except Exception:
-        pass
+    except Exception as _qcv_exc:
+        _qcv_suppress(_qcv_exc, "core/_utils_ops.py:795")
     try:
         if hasattr(self, "_update_ui_summary"):
             self._update_ui_summary()
-    except Exception:
-        pass
+    except Exception as _qcv_exc:
+        _qcv_suppress(_qcv_exc, "core/_utils_ops.py:800")
     return True
 
 
@@ -826,16 +828,16 @@ class _ImageViewer(QDialog):
             self.setSizePolicy(QC.QSizePolicy_Policy_Expanding, QC.QSizePolicy_Policy_Expanding)
             self.setMinimumSize(320, 220)
             self.setMaximumSize(16777215, 16777215)
-        except Exception:
-            pass
+        except Exception as _qcv_exc:
+            _qcv_suppress(_qcv_exc, "core/_utils_ops.py:829")
         self._scene = QGraphicsScene(self)
         self._view = QGraphicsView(self._scene, self)
         try:
             self._view.setMinimumSize(160, 120)
             self._view.setMaximumSize(16777215, 16777215)
             self._view.setSizePolicy(QC.QSizePolicy_Policy_Ignored, QC.QSizePolicy_Policy_Ignored)
-        except Exception:
-            pass
+        except Exception as _qcv_exc:
+            _qcv_suppress(_qcv_exc, "core/_utils_ops.py:837")
         self._view.viewport().installEventFilter(self)
         self._view.setDragMode(QC.QGraphicsView_DragMode_ScrollHandDrag)
         self._view.setTransformationAnchor(QC.QGraphicsView_ViewportAnchor_AnchorUnderMouse)
@@ -890,8 +892,8 @@ class _ImageViewer(QDialog):
             try:
                 b.setMinimumWidth(0)
                 b.setSizePolicy(QC.QSizePolicy_Policy_Maximum, QC.QSizePolicy_Policy_Fixed)
-            except Exception:
-                pass
+            except Exception as _qcv_exc:
+                _qcv_suppress(_qcv_exc, "core/_utils_ops.py:893")
             top.addWidget(b)
         top.addSpacing(8)
         top.addWidget(QLabel(tr("PDV")))
@@ -914,8 +916,8 @@ class _ImageViewer(QDialog):
             self._info_panel.setMinimumHeight(0)
             self._info_panel.setMaximumHeight(16777215)
             self._info_panel.setSizePolicy(QC.QSizePolicy_Policy_Fixed, QC.QSizePolicy_Policy_Ignored)
-        except Exception:
-            pass
+        except Exception as _qcv_exc:
+            _qcv_suppress(_qcv_exc, "core/_utils_ops.py:917")
         self._info_panel.setStyleSheet("background:#202629; color:#e9eef2; padding:10px; border-radius:6px;")
 
         lay = QVBoxLayout(self)
@@ -1006,8 +1008,8 @@ class _ImageViewer(QDialog):
         finally:
             try:
                 combo.blockSignals(False)
-            except Exception:
-                pass
+            except Exception as _qcv_exc:
+                _qcv_suppress(_qcv_exc, "core/_utils_ops.py:1009")
             self._pdv_sync_guard = False
 
     def _on_viewer_pdv_changed(self, index):
@@ -1027,8 +1029,8 @@ class _ImageViewer(QDialog):
         except Exception as exc:
             try:
                 owner.iface.messageBar().pushWarning(tr('QCALVIEW'), tr(f'Changement de PDV impossible : {exc}'))
-            except Exception:
-                pass
+            except Exception as _qcv_exc:
+                _qcv_suppress(_qcv_exc, "core/_utils_ops.py:1030")
 
     def _navigate_pdv(self, delta):
         owner = getattr(self, '_owner', None)
@@ -1044,8 +1046,8 @@ class _ImageViewer(QDialog):
         except Exception as exc:
             try:
                 owner.iface.messageBar().pushWarning(tr('QCALVIEW'), tr(f'Navigation PDV impossible : {exc}'))
-            except Exception:
-                pass
+            except Exception as _qcv_exc:
+                _qcv_suppress(_qcv_exc, "core/_utils_ops.py:1047")
 
     def _on_live_toggled(self, checked):
         owner = getattr(self, '_owner', None)
@@ -1068,25 +1070,25 @@ class _ImageViewer(QDialog):
             except Exception:
                 try:
                     owner.iface.messageBar().pushWarning(tr('QCALVIEW'), tr(f'Rafraîchissement impossible : {exc}'))
-                except Exception:
-                    pass
+                except Exception as _qcv_exc:
+                    _qcv_suppress(_qcv_exc, "core/_utils_ops.py:1071")
 
     def resizeEvent(self, ev):
         try:
             super().resizeEvent(ev)
-        except Exception:
-            pass
+        except Exception as _qcv_exc:
+            _qcv_suppress(_qcv_exc, "core/_utils_ops.py:1077")
         
         try:
             self._settings.setValue("QCALVIEW/ui/viewer_geometry", self.saveGeometry())
-        except Exception:
-            pass
+        except Exception as _qcv_exc:
+            _qcv_suppress(_qcv_exc, "core/_utils_ops.py:1082")
 
     def closeEvent(self, ev):
         try:
             self._settings.setValue("QCALVIEW/ui/viewer_geometry", self.saveGeometry())
-        except Exception:
-            pass
+        except Exception as _qcv_exc:
+            _qcv_suppress(_qcv_exc, "core/_utils_ops.py:1088")
         super().closeEvent(ev)
 
     def update_info(self):
@@ -1099,8 +1101,8 @@ class _ImageViewer(QDialog):
             pdv = "—"
             try:
                 pdv = owner.cmb_cam_feature.currentText().strip() or "—"
-            except Exception:
-                pass
+            except Exception as _qcv_exc:
+                _qcv_suppress(_qcv_exc, "core/_utils_ops.py:1102")
             yaw = float(owner.d_yaw.value()) if hasattr(owner, "d_yaw") else 0.0
             pitch = float(owner.d_pitch.value()) if hasattr(owner, "d_pitch") else 0.0
             roll = float(owner.d_roll.value()) if hasattr(owner, "d_roll") else 0.0
@@ -1113,16 +1115,16 @@ class _ImageViewer(QDialog):
             try:
                 if hasattr(owner, "_current_camera_xy_project_crs"):
                     x, y, crs_authid = owner._current_camera_xy_project_crs()
-            except Exception:
-                pass
+            except Exception as _qcv_exc:
+                _qcv_suppress(_qcv_exc, "core/_utils_ops.py:1116")
             xy = "X : —\nY : —" if x is None or y is None else f"X : {x:,.2f}\nY : {y:,.2f}".replace(",", " ")
             if crs_authid:
                 xy += f"\nCRS : {crs_authid}"
             try:
                 self.sync_pdv_controls()
                 self.setWindowTitle(tr(f"QCALVIEW — Visionneuse — {pdv}"))
-            except Exception:
-                pass
+            except Exception as _qcv_exc:
+                _qcv_suppress(_qcv_exc, "core/_utils_ops.py:1124")
             self._info_panel.setText(
                 tr(f"<b>Informations</b><br>"
                 f"{xy.replace(chr(10), '<br>')}<br>"
@@ -1223,18 +1225,18 @@ class _ImageViewer(QDialog):
                     ok_meta, err_meta = _write_metadata_with_exiftool(owner, path, _camera_layer(owner), _camera_current_feature(owner))
                     if not ok_meta:
                         _camera_set_status(owner, err_meta or 'Échec écriture métadonnées.', '#c44')
-                except Exception:
-                    pass
-        except Exception:
-            pass
+                except Exception as _qcv_exc:
+                    _qcv_suppress(_qcv_exc, "core/_utils_ops.py:1226")
+        except Exception as _qcv_exc:
+            _qcv_suppress(_qcv_exc, "core/_utils_ops.py:1228")
 
     def set_pixmap(self, pm: QPixmap):
         if pm.isNull():
             return
         try:
             pm.setDevicePixelRatio(1.0)
-        except Exception:
-            pass
+        except Exception as _qcv_exc:
+            _qcv_suppress(_qcv_exc, "core/_utils_ops.py:1236")
 
         
         keep_transform = self._view.transform()
@@ -1265,16 +1267,16 @@ class _ImageViewer(QDialog):
             self.clear_overlay(); return
         try:
             pm.setDevicePixelRatio(1.0)
-        except Exception:
-            pass
+        except Exception as _qcv_exc:
+            _qcv_suppress(_qcv_exc, "core/_utils_ops.py:1268")
 
         base_pm = self._pix.pixmap()
         self._overlay_pix.setPixmap(pm)
         self._overlay_pix.setOffset(0, 0)
         try:
             self._overlay_pix.setTransformationMode(QC.Qt_TransformationMode_SmoothTransformation)
-        except Exception:
-            pass
+        except Exception as _qcv_exc:
+            _qcv_suppress(_qcv_exc, "core/_utils_ops.py:1276")
         try:
             if (not base_pm.isNull()) and pm.width() > 0 and pm.height() > 0:
                 sx = float(base_pm.width()) / float(pm.width())
@@ -1284,8 +1286,8 @@ class _ImageViewer(QDialog):
                 self._overlay_pix.setTransform(tr)
             else:
                 self._overlay_pix.setTransform(QTransform())
-        except Exception:
-            pass
+        except Exception as _qcv_exc:
+            _qcv_suppress(_qcv_exc, "core/_utils_ops.py:1287")
         self._overlay_pix.setVisible(self._chk_overlay.isChecked())
         self.update_info()
 
@@ -1310,8 +1312,8 @@ class _ImageViewer(QDialog):
                     br = self._pix.boundingRect()
                     if br.contains(sp):
                         self.imageClicked.emit(float(sp.x()), float(sp.y()))
-            except Exception:
-                pass
+            except Exception as _qcv_exc:
+                _qcv_suppress(_qcv_exc, "core/_utils_ops.py:1313")
         return super().eventFilter(obj, ev)
     
 
@@ -1350,8 +1352,8 @@ def open_viewer(self):
         try:
             self.viewer.imageClicked.connect(self._on_viewer_image_clicked)
             self._viewer_click_connected = True
-        except Exception:
-            pass
+        except Exception as _qcv_exc:
+            _qcv_suppress(_qcv_exc, "core/_utils_ops.py:1353")
     
     self.viewer.update_image(src)
     
@@ -1365,8 +1367,8 @@ def open_viewer(self):
     
     try:
         self.viewer.update_info()
-    except Exception:
-        pass
+    except Exception as _qcv_exc:
+        _qcv_suppress(_qcv_exc, "core/_utils_ops.py:1368")
     self.viewer.show()
     self.viewer.raise_()
     self.viewer.activateWindow()
@@ -1377,8 +1379,8 @@ def _normalize_qt_pen_style(val):
     try:
         if val in (QC.Qt_PenStyle_NoPen, QC.Qt_PenStyle_SolidLine, QC.Qt_PenStyle_DashLine, QC.Qt_PenStyle_DotLine, QC.Qt_PenStyle_DashDotLine, QC.Qt_PenStyle_DashDotDotLine):
             return val
-    except Exception:
-        pass
+    except Exception as _qcv_exc:
+        _qcv_suppress(_qcv_exc, "core/_utils_ops.py:1380")
     try:
         ival = enum_int(val)
         mapping = {
@@ -1412,8 +1414,8 @@ def _parse_qcolor_value(val, default=None):
         c = QColor(txt)
         if c.isValid():
             return c
-    except Exception:
-        pass
+    except Exception as _qcv_exc:
+        _qcv_suppress(_qcv_exc, "core/_utils_ops.py:1415")
     return QColor(default) if default is not None else None
 
 
@@ -1424,8 +1426,8 @@ def _float_prop(props, keys, default=None):
         try:
             if k in props and props[k] not in (None, ''):
                 return float(str(props[k]).replace(',', '.'))
-        except Exception:
-            pass
+        except Exception as _qcv_exc:
+            _qcv_suppress(_qcv_exc, "core/_utils_ops.py:1427")
     return default
 
 
@@ -1436,8 +1438,8 @@ def _str_prop(props, keys, default=''):
         try:
             if k in props and props[k] not in (None, ''):
                 return str(props[k])
-        except Exception:
-            pass
+        except Exception as _qcv_exc:
+            _qcv_suppress(_qcv_exc, "core/_utils_ops.py:1439")
     return default
 
 
@@ -1516,14 +1518,14 @@ def _render_symbol_preview_tile(sym, size=96):
         return None
     try:
         img = img.convertToFormat(QC.QImage_Format_Format_RGBA8888)
-    except Exception:
-        pass
+    except Exception as _qcv_exc:
+        _qcv_suppress(_qcv_exc, "core/_utils_ops.py:1519")
     img = _crop_nontransparent_qimage(img, alpha_threshold=6, pad=1) or img
     try:
         if img.width() > 12 and img.height() > 12:
             img = img.copy(1, 1, max(1, img.width() - 2), max(1, img.height() - 2))
-    except Exception:
-        pass
+    except Exception as _qcv_exc:
+        _qcv_suppress(_qcv_exc, "core/_utils_ops.py:1525")
     return img
 
 
@@ -1717,8 +1719,8 @@ def _extract_qgis_fill_style_from_symbol(sym, default_fill, default_line, defaul
                 fill_style['texture_img'] = tex
                 fill_style['texture_key'] = _texture_key_from_image(tex)
                 fill_style['texture_mode'] = 'stretch' if kind == 'gradient' else 'tile'
-    except Exception:
-        pass
+    except Exception as _qcv_exc:
+        _qcv_suppress(_qcv_exc, "core/_utils_ops.py:1720")
 
     return fill_style
 
@@ -1756,8 +1758,8 @@ def _safe_symbol_from_renderer(renderer, feat=None, layer=None):
                     if val == cval or str(val) == str(cval):
                         sym = cat.symbol()
                         return sym.clone() if sym is not None and hasattr(sym, 'clone') else sym
-            except Exception:
-                pass
+            except Exception as _qcv_exc:
+                _qcv_suppress(_qcv_exc, "core/_utils_ops.py:1759")
 
         if feat is not None and ('graduated' in name or isinstance(renderer, QgsGraduatedSymbolRenderer)):
             attr = None
@@ -1779,19 +1781,20 @@ def _safe_symbol_from_renderer(renderer, feat=None, layer=None):
                             if rng.lowerValue() <= fval <= rng.upperValue():
                                 sym = rng.symbol()
                                 return sym.clone() if sym is not None and hasattr(sym, 'clone') else sym
-                        except Exception:
+                        except Exception as _qcv_exc:
+                            _qcv_suppress(_qcv_exc, "core/_utils_ops.py:1782")
                             continue
-                except Exception:
-                    pass
+                except Exception as _qcv_exc:
+                    _qcv_suppress(_qcv_exc, "core/_utils_ops.py:1784")
 
         if hasattr(renderer, 'symbol'):
             try:
                 sym = renderer.symbol()
                 return sym.clone() if sym is not None and hasattr(sym, 'clone') else sym
-            except Exception:
-                pass
-    except Exception:
-        pass
+            except Exception as _qcv_exc:
+                _qcv_suppress(_qcv_exc, "core/_utils_ops.py:1791")
+    except Exception as _qcv_exc:
+        _qcv_suppress(_qcv_exc, "core/_utils_ops.py:1793")
     return None
 
 def _extract_qgis_layer_style(self, layer, feat=None, fallback=None):
@@ -1826,24 +1829,24 @@ def _extract_qgis_layer_style(self, layer, feat=None, fallback=None):
         c0 = sym.color()
         if c0 is not None:
             color = QColor(c0)
-    except Exception:
-        pass
+    except Exception as _qcv_exc:
+        _qcv_suppress(_qcv_exc, "core/_utils_ops.py:1829")
 
     try:
         if hasattr(sym, 'width') and callable(getattr(sym, 'width', None)):
             w = float(sym.width())
             if math.isfinite(w) and w > 0:
                 width = w
-    except Exception:
-        pass
+    except Exception as _qcv_exc:
+        _qcv_suppress(_qcv_exc, "core/_utils_ops.py:1837")
 
     try:
         if hasattr(sym, 'size') and callable(getattr(sym, 'size', None)):
             s = float(sym.size())
             if math.isfinite(s) and s > 0:
                 width = max(width, s * 0.35)
-    except Exception:
-        pass
+    except Exception as _qcv_exc:
+        _qcv_suppress(_qcv_exc, "core/_utils_ops.py:1845")
 
     try:
         nsl = int(sym.symbolLayerCount())
@@ -1866,23 +1869,23 @@ def _extract_qgis_layer_style(self, layer, feat=None, fallback=None):
                 sc = sl.color()
                 if sc is not None:
                     color = QColor(sc)
-        except Exception:
-            pass
+        except Exception as _qcv_exc:
+            _qcv_suppress(_qcv_exc, "core/_utils_ops.py:1869")
         try:
             if hasattr(sl, 'fillColor') and callable(getattr(sl, 'fillColor', None)):
                 fc = sl.fillColor()
                 if fc is not None:
                     fill_color = QColor(fc)
                     fill_polygons = True
-        except Exception:
-            pass
+        except Exception as _qcv_exc:
+            _qcv_suppress(_qcv_exc, "core/_utils_ops.py:1877")
         try:
             if hasattr(sl, 'brushStyle') and callable(getattr(sl, 'brushStyle', None)):
                 bsty = sl.brushStyle()
                 if bsty == QC.Qt_BrushStyle_NoBrush:
                     fill_polygons = False
-        except Exception:
-            pass
+        except Exception as _qcv_exc:
+            _qcv_suppress(_qcv_exc, "core/_utils_ops.py:1884")
         try:
             if hasattr(sl, 'strokeWidth') and callable(getattr(sl, 'strokeWidth', None)):
                 w = float(sl.strokeWidth())
@@ -1892,13 +1895,13 @@ def _extract_qgis_layer_style(self, layer, feat=None, fallback=None):
                 w = float(sl.width())
                 if math.isfinite(w) and w >= 0:
                     width = max(0.0, w)
-        except Exception:
-            pass
+        except Exception as _qcv_exc:
+            _qcv_suppress(_qcv_exc, "core/_utils_ops.py:1895")
         try:
             if hasattr(sl, 'penStyle') and callable(getattr(sl, 'penStyle', None)):
                 pen_style = _normalize_qt_pen_style(sl.penStyle())
-        except Exception:
-            pass
+        except Exception as _qcv_exc:
+            _qcv_suppress(_qcv_exc, "core/_utils_ops.py:1900")
 
     try:
         fill_style = _extract_qgis_fill_style_from_symbol(sym, fill_color, color, width)
@@ -1909,8 +1912,8 @@ def _extract_qgis_layer_style(self, layer, feat=None, fallback=None):
         fk = str((fill_style or {}).get('kind', 'simple')).lower()
         if fk in ('simple', 'gradient', 'line_pattern', 'point_pattern'):
             fill_polygons = True
-    except Exception:
-        pass
+    except Exception as _qcv_exc:
+        _qcv_suppress(_qcv_exc, "core/_utils_ops.py:1912")
 
     return dict(color=color, fill_color=fill_color, width=width, pen_style=pen_style, opacity=opacity, fill_polygons=fill_polygons, fill_style=fill_style)
 
@@ -1963,14 +1966,14 @@ def _extract_qgis_label_settings(layer):
             c = fmt.color()
             if c is not None:
                 out['text_color'] = QColor(c)
-        except Exception:
-            pass
+        except Exception as _qcv_exc:
+            _qcv_suppress(_qcv_exc, "core/_utils_ops.py:1966")
         try:
             sz = float(fmt.size())
             if math.isfinite(sz) and sz > 0:
                 out['size'] = max(6, int(round(sz)))
-        except Exception:
-            pass
+        except Exception as _qcv_exc:
+            _qcv_suppress(_qcv_exc, "core/_utils_ops.py:1972")
         try:
             bg = fmt.background()
             if bg is not None and hasattr(bg, 'enabled') and bg.enabled():
@@ -1979,10 +1982,10 @@ def _extract_qgis_label_settings(layer):
                     fc = bg.fillColor()
                     if fc is not None:
                         out['bg_color'] = QColor(fc)
-                except Exception:
-                    pass
-        except Exception:
-            pass
+                except Exception as _qcv_exc:
+                    _qcv_suppress(_qcv_exc, "core/_utils_ops.py:1982")
+        except Exception as _qcv_exc:
+            _qcv_suppress(_qcv_exc, "core/_utils_ops.py:1984")
     return out
 
 
@@ -2005,8 +2008,8 @@ def _sync_layer_labels_from_qgis(self, sty):
         sty.label_bg = bool(qlbl.get('bg', False))
         sty.label_bg_color = QColor(qlbl.get('bg_color', getattr(sty, 'label_bg_color', QColor(255,255,255,220))))
         sty.label_halo = False
-    except Exception:
-        pass
+    except Exception as _qcv_exc:
+        _qcv_suppress(_qcv_exc, "core/_utils_ops.py:2008")
     return sty
 
 
@@ -2030,10 +2033,10 @@ def _sync_layer_style_from_qgis(self, sty, feat=None):
         try:
             if str((sty.qgis_fill_style or {}).get('kind', 'simple')).lower() in ('gradient', 'line_pattern', 'point_pattern', 'simple'):
                 sty.fill_polygons = True
-        except Exception:
-            pass
-    except Exception:
-        pass
+        except Exception as _qcv_exc:
+            _qcv_suppress(_qcv_exc, "core/_utils_ops.py:2033")
+    except Exception as _qcv_exc:
+        _qcv_suppress(_qcv_exc, "core/_utils_ops.py:2035")
     return sty
 
 
@@ -2136,8 +2139,8 @@ def _ordered_theme_vector_layers(theme_name, camera_layer=None):
         try:
             visible_layers = coll.mapThemeVisibleLayers(theme_name)
             visible_ids = set(str(lyr.id()) for lyr in visible_layers if lyr is not None)
-        except Exception:
-            pass
+        except Exception as _qcv_exc:
+            _qcv_suppress(_qcv_exc, "core/_utils_ops.py:2139")
     try:
         style_overrides = dict(coll.mapThemeStyleOverrides(theme_name) or {})
     except Exception:
@@ -2163,7 +2166,8 @@ def _ordered_theme_vector_layers(theme_name, camera_layer=None):
             continue
         try:
             lid = lyr.id()
-        except Exception:
+        except Exception as _qcv_exc:
+            _qcv_suppress(_qcv_exc, "core/_utils_ops.py:2166")
             continue
         if lid not in visible_ids:
             continue
@@ -2172,8 +2176,8 @@ def _ordered_theme_vector_layers(theme_name, camera_layer=None):
         try:
             if QgsWkbTypes.geometryType(lyr.wkbType()) == QC.QgsWkbTypes_GeometryType_NullGeometry:
                 continue
-        except Exception:
-            pass
+        except Exception as _qcv_exc:
+            _qcv_suppress(_qcv_exc, "core/_utils_ops.py:2175")
         out.append(lyr)
     return out, style_overrides
 
@@ -2189,15 +2193,15 @@ def _temporarily_extract_style_from_named_qgis_style(self, layer, style_name, fa
         prev = sm.currentStyle()
         try:
             sm.setCurrentStyle(str(style_name))
-        except Exception:
-            pass
+        except Exception as _qcv_exc:
+            _qcv_suppress(_qcv_exc, "core/_utils_ops.py:2192")
         return _extract_qgis_layer_style(self, layer, feat=feat, fallback=fallback)
     finally:
         try:
             if sm is not None and prev:
                 sm.setCurrentStyle(prev)
-        except Exception:
-            pass
+        except Exception as _qcv_exc:
+            _qcv_suppress(_qcv_exc, "core/_utils_ops.py:2199")
 
 
 def apply_qgis_theme_to_overlays(self):
@@ -2214,8 +2218,8 @@ def apply_qgis_theme_to_overlays(self):
 
     try:
         self._settings.setValue('QCALVIEW/theme_name', theme_name)
-    except Exception:
-        pass
+    except Exception as _qcv_exc:
+        _qcv_suppress(_qcv_exc, "core/_utils_ops.py:2217")
 
     camera_layer = None
     try:
@@ -2228,8 +2232,8 @@ def apply_qgis_theme_to_overlays(self):
         max_layers = int(getattr(self, '_settings', None).value("QCALVIEW/limits/max_overlay_layers", 20))
         if max_layers > 0:
             layers = list(layers)[:max_layers]
-    except Exception:
-        pass
+    except Exception as _qcv_exc:
+        _qcv_suppress(_qcv_exc, "core/_utils_ops.py:2231")
     new_styles = []
     for lyr in layers:
         try:
@@ -2253,19 +2257,20 @@ def apply_qgis_theme_to_overlays(self):
             _sync_layer_labels_from_qgis(self, sty)
             new_styles.append(sty)
             _watch_overlay_layer(self, lyr)
-        except Exception:
+        except Exception as _qcv_exc:
+            _qcv_suppress(_qcv_exc, "core/_utils_ops.py:2256")
             continue
 
     self.layer_styles = new_styles
     try:
         self._refresh_layer_list_labels(0 if self.layer_styles else -1)
-    except Exception:
-        pass
+    except Exception as _qcv_exc:
+        _qcv_suppress(_qcv_exc, "core/_utils_ops.py:2262")
     try:
         getattr(self, '_overlay_cache', {}).clear()
         getattr(self, '_geom_cache', {}).clear()
-    except Exception:
-        pass
+    except Exception as _qcv_exc:
+        _qcv_suppress(_qcv_exc, "core/_utils_ops.py:2267")
     _queue_overlay_style_refresh(self)
 
 
@@ -2274,13 +2279,13 @@ def _queue_overlay_style_refresh(self, delay_ms=15):
     try:
         if hasattr(self, '_overlay_cache') and isinstance(self._overlay_cache, dict):
             self._overlay_cache.clear()
-    except Exception:
-        pass
+    except Exception as _qcv_exc:
+        _qcv_suppress(_qcv_exc, "core/_utils_ops.py:2277")
     try:
         if hasattr(self, '_geom_cache') and isinstance(self._geom_cache, dict):
             self._geom_cache.clear()
-    except Exception:
-        pass
+    except Exception as _qcv_exc:
+        _qcv_suppress(_qcv_exc, "core/_utils_ops.py:2282")
 
     try:
         timer = getattr(self, '_style_refresh_timer', None)
@@ -2297,15 +2302,15 @@ def _queue_overlay_style_refresh(self, delay_ms=15):
         
         try:
             QTimer.singleShot(max(0, int(delay_ms)), self.render_preview)
-        except Exception:
-            pass
+        except Exception as _qcv_exc:
+            _qcv_suppress(_qcv_exc, "core/_utils_ops.py:2300")
 
 
 def _on_qgis_theme_auto_sync_toggled(self, checked: bool):
     try:
         self._settings.setValue('QCALVIEW/theme_auto_sync', bool(checked))
-    except Exception:
-        pass
+    except Exception as _qcv_exc:
+        _qcv_suppress(_qcv_exc, "core/_utils_ops.py:2307")
     coll = _qgis_theme_collection()
     if coll is None:
         return
@@ -2318,20 +2323,20 @@ def _on_qgis_theme_auto_sync_toggled(self, checked: bool):
             if (not getattr(self, '_suspend_theme_auto_apply', False)
                     and bool(getattr(self, 'cb_theme_auto_sync', None) and self.cb_theme_auto_sync.isChecked())):
                 self.apply_qgis_theme_to_overlays()
-        except Exception:
-            pass
+        except Exception as _qcv_exc:
+            _qcv_suppress(_qcv_exc, "core/_utils_ops.py:2321")
 
     if checked and not getattr(self, '_ui_initializing', False) and not getattr(self, '_suspend_theme_auto_apply', False):
         try:
             QTimer.singleShot(0, self.apply_qgis_theme_to_overlays)
-        except Exception:
-            pass
+        except Exception as _qcv_exc:
+            _qcv_suppress(_qcv_exc, "core/_utils_ops.py:2327")
     if checked and not self._qgis_theme_sync_connected:
         for sig_name in ('mapThemesChanged', 'mapThemeChanged'):
             try:
                 getattr(coll, sig_name).connect(_sync_if_current)
-            except Exception:
-                pass
+            except Exception as _qcv_exc:
+                _qcv_suppress(_qcv_exc, "core/_utils_ops.py:2333")
         self._qgis_theme_sync_connected = True
 
 
@@ -2346,8 +2351,8 @@ def _restore_qgis_theme_settings(self):
         theme_name = ''
     try:
         self.cb_theme_auto_sync.setChecked(bool(auto))
-    except Exception:
-        pass
+    except Exception as _qcv_exc:
+        _qcv_suppress(_qcv_exc, "core/_utils_ops.py:2349")
     try:
         if theme_name and getattr(self, 'cmb_qgis_theme', None) is not None:
             idx = self.cmb_qgis_theme.findData(theme_name)
@@ -2355,8 +2360,8 @@ def _restore_qgis_theme_settings(self):
                 self.cmb_qgis_theme.setCurrentIndex(idx)
                 if auto and not getattr(self, '_ui_initializing', False) and not getattr(self, '_suspend_theme_auto_apply', False):
                     QTimer.singleShot(0, self.apply_qgis_theme_to_overlays)
-    except Exception:
-        pass
+    except Exception as _qcv_exc:
+        _qcv_suppress(_qcv_exc, "core/_utils_ops.py:2358")
 
 def _prune_missing_overlay_layers(self):
     changed = False
@@ -2386,12 +2391,12 @@ def _on_project_layers_removed(self, *args):
     if changed:
         try:
             getattr(self, '_overlay_cache', {}).clear()
-        except Exception:
-            pass
+        except Exception as _qcv_exc:
+            _qcv_suppress(_qcv_exc, "core/_utils_ops.py:2389")
         try:
             self.render_preview()
-        except Exception:
-            pass
+        except Exception as _qcv_exc:
+            _qcv_suppress(_qcv_exc, "core/_utils_ops.py:2393")
 
 
 
@@ -2419,8 +2424,8 @@ def _overlay_layer_preflight(self, layer):
         if user_block > 0:
             block_limit = user_block
             warn_limit = max(1, int(block_limit * 0.6))
-    except Exception:
-        pass
+    except Exception as _qcv_exc:
+        _qcv_suppress(_qcv_exc, "core/_utils_ops.py:2422")
 
     level = 'ok'
     if count >= 0 and count >= warn_limit:
@@ -2443,18 +2448,18 @@ def _cache_keys_for_layer(layer_id):
 def _invalidate_overlay_layer_cache(self, layer_id):
     try:
         self._layer_cache_versions[layer_id] = int(self._layer_cache_versions.get(layer_id, 0)) + 1
-    except Exception:
-        pass
+    except Exception as _qcv_exc:
+        _qcv_suppress(_qcv_exc, "core/_utils_ops.py:2446")
     try:
         to_drop = [k for k in getattr(self, '_geom_cache', {}).keys() if isinstance(k, tuple) and k and k[0] == layer_id]
         for k in to_drop:
             self._geom_cache.pop(k, None)
-    except Exception:
-        pass
+    except Exception as _qcv_exc:
+        _qcv_suppress(_qcv_exc, "core/_utils_ops.py:2452")
     try:
         getattr(self, '_overlay_cache', {}).clear()
-    except Exception:
-        pass
+    except Exception as _qcv_exc:
+        _qcv_suppress(_qcv_exc, "core/_utils_ops.py:2456")
 
 
 def _watch_overlay_layer(self, layer):
@@ -2485,8 +2490,8 @@ def _watch_overlay_layer(self, layer):
                 else:
                     
                     QTimer.singleShot(250, lambda: getattr(self, '_camera_refresh_current_view', lambda **_: None)(force=False))
-            except Exception:
-                pass
+            except Exception as _qcv_exc:
+                _qcv_suppress(_qcv_exc, "core/_utils_ops.py:2488")
         return _on_overlay_changed
 
     for sig_name in ('geometryChanged', 'featureAdded', 'featuresDeleted', 'attributeValueChanged', 'committedGeometriesChanges', 'committedFeaturesAdded', 'committedFeaturesRemoved', 'dataChanged', 'rendererChanged'):
@@ -2497,8 +2502,8 @@ def _watch_overlay_layer(self, layer):
         try:
             sig.connect(cb)
             callbacks.append((sig, cb))
-        except Exception:
-            pass
+        except Exception as _qcv_exc:
+            _qcv_suppress(_qcv_exc, "core/_utils_ops.py:2500")
     hooks[layer.id()] = callbacks
 
 
@@ -2532,37 +2537,37 @@ def _add_overlay_layer_object(self, lyr):
             if getattr(existing, 'layer', None) is lyr or (getattr(getattr(existing, 'layer', None), 'id', lambda: None)() == lyr.id()):
                 self._refresh_layer_list_labels()
                 return
-    except Exception:
-        pass
+    except Exception as _qcv_exc:
+        _qcv_suppress(_qcv_exc, "core/_utils_ops.py:2535")
 
     try:
         max_layers = int(getattr(self, '_settings', None).value("QCALVIEW/limits/max_overlay_layers", 20))
         if max_layers > 0 and len(getattr(self, 'layer_styles', []) or []) >= max_layers:
             try:
                 QMessageBox.warning(self, tr('QCALVIEW — limite atteinte'), tr(f"Nombre maximal de couches projetées atteint ({max_layers}). Réglez cette limite dans Paramètres > Limites de rendu."))
-            except Exception:
-                pass
+            except Exception as _qcv_exc:
+                _qcv_suppress(_qcv_exc, "core/_utils_ops.py:2543")
             return
-    except Exception:
-        pass
+    except Exception as _qcv_exc:
+        _qcv_suppress(_qcv_exc, "core/_utils_ops.py:2546")
 
     preflight = _overlay_layer_preflight(self, lyr)
     level = preflight.get('level', 'ok')
     if level == 'block' and bool(getattr(self, 'cb_block_heavy_layers', None) and self.cb_block_heavy_layers.isChecked()):
         try:
             QMessageBox.warning(self, tr('QCALVIEW — couche trop lourde'), tr(_heavy_layer_message(lyr.name(), preflight.get('count', -1), level)))
-        except Exception:
-            pass
+        except Exception as _qcv_exc:
+            _qcv_suppress(_qcv_exc, "core/_utils_ops.py:2554")
         try:
             self.lbl_render_budget.setText(tr('Ajout bloqué : couche trop lourde pour l’aperçu interactif'))
-        except Exception:
-            pass
+        except Exception as _qcv_exc:
+            _qcv_suppress(_qcv_exc, "core/_utils_ops.py:2558")
         return
     elif level == 'warn':
         try:
             QMessageBox.information(self, tr('QCALVIEW — couche volumineuse'), tr(_heavy_layer_message(lyr.name(), preflight.get('count', -1), level)))
-        except Exception:
-            pass
+        except Exception as _qcv_exc:
+            _qcv_suppress(_qcv_exc, "core/_utils_ops.py:2564")
 
     sty = LayerStyle(layer=lyr)
     _sync_layer_style_from_qgis(self, sty, feat=None)
@@ -2572,8 +2577,8 @@ def _add_overlay_layer_object(self, lyr):
     self._refresh_layer_list_labels(len(self.layer_styles)-1)
     try:
         _invalidate_overlay_layer_cache(self, lyr.id())
-    except Exception:
-        pass
+    except Exception as _qcv_exc:
+        _qcv_suppress(_qcv_exc, "core/_utils_ops.py:2575")
     self.render_preview()
     return True
 
@@ -2597,8 +2602,8 @@ def _on_layer_table_double_clicked(self, row, column=0):
     try:
         self.list_layers.setCurrentCell(row, max(0, int(column)))
         self.list_layers.selectRow(row)
-    except Exception:
-        pass
+    except Exception as _qcv_exc:
+        _qcv_suppress(_qcv_exc, "core/_utils_ops.py:2600")
     self.edit_style()
 
 def remove_layer(self):
@@ -2662,8 +2667,8 @@ def _finite_uv(self, uv):
                 if W > 0:
                     u = u % W
                 v = min(float(H), max(0.0, v))
-            except Exception:
-                pass
+            except Exception as _qcv_exc:
+                _qcv_suppress(_qcv_exc, "core/_utils_ops.py:2665")
 
         return (u, v)
     except Exception:
@@ -2835,7 +2840,10 @@ def _make_z_sampler(self, dem_layer, cam_crs):
     sample_z_single.batch_uncached = sample_z_batch_uncached
     sample_z_single.xy = _sample_xy_cam
     sample_z_single.xy_uncached = _sample_xy_cam_uncached
-    sample_z_single.clear_cache = lambda: cache.clear()
+    def clear_cache():
+        cache.clear()
+
+    sample_z_single.clear_cache = clear_cache
     sample_z_single._qcv_unified_ground_sampler = True
     return sample_z_single, tr
 
@@ -2868,15 +2876,15 @@ def _refresh_layer_list_labels(self, current_row=None):
             rows = getattr(self, 'layer_styles', [])
             try:
                 self.list_layers.blockSignals(True)
-            except Exception:
-                pass
+            except Exception as _qcv_exc:
+                _qcv_suppress(_qcv_exc, "core/_utils_ops.py:2871")
             self.list_layers.setRowCount(0)
             for i, sty in enumerate(rows):
                 try:
                     if not hasattr(sty, 'visible'):
                         sty.visible = True
-                except Exception:
-                    pass
+                except Exception as _qcv_exc:
+                    _qcv_suppress(_qcv_exc, "core/_utils_ops.py:2878")
                 self.list_layers.insertRow(i)
                 try:
                     lyr = sty.layer
@@ -2948,8 +2956,8 @@ def _refresh_layer_list_labels(self, current_row=None):
                 self.list_layers.selectRow(current_row)
             try:
                 self.list_layers.blockSignals(False)
-            except Exception:
-                pass
+            except Exception as _qcv_exc:
+                _qcv_suppress(_qcv_exc, "core/_utils_ops.py:2951")
             return
 
         
@@ -2958,8 +2966,8 @@ def _refresh_layer_list_labels(self, current_row=None):
             self.list_layers.addItem(tr(_style_item_text(sty)))
         if current_row is not None and current_row >= 0 and current_row < self.list_layers.count():
             self.list_layers.setCurrentRow(current_row)
-    except Exception:
-        pass
+    except Exception as _qcv_exc:
+        _qcv_suppress(_qcv_exc, "core/_utils_ops.py:2961")
 
 
 
@@ -2976,14 +2984,14 @@ def _on_layer_table_item_changed(self, item):
         try:
             getattr(self, '_overlay_cache', {}).clear()
             getattr(self, '_geom_cache', {}).clear()
-        except Exception:
-            pass
+        except Exception as _qcv_exc:
+            _qcv_suppress(_qcv_exc, "core/_utils_ops.py:2979")
         try:
             self.render_preview()
-        except Exception:
-            pass
-    except Exception:
-        pass
+        except Exception as _qcv_exc:
+            _qcv_suppress(_qcv_exc, "core/_utils_ops.py:2983")
+    except Exception as _qcv_exc:
+        _qcv_suppress(_qcv_exc, "core/_utils_ops.py:2985")
 
 def _pick_style_color(button, current, parent, title):
     col = QColorDialog.getColor(current, parent, title)
@@ -3033,8 +3041,8 @@ def edit_style(self):
             'line': 'Couche de lignes : végétation en alignement/haie et objets linéaires (dont clôtures).',
             'polygon': 'Couche de polygones : dispersion surfacique pour les objets compatibles ; les clôtures suivent uniquement le périmètre extérieur.',
         }.get(_geom_name, 'Les familles proposées sont filtrées selon la géométrie de la couche.')))
-    except Exception:
-        pass
+    except Exception as _qcv_exc:
+        _qcv_suppress(_qcv_exc, "core/_utils_ops.py:3036")
 
     
     _initial_symbol_id = str(getattr(sty, 'schematic_symbol_id', '') or '')
@@ -3151,8 +3159,8 @@ def edit_style(self):
             try:
                 if hasattr(self, '_hq_render_timer'):
                     self._hq_render_timer.stop()
-            except Exception:
-                pass
+            except Exception as _qcv_exc:
+                _qcv_suppress(_qcv_exc, "core/_utils_ops.py:3154")
             try:
                 scheduler = getattr(self, 'render_scheduler', None)
                 if scheduler is not None:
@@ -3160,13 +3168,13 @@ def edit_style(self):
                         timer = getattr(scheduler, timer_name, None)
                         if timer is not None:
                             timer.stop()
-            except Exception:
-                pass
+            except Exception as _qcv_exc:
+                _qcv_suppress(_qcv_exc, "core/_utils_ops.py:3163")
             try:
                 if hasattr(self, 'debounce'):
                     self.debounce.stop()
-            except Exception:
-                pass
+            except Exception as _qcv_exc:
+                _qcv_suppress(_qcv_exc, "core/_utils_ops.py:3168")
 
             result_field = calculate_hedge_occlusion_dialog(
                 self, getattr(sty, 'layer', None), le_hfield.text().strip() or 'qcv_h_req',
@@ -3182,8 +3190,8 @@ def edit_style(self):
                 self._render_resume_requested = False
                 try:
                     QTimer.singleShot(0, self.render_preview)
-                except Exception:
-                    pass
+                except Exception as _qcv_exc:
+                    _qcv_suppress(_qcv_exc, "core/_utils_ops.py:3185")
 
     cb_schematic.toggled.connect(_update_schematic_controls)
     cmb_schematic_type.currentIndexChanged.connect(_on_type_changed)
@@ -3237,8 +3245,8 @@ def edit_style(self):
                 sp_width.setValue(float(qsty['width']))
                 sp_opacity.setValue(int(round(100.0 * _opacity_factor(qsty.get('opacity', 1.0), 1.0))))
                 cb_fill_poly.setChecked(bool(qsty['fill_polygons']))
-            except Exception:
-                pass
+            except Exception as _qcv_exc:
+                _qcv_suppress(_qcv_exc, "core/_utils_ops.py:3240")
 
     cb_use_qgis_style.toggled.connect(_toggle_manual_style_fields)
     _toggle_manual_style_fields()
@@ -3259,8 +3267,8 @@ def edit_style(self):
                 cb_bg.setChecked(bool(qlbl.get('bg', False)))
                 colors['bg'] = QColor(qlbl.get('bg_color', colors['bg']))
                 btn_bg_color.setStyleSheet(f"background:{colors['bg'].name(QC.QColor_NameFormat_HexArgb)};")
-            except Exception:
-                pass
+            except Exception as _qcv_exc:
+                _qcv_suppress(_qcv_exc, "core/_utils_ops.py:3262")
 
     cb_use_qgis_labels.toggled.connect(_toggle_manual_label_fields)
     _toggle_manual_label_fields()
@@ -3326,8 +3334,8 @@ def edit_style(self):
 
     try:
         self._refresh_layer_list_labels(idx)
-    except Exception:
-        pass
+    except Exception as _qcv_exc:
+        _qcv_suppress(_qcv_exc, "core/_utils_ops.py:3329")
     _queue_overlay_style_refresh(self)
 
 def _get_base_scaled(self, W, H):
@@ -3382,13 +3390,13 @@ def _get_base_scaled(self, W, H):
 
 def _refresh_preview_and_viewer(self):
     try: self.render_preview()
-    except Exception: pass
+    except Exception as _qcv_exc: _qcv_suppress(_qcv_exc, "core/_utils_ops.py:3385")
     try:
         if getattr(self, "viewer", None):
             ov = getattr(self, "overlay_image", None) or getattr(self, "overlay_path", None)
             if ov is not None: self.viewer.update_overlay(ov)
             else:              self.viewer.clear_overlay()
-    except Exception: pass
+    except Exception as _qcv_exc: _qcv_suppress(_qcv_exc, "core/_utils_ops.py:3391")
 
 def _mb(self):
     
@@ -3399,8 +3407,8 @@ def _on_toggle_center_axis(self, checked: bool):
     self.show_center_axis = bool(checked)
     try:
         getattr(self, '_overlay_cache', {}).clear()
-    except Exception:
-        pass
+    except Exception as _qcv_exc:
+        _qcv_suppress(_qcv_exc, "core/_utils_ops.py:3402")
     _refresh_preview_and_viewer(self)
 
 def _on_toggle_pdv_axis(self, checked: bool):
@@ -3408,8 +3416,8 @@ def _on_toggle_pdv_axis(self, checked: bool):
     self.show_pdv_axis = bool(checked)
     try:
         getattr(self, '_overlay_cache', {}).clear()
-    except Exception:
-        pass
+    except Exception as _qcv_exc:
+        _qcv_suppress(_qcv_exc, "core/_utils_ops.py:3411")
     if checked:
         try:
             self.start_pick_pdv_center()  
@@ -3421,8 +3429,8 @@ def _on_toggle_pdv_axis(self, checked: bool):
             
             if hasattr(self, "_cancel_maptool"):
                 self._cancel_maptool()
-        except Exception:
-            pass
+        except Exception as _qcv_exc:
+            _qcv_suppress(_qcv_exc, "core/_utils_ops.py:3424")
     _refresh_preview_and_viewer(self)
 
 def install_global_shortcuts(self):
@@ -3451,5 +3459,5 @@ def _cancel_maptool(self):
     canvas = self.iface.mapCanvas()
     if self._maptool_backup:
         try: canvas.setMapTool(self._maptool_backup)
-        except Exception: pass
+        except Exception as _qcv_exc: _qcv_suppress(_qcv_exc, "core/_utils_ops.py:3454")
     self._maptool_backup = None

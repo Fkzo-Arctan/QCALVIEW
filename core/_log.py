@@ -3,6 +3,7 @@
 
 
 from __future__ import annotations
+from ._exceptions import qcv_suppress_exception as _qcv_suppress
 from ._i18n import tr
 
 
@@ -17,6 +18,6 @@ def qcv_log(message, section="CORE", level="INFO"):
             "SUCCESS": getattr(Qgis, "Success", getattr(Qgis, "Info", 0)),
         }
         QgsMessageLog.logMessage(text, "QCALVIEW", levels.get(str(level).upper(), levels["INFO"]))
-    except Exception:
+    except Exception as _qcv_exc:
         
-        pass
+        _qcv_suppress(_qcv_exc, "core/_log.py:20")

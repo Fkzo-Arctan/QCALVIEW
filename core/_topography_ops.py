@@ -2,6 +2,7 @@
 
 
 
+from ._exceptions import qcv_suppress_exception as _qcv_suppress
 from typing import List, Tuple, Optional, Dict
 import math
 import numpy as np
@@ -56,12 +57,12 @@ def build_adaptive_grid(
 
     
     M, N = X.shape
-    I = np.arange(M).reshape(-1, 1).repeat(N, axis=1)
-    J = np.arange(N).reshape(1, -1).repeat(M, axis=0)
+    row_idx = np.arange(M).reshape(-1, 1).repeat(N, axis=1)
+    col_idx = np.arange(N).reshape(1, -1).repeat(M, axis=0)
 
     
     
-    mask = ((I % stride) == 0) & ((J % stride) == 0)
+    mask = ((row_idx % stride) == 0) & ((col_idx % stride) == 0)
 
     
     R = np.hypot(X, Y)
@@ -230,8 +231,8 @@ def _draw_dem_wireframe_sparse_adaptive(
         for q in range(count):
             try:
                 Zn[q] = float(z_sampler(QgsPointXY(float(pts_world[q,0]), float(pts_world[q,1]))))
-            except Exception:
-                pass
+            except Exception as _qcv_exc:
+                _qcv_suppress(_qcv_exc, "core/_topography_ops.py:233")
     if Zn.size != count:
         try:
             Zn = np.resize(Zn, count).astype(np.float64, copy=False)

@@ -1,6 +1,7 @@
 
 
 
+from ._exceptions import qcv_suppress_exception as _qcv_suppress
 from ._i18n import tr
 from ._compat import QC, dialog_exec
 import os, json, math, copy
@@ -370,8 +371,8 @@ def _color_with_opacity(color, opacity_factor=1.0):
     try:
         f = max(0.0, min(1.0, float(opacity_factor)))
         c.setAlpha(max(0, min(255, int(round(c.alpha() * f)))))
-    except Exception:
-        pass
+    except Exception as _qcv_exc:
+        _qcv_suppress(_qcv_exc, "core/_render_ops.py:373")
     return c
 
 
@@ -383,8 +384,8 @@ def _style_has_transparency(sty):
             c = QColor(getattr(sty, attr))
             if c.isValid() and c.alpha() < 250:
                 return True
-        except Exception:
-            pass
+        except Exception as _qcv_exc:
+            _qcv_suppress(_qcv_exc, "core/_render_ops.py:386")
     try:
         spec = getattr(sty, 'qgis_fill_style', None) or {}
         for key in ('color', 'color1', 'color2', 'bg_color', 'line_color', 'point_color', 'outline_color'):
@@ -392,8 +393,8 @@ def _style_has_transparency(sty):
                 c = QColor(spec.get(key))
                 if c.isValid() and c.alpha() < 250:
                     return True
-    except Exception:
-        pass
+    except Exception as _qcv_exc:
+        _qcv_suppress(_qcv_exc, "core/_render_ops.py:395")
     return False
 
 
@@ -412,14 +413,14 @@ def _make_pen_for_style(color, width_value, scale_factor, pen_style=QC.Qt_PenSty
     pen.setWidthF(max(1.0, float(wv) * float(scale_factor)))
     try:
         pen.setStyle(style)
-    except Exception:
-        pass
+    except Exception as _qcv_exc:
+        _qcv_suppress(_qcv_exc, "core/_render_ops.py:415")
     try:
         pen.setJoinStyle(QC.Qt_PenJoinStyle_RoundJoin)
         pen.setCapStyle(QC.Qt_PenCapStyle_RoundCap)
         pen.setCosmetic(True)
-    except Exception:
-        pass
+    except Exception as _qcv_exc:
+        _qcv_suppress(_qcv_exc, "core/_render_ops.py:421")
     return pen
 
 def _draw_label(self, painter, text, anchor_uv, sty):
@@ -480,8 +481,8 @@ def _render_debounce_timeout(self):
         if scheduled != current:
             
             return
-    except Exception:
-        pass
+    except Exception as _qcv_exc:
+        _qcv_suppress(_qcv_exc, "core/_render_ops.py:483")
     self._render_preview_now()
 
 
@@ -491,8 +492,8 @@ def _render_debounce_delay_ms(self, sender=None):
         override = getattr(self, '_render_delay_override_ms', None)
         if override is not None:
             return max(0, int(override))
-    except Exception:
-        pass
+    except Exception as _qcv_exc:
+        _qcv_suppress(_qcv_exc, "core/_render_ops.py:494")
 
     try:
         lowlat = bool(getattr(self, 'cb_lowlat', None) and self.cb_lowlat.isChecked())
@@ -539,11 +540,11 @@ def render_preview(self):
             self._render_edit_pending = True
             try:
                 self.debounce.stop()
-            except Exception:
-                pass
+            except Exception as _qcv_exc:
+                _qcv_suppress(_qcv_exc, "core/_render_ops.py:542")
             return
-    except Exception:
-        pass
+    except Exception as _qcv_exc:
+        _qcv_suppress(_qcv_exc, "core/_render_ops.py:545")
 
     
     
@@ -572,8 +573,8 @@ def render_preview(self):
                 self._hq_render_timer.setInterval(500)
                 self._hq_render_timer.start()
             return
-        except Exception:
-            pass
+        except Exception as _qcv_exc:
+            _qcv_suppress(_qcv_exc, "core/_render_ops.py:575")
 
     try:
         sender = self.sender()
@@ -587,8 +588,8 @@ def render_preview(self):
         self.debounce.stop()
         self.debounce.setInterval(max(0, delay))
         self.debounce.start()
-    except Exception:
-        pass
+    except Exception as _qcv_exc:
+        _qcv_suppress(_qcv_exc, "core/_render_ops.py:590")
 
 def _clear_base_cache_and_render(self):
     self._base_cache.clear()
@@ -636,8 +637,8 @@ def _draw_center_and_pdv_guides(self, painter, W: int, H: int,
             bg = self._schematic_background_color()
             lum = 0.2126 * bg.red() + 0.7152 * bg.green() + 0.0722 * bg.blue()
             center_color = QColor(55,55,55,210) if lum > 145 else QColor(245,245,245,220)
-    except Exception:
-        pass
+    except Exception as _qcv_exc:
+        _qcv_suppress(_qcv_exc, "core/_render_ops.py:639")
     pen_center = QPen(center_color); pen_center.setWidth(max(1, center_w))
     pen_pdv    = QPen(QColor(220,20,20,230));   pen_pdv.setWidth(max(1, pdv_w))
 
@@ -730,14 +731,14 @@ def _render_preview_now(self):
             H = max(128 if render_quality == 'low' else 256, int(guard_state.get('height', H)))
             try:
                 prune_base_cache_for_size(self, W, H)
-            except Exception:
-                pass
+            except Exception as _qcv_exc:
+                _qcv_suppress(_qcv_exc, "core/_render_ops.py:733")
             
             
             try:
                 self.preview.setPixmap(QPixmap())
-            except Exception:
-                pass
+            except Exception as _qcv_exc:
+                _qcv_suppress(_qcv_exc, "core/_render_ops.py:739")
         else:
             self._memory_guard_runtime = {'active': False, 'safe_mode': False, 'level': 'normal'}
 
@@ -763,8 +764,8 @@ def _render_preview_now(self):
                         oldest_key = next(iter(self._overlay_cache.keys()))
                         if oldest_key != preview_key:
                             self._overlay_cache.pop(oldest_key, None)
-                    except Exception:
-                        pass
+                    except Exception as _qcv_exc:
+                        _qcv_suppress(_qcv_exc, "core/_render_ops.py:766")
         base = self._get_base_scaled(W, H)
         if base is None or base.isNull():
             raise RuntimeError("Fond de vue indisponible")
@@ -776,8 +777,8 @@ def _render_preview_now(self):
         try:
             if hasattr(self, '_monoplot_refresh_list'):
                 self._monoplot_refresh_list()
-        except Exception:
-            pass
+        except Exception as _qcv_exc:
+            _qcv_suppress(_qcv_exc, "core/_render_ops.py:779")
 
         
         if self.viewer is not None and self.viewer.isVisible():
@@ -863,8 +864,8 @@ def _render_preview_now(self):
                 self.debounce.stop()
                 self.debounce.setInterval(int(delay))
                 self.debounce.start()
-            except Exception:
-                pass
+            except Exception as _qcv_exc:
+                _qcv_suppress(_qcv_exc, "core/_render_ops.py:866")
 
 
 def _render_overlay(self, width, height):
@@ -873,8 +874,8 @@ def _render_overlay(self, width, height):
             self._prune_missing_overlay_layers()
         if hasattr(self, 'sync_all_layer_styles_from_qgis'):
             self.sync_all_layer_styles_from_qgis()
-    except Exception:
-        pass
+    except Exception as _qcv_exc:
+        _qcv_suppress(_qcv_exc, "core/_render_ops.py:876")
     _panorama_depth_error = None
     overlay = QImage(width, height, QC.QImage_Format_Format_ARGB32_Premultiplied)
         
@@ -892,12 +893,12 @@ def _render_overlay(self, width, height):
     p.setRenderHint(QC.QPainter_RenderHint_Antialiasing, True)
     try:
         p.setRenderHint(QC.QPainter_RenderHint_TextAntialiasing, True)
-    except Exception:
-        pass
+    except Exception as _qcv_exc:
+        _qcv_suppress(_qcv_exc, "core/_render_ops.py:895")
     try:
         p.setRenderHint(QC.QPainter_RenderHint_SmoothPixmapTransform, True)
-    except Exception:
-        pass
+    except Exception as _qcv_exc:
+        _qcv_suppress(_qcv_exc, "core/_render_ops.py:899")
     _begin_feature_feedback(self)
     self._budget_snapshots = []
     self._feature_style_cache = {}
@@ -913,8 +914,8 @@ def _render_overlay(self, width, height):
                 is360   = bool(self._is360_mode()) if hasattr(self, '_is360_mode') else bool(self.cb_360.isChecked())
                 p.setCompositionMode(QC.QPainter_CompositionMode_CompositionMode_SourceOver)
                 self._draw_center_and_pdv_guides(p, width, height, yaw_eff, HFOV, proj, is360)
-            except Exception:
-                pass
+            except Exception as _qcv_exc:
+                _qcv_suppress(_qcv_exc, "core/_render_ops.py:916")
             p.end()
             overlay = _shift_overlay_image(self, overlay)
             self.overlay_image = overlay
@@ -941,7 +942,7 @@ def _render_overlay(self, width, height):
             cam_pt, cam_crs = None, None
         if cam_pt is None or cam_crs is None:
             try: self._camera_warn_if_non_metric_project(notify=False)
-            except Exception: pass
+            except Exception as _qcv_exc: _qcv_suppress(_qcv_exc, "core/_render_ops.py:944")
             raise RuntimeError("CRS projet non métrique : choisissez un CRS projeté (par ex. Lambert-93) pour QCALVIEW")
 
         yaw = self.d_yaw.value()
@@ -983,8 +984,8 @@ def _render_overlay(self, width, height):
                 _cap = _guard.get('maxdist_cap')
                 if _cap is not None and float(_cap) > 0.0:
                     maxdist = float(_cap) if maxdist is None else min(float(maxdist), float(_cap))
-            except Exception:
-                pass
+            except Exception as _qcv_exc:
+                _qcv_suppress(_qcv_exc, "core/_render_ops.py:986")
         
         
         
@@ -999,14 +1000,14 @@ def _render_overlay(self, width, height):
             try:
                 self.d_hfov.blockSignals(True); self.d_hfov.setValue(HFOV); self.d_hfov.blockSignals(False)
                 self.d_vfov.blockSignals(True); self.d_vfov.setValue(VFOV); self.d_vfov.blockSignals(False)
-            except Exception:
-                pass
+            except Exception as _qcv_exc:
+                _qcv_suppress(_qcv_exc, "core/_render_ops.py:1002")
         elif proj_upper == 'CYLINDRICAL' and is360:
             HFOV = 360.0
             try:
                 self.d_hfov.blockSignals(True); self.d_hfov.setValue(HFOV); self.d_hfov.blockSignals(False)
-            except Exception:
-                pass
+            except Exception as _qcv_exc:
+                _qcv_suppress(_qcv_exc, "core/_render_ops.py:1008")
 
         
         z_sampler = None; cam_ground_z = 0.0
@@ -1055,8 +1056,8 @@ def _render_overlay(self, width, height):
                     _guard_rad = _active_panorama_guard(self).get('rad_step_min')
                     if _guard_rad is not None:
                         _rad_step_eff = max(_rad_step_eff, float(_guard_rad))
-                except Exception:
-                    pass
+                except Exception as _qcv_exc:
+                    _qcv_suppress(_qcv_exc, "core/_render_ops.py:1058")
             horizon_view_key = (
                 round(float(cam_pt.x()), 3), round(float(cam_pt.y()), 3), round(float(cam_z), 3),
                 str(proj), int(width), int(height),
@@ -1080,8 +1081,8 @@ def _render_overlay(self, width, height):
                     try:
                         self._horizon = None
                         self._horizon_params = None
-                    except Exception:
-                        pass
+                    except Exception as _qcv_exc:
+                        _qcv_suppress(_qcv_exc, "core/_render_ops.py:1083")
                 self._build_horizon_cache(
                     z_sampler, cam_pt, cam_z, cam_crs,
                     proj, width, height, yaw_eff, pitch, roll, HFOV, VFOV, is360, maxdist,
@@ -1121,8 +1122,8 @@ def _render_overlay(self, width, height):
             if _pano_zbuffer_enabled:
                 try:
                     _pano_deferred_labels.append((str(text), (float(anchor_uv[0]), float(anchor_uv[1])), sty_label))
-                except Exception:
-                    pass
+                except Exception as _qcv_exc:
+                    _qcv_suppress(_qcv_exc, "core/_render_ops.py:1124")
             else:
                 self._draw_label(p, text, anchor_uv, sty_label)
 
@@ -1155,7 +1156,7 @@ def _render_overlay(self, width, height):
                 _cap = _guard_state.get('schematic_instance_budget')
                 if _cap is not None:
                     try: _base_instances = min(_base_instances, max(1000, int(_cap)))
-                    except Exception: pass
+                    except Exception as _qcv_exc: _qcv_suppress(_qcv_exc, "core/_render_ops.py:1158")
                 _min_px = _guard_state.get('min_billboard_px')
             else:
                 _min_px = None
@@ -1288,8 +1289,8 @@ def _render_overlay(self, width, height):
             try:
                 _pano_schematic_budget['initial'] = min(int(_pano_schematic_budget.get('initial',_zb_cap)), int(_zb_cap))
                 _pano_schematic_budget['remaining'] = min(int(_pano_schematic_budget.get('remaining',_zb_cap)), int(_zb_cap))
-            except Exception:
-                pass
+            except Exception as _qcv_exc:
+                _qcv_suppress(_qcv_exc, "core/_render_ops.py:1291")
 
         fast_cpu_mode = (str(proj).upper() == 'PINHOLE') and (not panoramic_overlay_mode)
         if fast_cpu_mode:
@@ -1336,8 +1337,8 @@ def _render_overlay(self, width, height):
                         _guard_limit = _active_panorama_guard(self).get('entity_limit_per_layer')
                         if _guard_limit is not None and int(_guard_limit) > 0:
                             _hard_limit = min(int(_hard_limit), int(_guard_limit))
-                    except Exception:
-                        pass
+                    except Exception as _qcv_exc:
+                        _qcv_suppress(_qcv_exc, "core/_render_ops.py:1339")
                 _features = list(_iter_candidate_features(
                     self, lyr, sty, cam_pt, cam_crs, effective_maxdist, yaw_eff, HFOV, proj, is360,
                     render_quality=render_quality, feedback=getattr(self, '_feature_feedback', None), need_attrs=True,
@@ -1345,8 +1346,8 @@ def _render_overlay(self, width, height):
                 ))
                 try:
                     _features.sort(key=lambda ft: _geometry_depth_key(ft.geometry(), tr, cam_pt), reverse=True)
-                except Exception:
-                    pass
+                except Exception as _qcv_exc:
+                    _qcv_suppress(_qcv_exc, "core/_render_ops.py:1348")
 
                 
                 
@@ -1366,7 +1367,7 @@ def _render_overlay(self, width, height):
                     h = None
                     if sty_height_field and (sty_height_field in feat.fields().names()):
                         try: h = float(feat[sty_height_field])
-                        except: h = None
+                        except BaseException: h = None
                     if h is None: h = sty_h_default
                     current_h = h
 
@@ -1416,7 +1417,7 @@ def _render_overlay(self, width, height):
                                     )
                             except Exception as _exc:
                                 try: qcv_log(f"{lyr.name()} | FID {feat.id()} | PANORAMA z-buffer AVR : {_exc}",'SCHEMATIC/RENDER','WARNING')
-                                except Exception: pass
+                                except Exception as _qcv_exc: _qcv_suppress(_qcv_exc, "core/_render_ops.py:1419")
                                 
                                 
                                 handled=True
@@ -1472,7 +1473,7 @@ def _render_overlay(self, width, height):
                                         self._update_horizon_by_segment(azb, azb, max(elb, elt))
                                 else:
                                     try: p.drawEllipse(int(base_uv[0])-2, int(base_uv[1])-2, 4, 4)
-                                    except Exception: pass
+                                    except Exception as _qcv_exc: _qcv_suppress(_qcv_exc, "core/_render_ops.py:1475")
                                 if sty_eff.show_labels and not layer_labels_hidden:
                                     if anchor_uv_global is not None and text_global:
                                         _emit_feature_label(text_global, anchor_uv_global, sty_eff)
@@ -1502,7 +1503,7 @@ def _render_overlay(self, width, height):
 
                         for arr_line in _line_arrays:
                             try: arr_line=np.asarray(arr_line,dtype=np.float64)
-                            except Exception: continue
+                            except Exception as _qcv_exc: _qcv_suppress(_qcv_exc, "core/_render_ops.py:1505"); continue
                             if arr_line.ndim!=2 or arr_line.shape[0]<2 or arr_line.shape[1]!=2: continue
                             base_z_line,_base_z_mean,_raw_ground_z=_effective_base_z_array(
                                 self,arr_line,vector_z_sampler,geometry_kind='line',force_horizontal=False
@@ -1566,7 +1567,7 @@ def _render_overlay(self, width, height):
                                             _queue_physical_edge(pen, ep, wrap_width)
                                         else:
                                             p.setPen(pen); _draw_uv_segments(self,p,ep.uv)
-                                    except Exception: pass
+                                    except Exception as _qcv_exc: _qcv_suppress(_qcv_exc, "core/_render_ops.py:1569")
                             if (not layer_labels_hidden) and sty.show_labels and (anchor_uv_global is not None) and text_global:
                                 _emit_feature_label(text_global,anchor_uv_global,sty_eff)
 
@@ -1598,7 +1599,7 @@ def _render_overlay(self, width, height):
 
                         for _part_idx, arr_src in enumerate(_poly_arrays):
                             try: arr_src=np.asarray(arr_src,dtype=np.float64)
-                            except Exception: continue
+                            except Exception as _qcv_exc: _qcv_suppress(_qcv_exc, "core/_render_ops.py:1601"); continue
                             if arr_src.ndim!=2 or arr_src.shape[0]<3 or arr_src.shape[1]!=2:
                                 continue
 
@@ -1699,8 +1700,8 @@ def _render_overlay(self, width, height):
                                         if occ_objects and not _pano_zbuffer_enabled:
                                             zt=float(base_z_ring[i])+float(h); vis,az,el=point_visibility(pts_cam_ring[i],zt)
                                             if vis or not occ_relief: self._update_horizon_by_segment(az,az,el)
-                                    except Exception:
-                                        pass
+                                    except Exception as _qcv_exc:
+                                        _qcv_suppress(_qcv_exc, "core/_render_ops.py:1702")
                             if (not layer_labels_hidden) and sty.show_labels and (anchor_uv_global is not None) and text_global:
                                 _emit_feature_label(text_global,anchor_uv_global,sty_eff)
 
@@ -1738,17 +1739,17 @@ def _render_overlay(self, width, height):
                     self._panorama_last_zbuffer_faces=int(len(_pano_zfaces))
                     self._panorama_last_zbuffer_scale=float(_zscale)
                     self._panorama_last_terrain_culled_faces=int(_pano_terrain_cull_stats.get('objects_culled',0))
-                except Exception: pass
+                except Exception as _qcv_exc: _qcv_suppress(_qcv_exc, "core/_render_ops.py:1741")
                 _rgba=None; _zimg=None
             except Exception as _exc:
                 try: qcv_log(f"PANORAMA z-buffer 40.19.2 : {_exc}",'PANORAMA/ZBUFFER','WARNING')
-                except Exception: pass
+                except Exception as _qcv_exc: _qcv_suppress(_qcv_exc, "core/_render_ops.py:1745")
                 
                 _panorama_depth_error = _exc
                 raise RuntimeError("PANORAMA depth composition failed") from _exc
             finally:
                 try: _pano_zfaces.clear()
-                except Exception: pass
+                except Exception as _qcv_exc: _qcv_suppress(_qcv_exc, "core/_render_ops.py:1751")
 
         
         
@@ -1768,14 +1769,14 @@ def _render_overlay(self, width, height):
         
         for _ltxt,_luv,_lsty in _pano_deferred_labels:
             try: self._draw_label(p,_ltxt,_luv,_lsty)
-            except Exception: pass
+            except Exception as _qcv_exc: _qcv_suppress(_qcv_exc, "core/_render_ops.py:1771")
 
         if _pano_defer_calib_grid:
             try:
                 self._draw_calib_grid(p, cam_pt, cam_z, cam_crs, proj, width, height,
                                       yaw_eff, pitch, roll, HFOV, VFOV, is360, z_sampler)
-            except Exception:
-                pass
+            except Exception as _qcv_exc:
+                _qcv_suppress(_qcv_exc, "core/_render_ops.py:1777")
 
         try:
             snaps = list(getattr(self, '_budget_snapshots', []) or [])
@@ -1803,8 +1804,8 @@ def _render_overlay(self, width, height):
                 _label_budget_text(self, msg)
             else:
                 _label_budget_text(self, 'Budget : -')
-        except Exception:
-            pass
+        except Exception as _qcv_exc:
+            _qcv_suppress(_qcv_exc, "core/_render_ops.py:1806")
 
         try:
             _guard_status = format_guard_status(getattr(self, '_memory_guard_runtime', None))
@@ -1812,8 +1813,8 @@ def _render_overlay(self, width, height):
                 _cur = self.lbl_render_budget.text() if hasattr(self, 'lbl_render_budget') else ''
                 if _guard_status not in str(_cur):
                     _label_budget_text(self, (str(_cur) + ' • ' + _guard_status).strip(' •'))
-        except Exception:
-            pass
+        except Exception as _qcv_exc:
+            _qcv_suppress(_qcv_exc, "core/_render_ops.py:1815")
 
         try:
             if isinstance(_pano_schematic_budget, dict):
@@ -1825,8 +1826,8 @@ def _render_overlay(self, width, height):
                     if _cul>0: bits.append(f"{_cul:,} sous-pixel ignorés".replace(',', ' '))
                     _cur=self.lbl_render_budget.text() if hasattr(self,'lbl_render_budget') else ''
                     _label_budget_text(self,(str(_cur)+' • '+' • '.join(bits)).strip(' •'))
-        except Exception:
-            pass
+        except Exception as _qcv_exc:
+            _qcv_suppress(_qcv_exc, "core/_render_ops.py:1828")
 
         try:
             _tc=int(_pano_terrain_cull_stats.get('objects_culled',0)) if panoramic_overlay_mode else 0
@@ -1840,15 +1841,15 @@ def _render_overlay(self, width, height):
             if bits:
                 _cur=self.lbl_render_budget.text() if hasattr(self,'lbl_render_budget') else ''
                 _label_budget_text(self,(str(_cur)+' • '+' • '.join(bits)).strip(' •'))
-        except Exception:
-            pass
+        except Exception as _qcv_exc:
+            _qcv_suppress(_qcv_exc, "core/_render_ops.py:1843")
         try:
             _zrs=getattr(self,'_panorama_zbuffer_runtime_stats',None)
             if isinstance(_zrs,dict) and bool(_zrs.get('aborted_memory',False)):
                 _cur=self.lbl_render_budget.text() if hasattr(self,'lbl_render_budget') else ''
                 _label_budget_text(self,(str(_cur)+' • z-buffer arrêté avant limite mémoire critique').strip(' •'))
-        except Exception:
-            pass
+        except Exception as _qcv_exc:
+            _qcv_suppress(_qcv_exc, "core/_render_ops.py:1850")
 
         if not topo_draw_before_vectors:
             _draw_topography_group()
@@ -1866,18 +1867,18 @@ def _render_overlay(self, width, height):
                 yaw_eff, HFOV,
                 proj, is360
             )
-        except Exception:
-            pass
+        except Exception as _qcv_exc:
+            _qcv_suppress(_qcv_exc, "core/_render_ops.py:1869")
 
         try:
             self._draw_azimuth_rule(p, width, height, yaw_eff, HFOV, proj, is360)
-        except Exception:
-            pass
+        except Exception as _qcv_exc:
+            _qcv_suppress(_qcv_exc, "core/_render_ops.py:1874")
 
         try:
             self._draw_monoplot_overlay(p, width, height)
-        except Exception:
-            pass
+        except Exception as _qcv_exc:
+            _qcv_suppress(_qcv_exc, "core/_render_ops.py:1879")
 
     except Exception as e:
         try:
@@ -1888,8 +1889,8 @@ def _render_overlay(self, width, height):
                 tr(f"QCALVIEW overlay error: {e}\n--- Python traceback complet ---\n{_tb}"),
                 "QCALVIEW", 2
             )
-        except Exception:
-            pass
+        except Exception as _qcv_exc:
+            _qcv_suppress(_qcv_exc, "core/_render_ops.py:1891")
 
     p.end()
     if _panorama_depth_error is not None:
@@ -1906,8 +1907,8 @@ def _render_overlay(self, width, height):
                 self.viewer.update_overlay(self.overlay_image)
             else:
                 self.viewer.clear_overlay()
-        except Exception:
-            pass
+        except Exception as _qcv_exc:
+            _qcv_suppress(_qcv_exc, "core/_render_ops.py:1909")
 
     return overlay
 
@@ -2059,8 +2060,8 @@ def _perf_profile_name(self):
 def _label_budget_text(self, text):
     try:
         self.lbl_render_budget.setText(tr(str(text)))
-    except Exception:
-        pass
+    except Exception as _qcv_exc:
+        _qcv_suppress(_qcv_exc, "core/_render_ops.py:2062")
 
 
 def _requested_maxdist_for_layer(self, sty, gtype):
@@ -2081,8 +2082,8 @@ def _requested_maxdist_for_layer(self, sty, gtype):
         _cap = _active_panorama_guard(self).get('maxdist_cap')
         if _cap is not None and float(_cap) > 0.0:
             requested = min(float(requested), float(_cap))
-    except Exception:
-        pass
+    except Exception as _qcv_exc:
+        _qcv_suppress(_qcv_exc, "core/_render_ops.py:2084")
     return max(25.0, float(requested))
 
 
@@ -2101,7 +2102,8 @@ def _bbox_points_in_cam_crs(rect, tr):
         try:
             cpt = tr.transform(pt) if tr is not None else pt
             pts.append((float(cpt.x()), float(cpt.y())))
-        except Exception:
+        except Exception as _qcv_exc:
+            _qcv_suppress(_qcv_exc, "core/_render_ops.py:2104")
             continue
     return pts
 
@@ -2154,8 +2156,8 @@ def _feature_candidate_stats(feat, tr, cam_pt, maxdist, yaw_deg, hfov_deg, proje
             apparent_px = (diag / best_dist) * px_per_rad
             if apparent_px < float(min_screen_px):
                 return None
-        except Exception:
-            pass
+        except Exception as _qcv_exc:
+            _qcv_suppress(_qcv_exc, "core/_render_ops.py:2157")
     return {'distance': float(best_dist), 'diag': float(diag)}
 
 
@@ -2190,28 +2192,28 @@ def _iter_candidate_features(self, layer, sty, cam_pt, cam_crs, maxdist, yaw_deg
     if layer_rect is not None:
         try:
             req.setFilterRect(layer_rect)
-        except Exception:
-            pass
+        except Exception as _qcv_exc:
+            _qcv_suppress(_qcv_exc, "core/_render_ops.py:2193")
     if feedback is not None:
         try:
             req.setFeedback(feedback)
-        except Exception:
-            pass
+        except Exception as _qcv_exc:
+            _qcv_suppress(_qcv_exc, "core/_render_ops.py:2198")
     if not need_attrs:
         try:
             req.setNoAttributes()
-        except Exception:
-            pass
+        except Exception as _qcv_exc:
+            _qcv_suppress(_qcv_exc, "core/_render_ops.py:2203")
     elif extra_attr_names:
         try:
             req.setSubsetOfAttributes(extra_attr_names, layer.fields())
-        except Exception:
-            pass
+        except Exception as _qcv_exc:
+            _qcv_suppress(_qcv_exc, "core/_render_ops.py:2208")
     if hard_limit:
         try:
             req.setLimit(int(hard_limit) * 4)
-        except Exception:
-            pass
+        except Exception as _qcv_exc:
+            _qcv_suppress(_qcv_exc, "core/_render_ops.py:2213")
 
     min_screen_px = 1.5 if (render_quality == 'low' or simplify_geometry) else 1.0
     yielded = 0
@@ -2220,8 +2222,8 @@ def _iter_candidate_features(self, layer, sty, cam_pt, cam_crs, maxdist, yaw_deg
             try:
                 if feedback.isCanceled():
                     break
-            except Exception:
-                pass
+            except Exception as _qcv_exc:
+                _qcv_suppress(_qcv_exc, "core/_render_ops.py:2223")
         stats = _feature_candidate_stats(feat, tr, cam_pt, maxdist, yaw_deg, hfov_deg, projection, is360, width=width, min_screen_px=min_screen_px)
         if stats is None:
             continue
@@ -2283,8 +2285,8 @@ def _estimate_layer_cost(self, layer, sty, cam_pt, cam_crs, maxdist, yaw_deg, hf
             try:
                 sample_vertices += _count_geom_vertices(feat.geometry(), max_vertices=6000)
                 sample_n += 1
-            except Exception:
-                pass
+            except Exception as _qcv_exc:
+                _qcv_suppress(_qcv_exc, "core/_render_ops.py:2286")
         if candidate_count >= max(profile.hard_features * 2, 2500):
             break
 
@@ -2381,8 +2383,8 @@ def _begin_feature_feedback(self):
         fb = getattr(self, '_feature_feedback', None)
         if fb is not None:
             fb.cancel()
-    except Exception:
-        pass
+    except Exception as _qcv_exc:
+        _qcv_suppress(_qcv_exc, "core/_render_ops.py:2384")
     try:
         self._feature_feedback = QgsFeedback()
     except Exception:
@@ -2526,8 +2528,8 @@ def _feature_depth_key(item, cam_xy=None):
             means.append(float(np.nanmean(d2)))
         if mins:
             return (float(min(mins)), float(sum(means) / len(means)))
-    except Exception:
-        pass
+    except Exception as _qcv_exc:
+        _qcv_suppress(_qcv_exc, "core/_render_ops.py:2529")
     return (0.0, 0.0)
 
 
@@ -2569,7 +2571,8 @@ def _geometry_depth_key(geom, tr, cam_pt):
             try:
                 _dx = float(arr[_q,0]) - cx; _dy = float(arr[_q,1]) - cy
                 _d2 = _dx*_dx + _dy*_dy
-            except Exception:
+            except Exception as _qcv_exc:
+                _qcv_suppress(_qcv_exc, "core/_render_ops.py:2572")
                 continue
             if not math.isfinite(_d2):
                 continue
@@ -2635,8 +2638,8 @@ def _polygon_paths_from_uvs(uvs, wrap_width=None):
                 try:
                     if np.linalg.norm(run[0] - run[-1]) <= 1e-6:
                         run = run[:-1]
-                except Exception:
-                    pass
+                except Exception as _qcv_exc:
+                    _qcv_suppress(_qcv_exc, "core/_render_ops.py:2638")
             if run.shape[0] < 3:
                 continue
             poly = QPolygonF([QPointF(float(x), float(y)) for x, y in run])
@@ -3092,8 +3095,8 @@ def _densify_path_for_projection(ctx, arr_xy, z_vals, dist_max=None, closed=Fals
         try:
             used = max(0, len(out_pts) - int(arr0.shape[0]))
             budget_state['remaining'] = max(0, int(budget_state.get('remaining', 0)) - used)
-        except Exception:
-            pass
+        except Exception as _qcv_exc:
+            _qcv_suppress(_qcv_exc, "core/_render_ops.py:3095")
     return np.asarray(out_pts, dtype=np.float64), np.asarray(out_z, dtype=np.float64)
 
 
@@ -3229,7 +3232,8 @@ def _finite_bbox_xy_scalar(pts):
     for i in range(n):
         try:
             x = float(pts[i][0]); y = float(pts[i][1])
-        except Exception:
+        except Exception as _qcv_exc:
+            _qcv_suppress(_qcv_exc, "core/_render_ops.py:3232")
             continue
         if not (math.isfinite(x) and math.isfinite(y)):
             continue
@@ -3425,8 +3429,8 @@ def _alpha_from_fill_spec(spec, fallback_alpha=255):
             vals = [QColor(spec.get(k)).alpha() for k in ('bg_color', 'point_color') if k in spec]
             if vals:
                 return int(round(sum(vals) / float(len(vals))))
-    except Exception:
-        pass
+    except Exception as _qcv_exc:
+        _qcv_suppress(_qcv_exc, "core/_render_ops.py:3428")
     return max(0, min(255, int(fallback_alpha)))
 
 def _wall_color_from_fill_spec(fill_spec, fallback=QColor(190,190,190,255), transparent_objects=False):
@@ -3571,11 +3575,11 @@ def _qt_brush_from_fill_spec(fill_spec, poly=None):
                 if poly is not None and not poly.isEmpty():
                     rect = poly.boundingRect()
                     brush.setTransform(QTransform().translate(float(rect.left()), float(rect.top())))
-            except Exception:
-                pass
+            except Exception as _qcv_exc:
+                _qcv_suppress(_qcv_exc, "core/_render_ops.py:3574")
             return brush
-    except Exception:
-        pass
+    except Exception as _qcv_exc:
+        _qcv_suppress(_qcv_exc, "core/_render_ops.py:3577")
     if kind == 'simple':
         return QBrush(QColor(spec.get('color', QColor(0,255,0,255))))
     if kind == 'gradient':
@@ -3776,7 +3780,8 @@ def _clean_polygon_ring_pts_dep(pts, dep, eps=1e-6):
     for i in range(n):
         try:
             x, y = float(pts[i][0]), float(pts[i][1]); d = float(dep[i])
-        except Exception:
+        except Exception as _qcv_exc:
+            _qcv_suppress(_qcv_exc, "core/_render_ops.py:3779")
             continue
         if not (math.isfinite(x) and math.isfinite(y) and math.isfinite(d)):
             continue
@@ -3832,7 +3837,8 @@ def _triangulate_polygon_run(pts, dep, fill_spec, pattern_bbox=None):
                  (float(pts[i1,0]),float(pts[i1,1])),
                  (float(pts[i2,0]),float(pts[i2,1])))
             dtri=(float(dep[i0]),float(dep[i1]),float(dep[i2]))
-        except Exception:
+        except Exception as _qcv_exc:
+            _qcv_suppress(_qcv_exc, "core/_render_ops.py:3835")
             continue
         vals=(tri[0][0],tri[0][1],tri[1][0],tri[1][1],tri[2][0],tri[2][1],dtri[0],dtri[1],dtri[2])
         if all(math.isfinite(v) for v in vals):
@@ -4002,8 +4008,8 @@ def _compose_panorama_faces_zbuffer_40191(width, height, faces, scale=1.0, owner
                     if int(snap.available_bytes) < int(reserve):
                         aborted_memory = True
                         break
-            except Exception:
-                pass
+            except Exception as _qcv_exc:
+                _qcv_suppress(_qcv_exc, "core/_render_ops.py:4005")
 
         try:
             pts0 = face.get('uv', ())
@@ -4013,7 +4019,8 @@ def _compose_panorama_faces_zbuffer_40191(width, height, faces, scale=1.0, owner
             tuv0 = face.get('texture_uv', None)
             texture_uv_vertices = (tuple((float(tuv0[k][0]), float(tuv0[k][1])) for k in range(3))
                                    if tuv0 is not None else None)
-        except Exception:
+        except Exception as _qcv_exc:
+            _qcv_suppress(_qcv_exc, "core/_render_ops.py:4016")
             continue
         vals = tuple(v for pp in pts_s for v in pp) + dep
         if texture_uv_vertices is not None:
@@ -4097,8 +4104,8 @@ def _compose_panorama_faces_zbuffer_40191(width, height, faces, scale=1.0, owner
                         if np.all(sl_depth < min_face_depth):
                             skipped_depth_tiles += 1
                             continue
-                    except Exception:
-                        pass
+                    except Exception as _qcv_exc:
+                        _qcv_suppress(_qcv_exc, "core/_render_ops.py:4100")
 
                     xs=(xbase[:nx] + np.float32(tx0))
                     XX=np.broadcast_to(xs[None,:],(ny,nx))
@@ -4212,7 +4219,7 @@ def _compose_panorama_faces_zbuffer_40191(width, height, faces, scale=1.0, owner
                 'depth_tiles_skipped':int(skipped_depth_tiles),'aborted_memory':bool(aborted_memory),
                 'width':int(sw),'height':int(sh),'scale':float(scale),
             }
-        except Exception: pass
+        except Exception as _qcv_exc: _qcv_suppress(_qcv_exc, "core/_render_ops.py:4215")
     if aborted_memory and bool(getattr(owner, '_qcv_export_in_progress', False)):
         raise MemoryError("PANORAMA export cancelled before memory limit; incomplete depth scene")
     return rgba, depth, float(scale)
@@ -4237,7 +4244,8 @@ def _compose_faces_zbuffer(width, height, faces, scale=1.0):
                 texture_uv_vertices = tuple((float(tuv0[k][0]), float(tuv0[k][1])) for k in range(3))
             else:
                 texture_uv_vertices = None
-        except Exception:
+        except Exception as _qcv_exc:
+            _qcv_suppress(_qcv_exc, "core/_render_ops.py:4240")
             continue
         vals = tuple(v for p in pts_s for v in p) + dep
         if texture_uv_vertices is not None:
@@ -4752,7 +4760,8 @@ def _terrain_object_classify_xyz_40192(horizon, xyz, cam_x, cam_y, cam_z, eps_de
         for i in range(n):
             try:
                 x = float(xyz[i][0]); y = float(xyz[i][1]); z = float(xyz[i][2])
-            except Exception:
+            except Exception as _qcv_exc:
+                _qcv_suppress(_qcv_exc, "core/_render_ops.py:4755")
                 continue
             if not (math.isfinite(x) and math.isfinite(y) and math.isfinite(z)):
                 continue
@@ -4816,7 +4825,7 @@ def _terrain_probe_xyz_from_xy_parts_40192(parts, z_sampler, top_height_m, *, ma
                 x=float(a[ii][0]); y=float(a[ii][1])
                 if not (math.isfinite(x) and math.isfinite(y)): continue
                 try: gz=float(z_sampler(QgsPointXY(x,y)))
-                except Exception: continue
+                except Exception as _qcv_exc: _qcv_suppress(_qcv_exc, "core/_render_ops.py:4819"); continue
                 if math.isfinite(gz): candidates.append((x,y,gz+max(0.0,float(top_height_m))))
         return candidates or None
     except Exception:
@@ -5178,9 +5187,10 @@ def _draw_panorama_uv_segments_ztested_4019(self, painter, uvs, depths, depth_bu
         W=0.0
     terrain_test=None
     if terrain_horizon is not None and terrain_ctx is not None:
-        terrain_test=lambda x,y,d: _panorama_fragment_visible_by_horizon(
-            terrain_ctx,terrain_horizon,float(terrain_eps),x,y,d
-        )
+        def terrain_test(x, y, d):
+            return _panorama_fragment_visible_by_horizon(
+                terrain_ctx, terrain_horizon, float(terrain_eps), x, y, d
+            )
     for pts,dep in _iter_wrapped_runs_with_depth(uvs,depths,wrap_width=(W if W>1.0 else None),min_len=2):
         n=min(len(pts),len(dep))
         for i in range(max(0,n-1)):
@@ -5235,8 +5245,8 @@ def _sty_fill_color(sty, transparent_objects=False, alpha_override=None):
         qspec = getattr(sty, 'qgis_fill_style', None)
         if bool(getattr(sty, 'use_qgis_style', True)) and qspec:
             fc = _dominant_fill_color_from_spec(qspec, fallback=fc)
-    except Exception:
-        pass
+    except Exception as _qcv_exc:
+        _qcv_suppress(_qcv_exc, "core/_render_ops.py:5239")
     out = QColor(fc)
     if alpha_override is not None:
         out.setAlpha(int(max(0, min(255, alpha_override))))
@@ -5273,8 +5283,8 @@ def _paint_fill_spec_on_polygon(painter, poly, fill_spec):
                 elif 'color1' in fill_spec: target_alpha = int(QColor(fill_spec.get('color1')).alpha())
                 elif 'bg_color' in fill_spec: target_alpha = int(QColor(fill_spec.get('bg_color')).alpha())
                 fallback.setAlpha(max(0, min(255, target_alpha)))
-        except Exception:
-            pass
+        except Exception as _qcv_exc:
+            _qcv_suppress(_qcv_exc, "core/_render_ops.py:5277")
         path = QPainterPath(); path.addPolygon(poly)
         painter.save(); painter.setClipPath(path); painter.fillPath(path, QBrush(fallback)); painter.restore()
         return
@@ -5379,8 +5389,8 @@ def _paint_fill_spec_on_panorama_faces(painter, faces, fill_spec):
         try:
             ta = int((fill_spec or {}).get('target_alpha', col.alpha()))
             col.setAlpha(max(0, min(255, ta)))
-        except Exception:
-            pass
+        except Exception as _qcv_exc:
+            _qcv_suppress(_qcv_exc, "core/_render_ops.py:5383")
         painter.fillPath(path, QBrush(col))
         return
     try:
@@ -5396,7 +5406,8 @@ def _paint_fill_spec_on_panorama_faces(painter, faces, fill_spec):
             rect = poly.boundingRect().toAlignedRect()
             if not dev_rect.isNull():
                 rect = rect.intersected(dev_rect)
-        except Exception:
+        except Exception as _qcv_exc:
+            _qcv_suppress(_qcv_exc, "core/_render_ops.py:5400")
             continue
         if rect.isNull() or rect.width() <= 0 or rect.height() <= 0:
             continue
@@ -5467,8 +5478,8 @@ def _draw_panorama_polygon_faces(self, painter, sty, surface_faces, wall_faces=N
         try:
             ta = int((top_fill or {}).get('target_alpha', top_col.alpha()))
             top_col.setAlpha(max(0, min(255, ta)))
-        except Exception:
-            pass
+        except Exception as _qcv_exc:
+            _qcv_suppress(_qcv_exc, "core/_render_ops.py:5471")
 
     painter.save()
     painter.setPen(QC.Qt_PenStyle_NoPen)
@@ -5508,7 +5519,7 @@ def _panorama_feature_parts_cached(self, layer, feat, gtype, tr, fast_preview=Fa
         rev=int(getattr(self,'_layer_cache_versions',{}).get(lid,0)); fid=int(feat.id())
         crskey=''
         try: crskey=layer.crs().authid()
-        except Exception: pass
+        except Exception as _qcv_exc: _qcv_suppress(_qcv_exc, "core/_render_ops.py:5512")
         dstkey=''
         try: dstkey=tr.destinationCrs().authid() if tr is not None else crskey
         except Exception: dstkey=crskey
@@ -5636,8 +5647,8 @@ def _sample_z_array(z_sampler, arr_xy):
     if callable(batch):
         try:
             return np.asarray(batch(arr_xy), dtype=np.float64)
-        except Exception:
-            pass
+        except Exception as _qcv_exc:
+            _qcv_suppress(_qcv_exc, "core/_render_ops.py:5640")
     out = np.zeros(arr_xy.shape[0], dtype=np.float64)
     for i in range(arr_xy.shape[0]):
         out[i] = float(z_sampler(QgsPointXY(float(arr_xy[i, 0]), float(arr_xy[i, 1]))))
@@ -5657,7 +5668,8 @@ def _effective_base_z_array(self, arr_xy, z_sampler, geometry_kind='polygon', fo
     for _q in range(int(raw.shape[0])):
         try:
             _zq = float(raw[_q])
-        except Exception:
+        except Exception as _qcv_exc:
+            _qcv_suppress(_qcv_exc, "core/_render_ops.py:5661")
             continue
         if math.isfinite(_zq):
             _sum_z += _zq; _count_z += 1
@@ -5792,7 +5804,7 @@ def _panorama_face_fill_dict_419(face, fill_spec, pattern_bbox=None):
             out['pattern_bbox']=(min(p[0] for p in uv),max(p[0] for p in uv),min(p[1] for p in uv),max(p[1] for p in uv))
         if getattr(face,'texture_uv',None) is not None:
             try: out['texture_uv']=tuple((float(face.texture_uv[i][0]),float(face.texture_uv[i][1])) for i in range(3))
-            except Exception: pass
+            except Exception as _qcv_exc: _qcv_suppress(_qcv_exc, "core/_render_ops.py:5796")
         return out
     except Exception:
         return None
@@ -5806,8 +5818,8 @@ def _append_panorama_faces_for_zbuffer_419(dst, faces, fill_spec, terrain_culler
             try:
                 if not bool(terrain_culler(face)):
                     continue
-            except Exception:
-                pass
+            except Exception as _qcv_exc:
+                _qcv_suppress(_qcv_exc, "core/_render_ops.py:5810")
         item=_panorama_face_fill_dict_419(face,fill_spec)
         if item is not None:
             dst.append(item); added+=1
@@ -5833,7 +5845,7 @@ def _draw_panorama_zfaces_fallback_419(painter, faces):
             uv=f.get('uv',()); dep=f.get('depths',()); d=sum(float(v) for v in dep)/3.0
             if len(uv)!=3 or not math.isfinite(d): continue
             queue.append((d,f))
-        except Exception: continue
+        except Exception as _qcv_exc: _qcv_suppress(_qcv_exc, "core/_render_ops.py:5837"); continue
     queue.sort(key=lambda it:it[0],reverse=True)
     painter.save(); painter.setPen(QC.Qt_PenStyle_NoPen)
     try:
@@ -5844,7 +5856,7 @@ def _draw_panorama_zfaces_fallback_419(painter, faces):
                     col=_dominant_fill_color_from_spec(spec,fallback=QColor(90,130,90,180))
                 poly=QPolygonF([QPointF(float(pts[i][0]),float(pts[i][1])) for i in range(3)])
                 painter.setBrush(QBrush(col)); painter.drawPolygon(poly)
-            except Exception: continue
+            except Exception as _qcv_exc: _qcv_suppress(_qcv_exc, "core/_render_ops.py:5848"); continue
     finally:
         painter.restore()
 
@@ -5865,8 +5877,8 @@ def _panorama_zbuffer_scale_for_preview_419(self,width,height,has_texture=False)
         st=getattr(self,'_memory_guard_runtime',None)
         if preview and isinstance(st,dict) and bool(st.get('safe_mode',False)):
             target=min(target,4_000_000 if str(st.get('level'))=='dangerous' else 8_000_000)
-    except Exception:
-        pass
+    except Exception as _qcv_exc:
+        _qcv_suppress(_qcv_exc, "core/_render_ops.py:5869")
     if pixels<=target: return 1.0
     return max(0.20,min(1.0,math.sqrt(float(target)/float(pixels))))
 
@@ -5904,18 +5916,18 @@ def _append_schematic_primitives_for_panorama_zbuffer_419(faces, primitives, sty
     for pr in primitives:
         if isinstance(pr,Billboard3D):
             try: xyz=billboard_world_quad(pr,camera_xy)
-            except Exception: continue
+            except Exception as _qcv_exc: _qcv_suppress(_qcv_exc, "core/_render_ops.py:5908"); continue
             if visibility_test is not None:
                 try:
                     if not any(bool(visibility_test(float(r[0]),float(r[1]),float(r[2]))) for r in xyz): handled=True; continue
-                except Exception: pass
+                except Exception as _qcv_exc: _qcv_suppress(_qcv_exc, "core/_render_ops.py:5912")
             
             try:
                 dx=float(pr.x)-float(camera_xy[0]); dy=float(pr.y)-float(camera_xy[1]); dz=float(pr.z)-float(ctx['cam_z'])
                 dd=max(0.5,math.sqrt(dx*dx+dy*dy+dz*dz)); vf=math.radians(max(1e-6,float(ctx.get('VFOV',180.0))))
                 ppr=float(ctx['height'])/max(1e-9,vf); est=max(float(pr.height),float(pr.width))/dd*ppr
                 if est<simple_min: handled=True; continue
-            except Exception: pass
+            except Exception as _qcv_exc: _qcv_suppress(_qcv_exc, "core/_render_ops.py:5919")
             texuv=np.asarray(((0.0,1.0),(1.0,1.0),(1.0,0.0),(0.0,0.0)),dtype=np.float64)
             pf=panorama_faces_from_world_mesh(
                 ctx,np.asarray(xyz,dtype=np.float64),((0,1,2),(0,2,3)),maxdist,texture_uv=texuv,
@@ -5938,12 +5950,12 @@ def _append_schematic_primitives_for_panorama_zbuffer_419(faces, primitives, sty
 
         if isinstance(pr,Polygon3D):
             try: xyz=np.asarray(pr.xyz,dtype=np.float64)
-            except Exception: continue
+            except Exception as _qcv_exc: _qcv_suppress(_qcv_exc, "core/_render_ops.py:5942"); continue
             if xyz.ndim!=2 or xyz.shape[0]<3: continue
             if visibility_test is not None:
                 try:
                     if not any(bool(visibility_test(float(r[0]),float(r[1]),float(r[2]))) for r in xyz): handled=True; continue
-                except Exception: pass
+                except Exception as _qcv_exc: _qcv_suppress(_qcv_exc, "core/_render_ops.py:5947")
             tri=_earclip_triangulation_indices(xyz[:,:2]) or [(0,i,i+1) for i in range(1,xyz.shape[0]-1)]
             pf=panorama_faces_from_world_mesh(
                 ctx,xyz,tri,maxdist,wrap_width=(W if W>1.0 else None),role=pr.role,
@@ -5962,20 +5974,20 @@ def _append_schematic_primitives_for_panorama_zbuffer_419(faces, primitives, sty
                     try:
                         if len(path.uv)>=2 and len(path.radial_depth)>=2:
                             deferred_edges.append((QPen(pen),path.uv,path.radial_depth,getattr(path,'world_xyz',None),float(W or 0.0)))
-                    except Exception:
-                        pass
+                    except Exception as _qcv_exc:
+                        _qcv_suppress(_qcv_exc, "core/_render_ops.py:5966")
                 elif painter is not None:
                     painter.setPen(pen)
                     for run in _uv_runs_array(path.uv,min_len=2):
                         for rr in (_iter_wrap_shifted_pts(run,W) if W>1.0 else (run,)):
                             for ii in range(len(rr)-1):
                                 try: painter.drawLine(QPointF(float(rr[ii,0]),float(rr[ii,1])),QPointF(float(rr[ii+1,0]),float(rr[ii+1,1])))
-                                except Exception: pass
+                                except Exception as _qcv_exc: _qcv_suppress(_qcv_exc, "core/_render_ops.py:5974")
             handled=True; continue
 
         if isinstance(pr,Polyline3D):
             try: xyz=np.asarray(pr.xyz,dtype=np.float64)
-            except Exception: continue
+            except Exception as _qcv_exc: _qcv_suppress(_qcv_exc, "core/_render_ops.py:5979"); continue
             if xyz.ndim!=2 or xyz.shape[0]<2: continue
             path=project_panorama_path_safe(ctx,xyz,maxdist,closed=False,render_quality=render_quality,wrap_width=W,max_points=1200,pole_guard_px=2.5)
             _fill,line=schematic_role_colors(style,definition,pr.role); pen=QPen(line); pen.setWidthF(max(0.7,float(getattr(style,'width',1.0) or 1.0)))
@@ -5983,15 +5995,15 @@ def _append_schematic_primitives_for_panorama_zbuffer_419(faces, primitives, sty
                 try:
                     if len(path.uv)>=2 and len(path.radial_depth)>=2:
                         deferred_edges.append((QPen(pen),path.uv,path.radial_depth,getattr(path,'world_xyz',None),float(W or 0.0)))
-                except Exception:
-                    pass
+                except Exception as _qcv_exc:
+                    _qcv_suppress(_qcv_exc, "core/_render_ops.py:5987")
             elif painter is not None:
                 painter.setPen(pen)
                 for run in _uv_runs_array(path.uv,min_len=2):
                     for rr in (_iter_wrap_shifted_pts(run,W) if W>1.0 else (run,)):
                         for ii in range(len(rr)-1):
                             try: painter.drawLine(QPointF(float(rr[ii,0]),float(rr[ii,1])),QPointF(float(rr[ii+1,0]),float(rr[ii+1,1])))
-                            except Exception: pass
+                            except Exception as _qcv_exc: _qcv_suppress(_qcv_exc, "core/_render_ops.py:5995")
             handled=True
     return handled
 
@@ -6030,7 +6042,8 @@ def _append_schematic_primitives_for_zbuffer(faces, deferred_edges, primitives, 
             try:
                 uv_vals = [(float(uv[i][0]), float(uv[i][1])) for i in range(len(uv))]
                 dep_vals = [float(dep[i]) for i in range(len(dep))]
-            except Exception:
+            except Exception as _qcv_exc:
+                _qcv_suppress(_qcv_exc, "core/_render_ops.py:6034")
                 continue
             if not uv_vals or not all(math.isfinite(v) for p in uv_vals for v in p) or not all(math.isfinite(v) for v in dep_vals):
                 continue
@@ -6174,7 +6187,8 @@ def _render_vector_layers_fast(self, painter, cam_pt, cam_z, cam_crs, proj, widt
     terrain_test = None
     if terrain_horizon is not None and str(proj).upper() == 'PINHOLE':
         _prepare_pinhole_screen_metrics(ctx)
-        terrain_test = lambda x, y, d: _pinhole_fragment_visible_by_horizon(ctx, terrain_horizon, terrain_eps, x, y, d)
+        def terrain_test(x, y, d):
+            return _pinhole_fragment_visible_by_horizon(ctx, terrain_horizon, terrain_eps, x, y, d)
     global_draw_2p5d = bool(self.cb_draw_2p5d.isChecked())
     panoramic_overlay_mode = str(proj).upper() in ('EQUIRECT', 'EQUIRECTANGULAR', 'CYLINDRICAL')
     force_horizontal_25d = bool(getattr(self, 'cb_force_horizontal_25d', None) and self.cb_force_horizontal_25d.isChecked())
@@ -6225,8 +6239,8 @@ def _render_vector_layers_fast(self, painter, cam_pt, cam_z, cam_crs, proj, widt
         _items = list(cached['features'])
         try:
             _items.sort(key=lambda it: _feature_depth_key(it, (cam_pt.x(), cam_pt.y())), reverse=True)
-        except Exception:
-            pass
+        except Exception as _qcv_exc:
+            _qcv_suppress(_qcv_exc, "core/_render_ops.py:6230")
 
         for item in _items:
             feat = item['feat']
@@ -6310,8 +6324,8 @@ def _render_vector_layers_fast(self, painter, cam_pt, cam_z, cam_crs, proj, widt
                 except Exception as exc:
                     try:
                         qcv_log(f"{lyr.name()} | FID {feat.id()} | AVR {getattr(sty_eff,'schematic_symbol_id','?')} : {exc}", 'SCHEMATIC/RENDER', 'WARNING')
-                    except Exception:
-                        pass
+                    except Exception as _qcv_exc:
+                        _qcv_suppress(_qcv_exc, "core/_render_ops.py:6315")
                     handled = False
                 if definition is not None:
                     if handled and sty_eff.show_labels and (not layer_labels_hidden) and text_global and anchor_uv_global is not None:
@@ -6319,8 +6333,8 @@ def _render_vector_layers_fast(self, painter, cam_pt, cam_z, cam_crs, proj, widt
                     continue
                 try:
                     qcv_log(f"{lyr.name()} | FID {feat.id()} : état AVR invalide neutralisé ({getattr(sty_eff,'schematic_symbol_id','')})", 'SCHEMATIC/STATE', 'WARNING')
-                except Exception:
-                    pass
+                except Exception as _qcv_exc:
+                    _qcv_suppress(_qcv_exc, "core/_render_ops.py:6324")
 
             if gtype == QC.QgsWkbTypes_GeometryType_PointGeometry:
                 for arr in parts:
@@ -6501,8 +6515,8 @@ def _render_vector_layers_fast(self, painter, cam_pt, cam_z, cam_crs, proj, widt
                 try:
                     if not terrain_test(base_uv[0], base_uv[1], float(depth_base[i])):
                         continue
-                except Exception:
-                    pass
+                except Exception as _qcv_exc:
+                    _qcv_suppress(_qcv_exc, "core/_render_ops.py:6506")
             if depth_buf is not None and np.isfinite(depth_base[i]) and depth_base[i] > 0:
                 sx = int(round(base_uv[0] * depth_scale)); sy = int(round(base_uv[1] * depth_scale))
                 if 0 <= sx < depth_buf.shape[1] and 0 <= sy < depth_buf.shape[0]:
@@ -6518,8 +6532,8 @@ def _render_vector_layers_fast(self, painter, cam_pt, cam_z, cam_crs, proj, widt
             else:
                 try:
                     painter.drawEllipse(int(base_uv[0]) - 2, int(base_uv[1]) - 2, 4, 4)
-                except Exception:
-                    pass
+                except Exception as _qcv_exc:
+                    _qcv_suppress(_qcv_exc, "core/_render_ops.py:6523")
 
     for pen, uvs, depths in deferred_edges:
         painter.setPen(pen)
@@ -6550,8 +6564,8 @@ def export_overlay(self):
         ok_meta, err_meta = _write_metadata_with_exiftool(self, path, _camera_layer(self), _camera_current_feature(self))
         if not ok_meta:
             _camera_set_status(self, err_meta or 'Échec écriture métadonnées.', '#c44')
-    except Exception:
-        pass
+    except Exception as _qcv_exc:
+        _qcv_suppress(_qcv_exc, "core/_render_ops.py:6555")
 
 
 
@@ -6560,8 +6574,8 @@ def _pick_dem_color(self):
     dlg = QColorDialog(base, self)
     try:
         dlg.setOption(QC.QColorDialog_ColorDialogOption_ShowAlphaChannel, True)
-    except Exception:
-        pass
+    except Exception as _qcv_exc:
+        _qcv_suppress(_qcv_exc, "core/_render_ops.py:6565")
     dlg.setWindowTitle(tr("Couleur du relief"))
     if dialog_exec(dlg):
         c = dlg.selectedColor()
@@ -6575,12 +6589,12 @@ def _pick_dem_color(self):
                     old = self.spin_dem_alpha.blockSignals(True)
                     self.spin_dem_alpha.setValue(int(c.alpha()))
                     self.spin_dem_alpha.blockSignals(old)
-            except Exception:
-                pass
+            except Exception as _qcv_exc:
+                _qcv_suppress(_qcv_exc, "core/_render_ops.py:6580")
             try:
                 self.render_preview()
-            except Exception:
-                pass
+            except Exception as _qcv_exc:
+                _qcv_suppress(_qcv_exc, "core/_render_ops.py:6584")
 
 
 
@@ -6729,11 +6743,11 @@ def _build_horizon_cache(self, *args, **kwargs):
     except Exception:
         _dem_token = ('', '', '')
     try:
-        _cam_crs_token = str(cam_crs.authid()) if cam_crs is not None and cam_crs.isValid() else ''
+        _cam_crs_key = str(cam_crs.authid()) if cam_crs is not None and cam_crs.isValid() else ''
     except Exception:
-        _cam_crs_token = ''
+        _cam_crs_key = ''
     _terrain_sample_key = (
-        _dem_token, _cam_crs_token,
+        _dem_token, _cam_crs_key,
         round(cx, 3), round(cy, 3),
         round(float(az0), 5), round(float(az1), 5), int(n_bins),
         round(float(maxdist), 3), round(float(az_step), 5), round(float(rad_step), 5), int(n_dist),
@@ -6859,8 +6873,8 @@ def _build_horizon_cache(self, *args, **kwargs):
     if str(proj).upper() in ('EQUIRECT','EQUIRECTANGULAR','CYLINDRICAL'):
         try:
             _prepare_horizon_fast_distance_lut_40192(self._horizon)
-        except Exception:
-            pass
+        except Exception as _qcv_exc:
+            _qcv_suppress(_qcv_exc, "core/_render_ops.py:6864")
     
     self._horizon_params = occ_key
 
@@ -6944,8 +6958,8 @@ def _update_horizon_by_segment(self, az1_deg, az2_deg, el_deg):
             try:
                 if v > float(el_bins[idx]):
                     el_bins[idx] = v
-            except Exception:
-                pass
+            except Exception as _qcv_exc:
+                _qcv_suppress(_qcv_exc, "core/_render_ops.py:6949")
     except Exception:
         return
 def _terrain_visibility_test(self, cam_pt, cam_z, eps_deg):
@@ -7118,8 +7132,8 @@ def _draw_dem_wireframe(self, painter, cam_pt, cam_z, cam_crs, proj, width, heig
             _guard_step = _active_panorama_guard(self).get('dem_step_min')
             if _guard_step is not None:
                 base_spacing = max(base_spacing, float(_guard_step))
-        except Exception:
-            pass
+        except Exception as _qcv_exc:
+            _qcv_suppress(_qcv_exc, "core/_render_ops.py:7123")
     
     if float(maxdist or 0.0) > 10000.0:
         far_factor = min(3.0, 1.0 + ((float(maxdist) - 10000.0) / 15000.0))
@@ -7175,8 +7189,8 @@ def _draw_skyline(self, painter, cam_pt, cam_z, cam_crs, proj, width, height, ya
             _guard_rad = _active_panorama_guard(self).get('rad_step_min')
             if _guard_rad is not None:
                 _rad_step_eff = max(_rad_step_eff, float(_guard_rad))
-        except Exception:
-            pass
+        except Exception as _qcv_exc:
+            _qcv_suppress(_qcv_exc, "core/_render_ops.py:7180")
     params = (
         round(float(cam_pt.x()), 3), round(float(cam_pt.y()), 3), round(float(cam_z), 3),
         str(proj), int(width), int(height),
@@ -7242,8 +7256,8 @@ def _draw_dem_ridgelines(self, painter, cam_pt, cam_z, cam_crs, proj, width, hei
             _guard_step = _active_panorama_guard(self).get('dem_step_min')
             if _guard_step is not None:
                 base_spacing = max(base_spacing, float(_guard_step))
-        except Exception:
-            pass
+        except Exception as _qcv_exc:
+            _qcv_suppress(_qcv_exc, "core/_render_ops.py:7247")
     if float(maxdist or 0.0) > 10000.0:
         base_spacing *= min(2.5, 1.0 + ((float(maxdist) - 10000.0) / 20000.0))
 
@@ -7279,7 +7293,8 @@ def _draw_dem_ridgelines(self, painter, cam_pt, cam_z, cam_crs, proj, width, hei
         for i in range(n_az):
             try:
                 e = float(el_profile[i, j])
-            except Exception:
+            except Exception as _qcv_exc:
+                _qcv_suppress(_qcv_exc, "core/_render_ops.py:7284")
                 continue
             if np.isfinite(e):
                 vals.append(e)
@@ -7368,5 +7383,5 @@ def set_pdv_azimuth(self, az_deg: float):
     
     try:
         self.render_preview()
-    except Exception:
-        pass
+    except Exception as _qcv_exc:
+        _qcv_suppress(_qcv_exc, "core/_render_ops.py:7373")

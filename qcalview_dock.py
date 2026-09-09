@@ -1,6 +1,7 @@
 
 
 
+from .core._exceptions import qcv_suppress_exception as _qcv_suppress
 from .core._i18n import tr
 from .core._compat import QC, dialog_exec
 import os, json, math, html
@@ -186,7 +187,6 @@ class QCalViewDock(QDockWidget):
         self._vm_pick = None
         try:
             canvas = self.iface.mapCanvas()
-            from qgis.PyQt.QtGui import QColor
             self._rb_dir = QgsRubberBand(canvas, False)  
             self._rb_dir.setWidth(2)
             self._rb_dir.setColor(QColor(0, 180, 255, 200))
@@ -194,8 +194,8 @@ class QCalViewDock(QDockWidget):
             self._rb_fov.setWidth(1)
             self._rb_fov.setColor(QColor(0, 180, 255, 60))
             self._rb_fov.setFillColor(QColor(0, 180, 255, 40))
-        except Exception:
-            pass
+        except Exception as _qcv_exc:
+            _qcv_suppress(_qcv_exc, "qcalview_dock.py:196")
 
 
 
@@ -258,16 +258,16 @@ class QCalViewDock(QDockWidget):
         self.cb_schematic_bg_transparent = QCheckBox(tr("Fond transparent pour PNG"))
         try:
             self._schematic_update_background_controls()
-        except Exception:
-            pass
+        except Exception as _qcv_exc:
+            _qcv_suppress(_qcv_exc, "qcalview_dock.py:260")
         self.btn_schematic_bg_color.clicked.connect(self._schematic_choose_background_color)
         self.cb_schematic_bg_transparent.toggled.connect(self._schematic_set_background_transparent)
 
         def _tip(widget, text):
             try:
                 widget.setToolTip(tr(text))
-            except Exception:
-                pass
+            except Exception as _qcv_exc:
+                _qcv_suppress(_qcv_exc, "qcalview_dock.py:268")
 
         _tip(self.d_yaw, "Azimut central de la vue, en degrés. Il oriente l'axe principal de la caméra et décale directement les overlays projetés dans l'image.")
         _tip(self.d_pitch, "Tangage de la caméra, en degrés. Une valeur positive/négative relève ou abaisse la visée et modifie la position verticale des overlays.")
@@ -325,13 +325,13 @@ class QCalViewDock(QDockWidget):
                         tip = wid.toolTip()
                         if tip:
                             lab.setToolTip(tr(tip))
-                    except Exception:
-                        pass
+                    except Exception as _qcv_exc:
+                        _qcv_suppress(_qcv_exc, "qcalview_dock.py:327")
                     try:
                         wid.setMinimumWidth(0)
                         wid.setSizePolicy(QC.QSizePolicy_Policy_Expanding, QC.QSizePolicy_Policy_Fixed)
-                    except Exception:
-                        pass
+                    except Exception as _qcv_exc:
+                        _qcv_suppress(_qcv_exc, "qcalview_dock.py:332")
                     items.append((lab, wid, "field"))
                 elif isinstance(item, str):
                     lab = QLabel(tr(item))
@@ -340,8 +340,8 @@ class QCalViewDock(QDockWidget):
                 elif item is not None:
                     try:
                         item.setMinimumWidth(0)
-                    except Exception:
-                        pass
+                    except Exception as _qcv_exc:
+                        _qcv_suppress(_qcv_exc, "qcalview_dock.py:342")
                     items.append((None, item, "single"))
             w._qcv_grid = g
             w._qcv_items = items
@@ -371,8 +371,8 @@ class QCalViewDock(QDockWidget):
             f.addWidget(card, row, col, 1, colspan)
             try:
                 self._calage_cards.append((card, int(row), int(col), int(colspan)))
-            except Exception:
-                pass
+            except Exception as _qcv_exc:
+                _qcv_suppress(_qcv_exc, "qcalview_dock.py:373")
 
         _grid_card(0, 0, "Orientation", _compact_row(("Azim.", self.d_yaw), ("Tang.", self.d_pitch), ("Pas", self.cmb_orientation_step), ("Roul.", self.d_roll), ("Alt./Z", self.d_camheight)))
         _grid_card(0, 1, "Projection", _compact_row(self.cmb_proj, self.cb_360, ("Distance", self.d_maxdist)))
@@ -386,8 +386,8 @@ class QCalViewDock(QDockWidget):
         try:
             for _c in range(3):
                 f.setColumnStretch(_c, 1)
-        except Exception:
-            pass
+        except Exception as _qcv_exc:
+            _qcv_suppress(_qcv_exc, "qcalview_dock.py:388")
         self._relayout_calage_cards(force=True)
 
         g_cam.setContentLayout(f)
@@ -741,8 +741,8 @@ class QCalViewDock(QDockWidget):
             for _w in (self.grp_calib, self.grp_gcp, self.grp_monoplot, self.grp_occ):
                 _w.setChecked(False)
                 self.tab_gcp_layout.addWidget(_w)
-        except Exception:
-            pass
+        except Exception as _qcv_exc:
+            _qcv_suppress(_qcv_exc, "qcalview_dock.py:743")
 
         
         g_h = QGroupBox(tr("2,5D Hauteurs (végétation/bâti)"))
@@ -761,8 +761,8 @@ class QCalViewDock(QDockWidget):
         try:
             self._relief_grid_layout.setColumnStretch(0, 1)
             self._relief_grid_layout.setColumnStretch(1, 1)
-        except Exception:
-            pass
+        except Exception as _qcv_exc:
+            _qcv_suppress(_qcv_exc, "qcalview_dock.py:763")
 
         
         g_layers = CollapsibleBox("Couches vectorielles à projeter", checked=True)
@@ -815,8 +815,8 @@ class QCalViewDock(QDockWidget):
             header.setSectionResizeMode(1, QC.QHeaderView_ResizeMode_Stretch)
             for _c in (2, 3, 4, 5):
                 header.setSectionResizeMode(_c, QC.QHeaderView_ResizeMode_ResizeToContents)
-        except Exception:
-            pass
+        except Exception as _qcv_exc:
+            _qcv_suppress(_qcv_exc, "qcalview_dock.py:817")
         ly.addWidget(self.list_layers, 1)
 
         g_layers.setContentLayout(ly)
@@ -873,15 +873,15 @@ class QCalViewDock(QDockWidget):
             hdr.setSectionResizeMode(2, QC.QHeaderView_ResizeMode_Stretch)
             for _c in range(3, 13):
                 hdr.setSectionResizeMode(_c, QC.QHeaderView_ResizeMode_ResizeToContents)
-        except Exception:
-            pass
+        except Exception as _qcv_exc:
+            _qcv_suppress(_qcv_exc, "qcalview_dock.py:875")
         export_layout.addWidget(self.tbl_export_pdv, 2, 0, 1, 4)
         try:
             export_layout.setRowStretch(2, 1)
             export_box.setSizePolicy(QC.QSizePolicy_Policy_Expanding, QC.QSizePolicy_Policy_Expanding)
             g_export.setSizePolicy(QC.QSizePolicy_Policy_Expanding, QC.QSizePolicy_Policy_Expanding)
-        except Exception:
-            pass
+        except Exception as _qcv_exc:
+            _qcv_suppress(_qcv_exc, "qcalview_dock.py:882")
         self.lbl_batch_status = QLabel(tr("Le batch utilise les réglages effectifs affichés ci-dessus. « Brouillon » signale un réglage non encore enregistré dans la couche PDV."))
         self.lbl_batch_status.setWordWrap(True)
         self.lbl_batch_status.setStyleSheet("color:#666;")
@@ -914,16 +914,16 @@ class QCalViewDock(QDockWidget):
             try:
                 QgsProject.instance().crsChanged.connect(self._update_ui_summary)
                 QgsProject.instance().crsChanged.connect(self._update_canvas_fov)
-            except Exception:
-                pass
-        except Exception:
-            pass
+            except Exception as _qcv_exc:
+                _qcv_suppress(_qcv_exc, "qcalview_dock.py:916")
+        except Exception as _qcv_exc:
+            _qcv_suppress(_qcv_exc, "qcalview_dock.py:918")
 
         try:
             self._prepare_qgis_theme_combo_lazy()
             self.cb_theme_auto_sync.setChecked(self._read_bool_setting('QCALVIEW/theme_auto_sync', False))
-        except Exception:
-            pass
+        except Exception as _qcv_exc:
+            _qcv_suppress(_qcv_exc, "qcalview_dock.py:924")
 
 
         self.btn_load.clicked.connect(self.load_photo)
@@ -959,12 +959,12 @@ class QCalViewDock(QDockWidget):
         self.cb_export_metadata.toggled.connect(lambda v: self._settings.setValue('QCALVIEW/export_write_metadata', bool(v)))
         try:
             self.list_layers.itemChanged.connect(self._on_layer_table_item_changed)
-        except Exception:
-            pass
+        except Exception as _qcv_exc:
+            _qcv_suppress(_qcv_exc, "qcalview_dock.py:961")
         try:
             self.list_layers.cellDoubleClicked.connect(self._on_layer_table_double_clicked)
-        except Exception:
-            pass
+        except Exception as _qcv_exc:
+            _qcv_suppress(_qcv_exc, "qcalview_dock.py:965")
 
         self.cb_auto_hfov.toggled.connect(self._toggle_hfov_enable)
         self.btn_dem_color.clicked.connect(self._pick_dem_color)
@@ -1001,8 +1001,8 @@ class QCalViewDock(QDockWidget):
                 if hasattr(w, sig):
                     try:
                         getattr(w, sig).connect(self._camera_schedule_autosave)
-                    except Exception:
-                        pass
+                    except Exception as _qcv_exc:
+                        _qcv_suppress(_qcv_exc, "qcalview_dock.py:1003")
         for w in [self.cb_calib_enable, self.cb_proj_grid_enable, self.d_proj_grid_step, self.cmb_calib_type, self.d_calib_spacing, self.d_calib_width,
                   self.d_calib_depth, self.d_calib_height, self.d_calib_dist, self.d_calib_elev,
                   self.cb_calib_snap_dem, self.cb_calib_labels, self.cb_calib_axes]:
@@ -1090,8 +1090,8 @@ class QCalViewDock(QDockWidget):
 
         try:
             self.iface.mapCanvas().destinationCrsChanged.connect(self._update_canvas_fov)
-        except Exception:
-            pass
+        except Exception as _qcv_exc:
+            _qcv_suppress(_qcv_exc, "qcalview_dock.py:1092")
 
         
         def _on_projection_changed():
@@ -1124,8 +1124,8 @@ class QCalViewDock(QDockWidget):
                 try:
                     self.d_hfov.setEnabled(True)
                     self.d_vfov.setEnabled(True)
-                except Exception:
-                    pass
+                except Exception as _qcv_exc:
+                    _qcv_suppress(_qcv_exc, "qcalview_dock.py:1126")
 
             if txt == 'CYLINDRICAL':
                 try:
@@ -1197,8 +1197,8 @@ class QCalViewDock(QDockWidget):
                 proj_txt = ""
                 try:
                     proj_txt = str(self.cmb_proj.currentText()).strip().upper()
-                except Exception:
-                    pass
+                except Exception as _qcv_exc:
+                    _qcv_suppress(_qcv_exc, "qcalview_dock.py:1199")
                 is360 = bool(self._is360_mode())
         
                 
@@ -1214,8 +1214,8 @@ class QCalViewDock(QDockWidget):
                     range_m=rng,
                     pitch_deg=float(self.d_pitch.value())
                 )
-            except Exception:
-                pass
+            except Exception as _qcv_exc:
+                _qcv_suppress(_qcv_exc, "qcalview_dock.py:1216")
 
         self.cb_360.toggled.connect(_on_full_equirect_toggled)
         self.cmb_proj.currentIndexChanged.connect(_on_projection_changed)
@@ -1264,8 +1264,8 @@ class QCalViewDock(QDockWidget):
         self._ui_initializing = False
         try:
             self._update_canvas_fov()
-        except Exception:
-            pass
+        except Exception as _qcv_exc:
+            _qcv_suppress(_qcv_exc, "qcalview_dock.py:1266")
         self._update_ui_summary()
     
 
@@ -1296,8 +1296,8 @@ class QCalViewDock(QDockWidget):
             try:
                 lab = need(QLabel, label_name)
                 lab.setPixmap(self._icon(icon_name).pixmap(size, size))
-            except Exception:
-                pass
+            except Exception as _qcv_exc:
+                _qcv_suppress(_qcv_exc, "qcalview_dock.py:1298")
         def setup_btn(name, icon_name, tooltip, text=None, style=QC.Qt_ToolButtonStyle_ToolButtonTextBesideIcon):
             btn = need(QToolButton, name)
             if text is not None:
@@ -1323,8 +1323,8 @@ class QCalViewDock(QDockWidget):
             try:
                 _lab.setTextInteractionFlags(QC.Qt_TextInteractionFlag_TextSelectableByMouse)
                 _lab.setMinimumWidth(0)
-            except Exception:
-                pass
+            except Exception as _qcv_exc:
+                _qcv_suppress(_qcv_exc, "qcalview_dock.py:1325")
         self.cmb_qgis_theme = need(QComboBox, "cmb_qgis_theme")
         self.cmb_qgis_theme.setMinimumWidth(90)
         self.cmb_qgis_theme.setSizePolicy(QC.QSizePolicy_Policy_Ignored, QC.QSizePolicy_Policy_Fixed)
@@ -1336,8 +1336,8 @@ class QCalViewDock(QDockWidget):
             _proj_card = root.findChild(QFrame, "cardProjection")
             if _proj_card is not None:
                 _proj_card.setVisible(False)
-        except Exception:
-            pass
+        except Exception as _qcv_exc:
+            _qcv_suppress(_qcv_exc, "qcalview_dock.py:1338")
         try:
             if root.layout() is not None:
                 root.layout().setStretch(0, 0)
@@ -1345,8 +1345,8 @@ class QCalViewDock(QDockWidget):
             body = root.findChild(QWidget, "body")
             if body is not None:
                 body.setSizePolicy(QC.QSizePolicy_Policy_Expanding, QC.QSizePolicy_Policy_Expanding)
-        except Exception:
-            pass
+        except Exception as _qcv_exc:
+            _qcv_suppress(_qcv_exc, "qcalview_dock.py:1347")
 
         set_icon("icoPhoto", "photo.svg")
         set_icon("icoProjection", "projection.svg")
@@ -1390,12 +1390,12 @@ class QCalViewDock(QDockWidget):
                     if widget is not None:
                         widget.setParent(None)
                         widget.deleteLater()
-            except Exception:
-                pass
+            except Exception as _qcv_exc:
+                _qcv_suppress(_qcv_exc, "qcalview_dock.py:1392")
             try:
                 holder.setMinimumHeight(0)
-            except Exception:
-                pass
+            except Exception as _qcv_exc:
+                _qcv_suppress(_qcv_exc, "qcalview_dock.py:1396")
             setattr(self, name, holder)
             return lay
 
@@ -1418,8 +1418,8 @@ class QCalViewDock(QDockWidget):
             self.tabs.setTabIcon(self.tabs.indexOf(self.tab_layers), self._icon("layers.svg"))
             self.tabs.setTabIcon(self.tabs.indexOf(self.tab_export), self._icon("export.svg"))
             self.tabs.setTabIcon(self.tabs.indexOf(self.tab_gcp), self._icon("tools.svg"))
-        except Exception:
-            pass
+        except Exception as _qcv_exc:
+            _qcv_suppress(_qcv_exc, "qcalview_dock.py:1420")
 
         self._preview_panel = need(QFrame, "qcvPreviewPanel")
         self.preview = ClickableLabel("Aperçu rapide")
@@ -1442,15 +1442,15 @@ class QCalViewDock(QDockWidget):
                 if widget is not None:
                     widget.setParent(None)
                     widget.deleteLater()
-        except Exception:
-            pass
+        except Exception as _qcv_exc:
+            _qcv_suppress(_qcv_exc, "qcalview_dock.py:1444")
         self.placeholder_preview = preview_slot
         preview_layout.addWidget(self.preview, 1)
         self.cmb_quality = need(QComboBox, "cmb_quality")
         try:
             self.cmb_quality.setCurrentIndex(0)
-        except Exception:
-            pass
+        except Exception as _qcv_exc:
+            _qcv_suppress(_qcv_exc, "qcalview_dock.py:1451")
         self.cb_lowlat = need(QCheckBox, "cb_lowlat")
         self.cb_lowlat.setChecked(True)
         self.cb_show_labels = need(QCheckBox, "cb_show_labels")
@@ -1463,8 +1463,8 @@ class QCalViewDock(QDockWidget):
             try:
                 self.btn_preview_open.setVisible(False)
                 self.btn_preview_open.setEnabled(False)
-            except Exception:
-                pass
+            except Exception as _qcv_exc:
+                _qcv_suppress(_qcv_exc, "qcalview_dock.py:1465")
         return root
 
     def _icon(self, name):
@@ -1515,8 +1515,8 @@ class QCalViewDock(QDockWidget):
                 w.setTextInteractionFlags(QC.Qt_TextInteractionFlag_TextSelectableByMouse)
             try:
                 w.setMinimumWidth(0)
-            except Exception:
-                pass
+            except Exception as _qcv_exc:
+                _qcv_suppress(_qcv_exc, "qcalview_dock.py:1517")
             col.addWidget(w)
         lay.addLayout(col, 1)
         return card
@@ -1586,8 +1586,8 @@ class QCalViewDock(QDockWidget):
             finally:
                 combo.blockSignals(False)
             self._theme_combo_loaded = False
-        except Exception:
-            pass
+        except Exception as _qcv_exc:
+            _qcv_suppress(_qcv_exc, "qcalview_dock.py:1588")
 
     def _lazy_load_qgis_themes(self):
         
@@ -1604,8 +1604,8 @@ class QCalViewDock(QDockWidget):
                     self._on_qgis_theme_auto_sync_toggled(True)
             finally:
                 self._suspend_theme_auto_apply = False
-        except Exception:
-            pass
+        except Exception as _qcv_exc:
+            _qcv_suppress(_qcv_exc, "qcalview_dock.py:1606")
 
     def _on_main_tab_changed(self, index):
         
@@ -1616,14 +1616,14 @@ class QCalViewDock(QDockWidget):
         try:
             if widget is getattr(self, 'tab_layers', None):
                 self._lazy_load_qgis_themes()
-        except Exception:
-            pass
+        except Exception as _qcv_exc:
+            _qcv_suppress(_qcv_exc, "qcalview_dock.py:1618")
         try:
             if widget is getattr(self, 'tab_export', None) and not getattr(self, '_export_tab_loaded', False):
                 self._export_tab_loaded = True
                 QTimer.singleShot(0, self._refresh_batch_pdv_table)
-        except Exception:
-            pass
+        except Exception as _qcv_exc:
+            _qcv_suppress(_qcv_exc, "qcalview_dock.py:1624")
 
     def _connect_summary_updates(self):
         targets = [
@@ -1642,8 +1642,8 @@ class QCalViewDock(QDockWidget):
                 if hasattr(w, sig):
                     try:
                         getattr(w, sig).connect(self._update_ui_summary)
-                    except Exception:
-                        pass
+                    except Exception as _qcv_exc:
+                        _qcv_suppress(_qcv_exc, "qcalview_dock.py:1644")
 
     def _update_ui_summary(self, *_args):
         try:
@@ -1666,8 +1666,8 @@ class QCalViewDock(QDockWidget):
             crs_authid = ""
             try:
                 x, y, crs_authid = self._current_camera_xy_project_crs()
-            except Exception:
-                pass
+            except Exception as _qcv_exc:
+                _qcv_suppress(_qcv_exc, "qcalview_dock.py:1668")
             cam_h = float(self.d_camheight.value()) if hasattr(self, "d_camheight") else 0.0
             crs_html = f" · <b>{html.escape(str(crs_authid))}</b>" if crs_authid else ""
             if x is None or y is None:
@@ -1691,14 +1691,14 @@ class QCalViewDock(QDockWidget):
                 try:
                     th = str(self.cmb_qgis_theme.currentText() or "—")
                     self.lbl_theme_in_layers.setText(tr(f"Thème actif : {th}"))
-                except Exception:
-                    pass
+                except Exception as _qcv_exc:
+                    _qcv_suppress(_qcv_exc, "qcalview_dock.py:1693")
             if hasattr(self, "lbl_preview_info"):
                 self.lbl_preview_info.setText(tr(info))
             if getattr(self, "viewer", None) is not None and hasattr(self.viewer, "update_info"):
                 self.viewer.update_info()
-        except Exception:
-            pass
+        except Exception as _qcv_exc:
+            _qcv_suppress(_qcv_exc, "qcalview_dock.py:1699")
 
     def _relayout_compact_row(self, row_widget, groups_per_line=2):
         
@@ -1728,8 +1728,8 @@ class QCalViewDock(QDockWidget):
                 if c >= groups_per_line:
                     r += 1
                     c = 0
-        except Exception:
-            pass
+        except Exception as _qcv_exc:
+            _qcv_suppress(_qcv_exc, "qcalview_dock.py:1730")
 
     def _relayout_compact_rows(self, width=None):
 
@@ -1768,8 +1768,8 @@ class QCalViewDock(QDockWidget):
             for card, _r, _c, _sp in cards:
                 try:
                     layout.removeWidget(card)
-                except Exception:
-                    pass
+                except Exception as _qcv_exc:
+                    _qcv_suppress(_qcv_exc, "qcalview_dock.py:1770")
             if cols >= 3:
                 for card, r, c, sp in cards:
                     layout.addWidget(card, r, c, 1, min(int(sp), 3))
@@ -1795,8 +1795,8 @@ class QCalViewDock(QDockWidget):
                         c = 0
             for col in range(3):
                 layout.setColumnStretch(col, 1 if col < cols else 0)
-        except Exception:
-            pass
+        except Exception as _qcv_exc:
+            _qcv_suppress(_qcv_exc, "qcalview_dock.py:1797")
 
     def _fit_floating_window(self):
 
@@ -1820,35 +1820,35 @@ class QCalViewDock(QDockWidget):
             self.resize(w, h)
             try:
                 self.window().resize(w, h)
-            except Exception:
-                pass
+            except Exception as _qcv_exc:
+                _qcv_suppress(_qcv_exc, "qcalview_dock.py:1822")
             self._relayout_calage_cards(force=True)
             QTimer.singleShot(0, lambda: (self.resize(w, h), self._relayout_calage_cards(force=True)))
         except Exception:
             try:
                 self.adjustSize()
-            except Exception:
-                pass
+            except Exception as _qcv_exc:
+                _qcv_suppress(_qcv_exc, "qcalview_dock.py:1829")
 
     def _on_qgis_theme_changed(self, *_args):
 
         try:
             self._update_ui_summary()
-        except Exception:
-            pass
+        except Exception as _qcv_exc:
+            _qcv_suppress(_qcv_exc, "qcalview_dock.py:1836")
         try:
             theme_name = str(self.cmb_qgis_theme.currentData() or self.cmb_qgis_theme.currentText() or '').strip()
             if theme_name and not theme_name.startswith('—'):
                 self._settings.setValue('QCALVIEW/theme_name', theme_name)
-        except Exception:
-            pass
+        except Exception as _qcv_exc:
+            _qcv_suppress(_qcv_exc, "qcalview_dock.py:1842")
         try:
             if (not getattr(self, '_ui_initializing', False)
                     and not getattr(self, '_suspend_theme_auto_apply', False)
                     and bool(getattr(self, 'cb_theme_auto_sync', None) and self.cb_theme_auto_sync.isChecked())):
                 QTimer.singleShot(0, self.apply_qgis_theme_to_overlays)
-        except Exception:
-            pass
+        except Exception as _qcv_exc:
+            _qcv_suppress(_qcv_exc, "qcalview_dock.py:1849")
 
     def _on_orientation_step_changed(self, *_):
         try:
@@ -1857,16 +1857,16 @@ class QCalViewDock(QDockWidget):
             step = 1.0
         step = step if step in (1.0, 0.1, 0.01) else 1.0
         try: self.d_yaw.setSingleStep(step)
-        except Exception: pass
+        except Exception as _qcv_exc: _qcv_suppress(_qcv_exc, "qcalview_dock.py:1859")
         try: self.d_pitch.setSingleStep(step)
-        except Exception: pass
+        except Exception as _qcv_exc: _qcv_suppress(_qcv_exc, "qcalview_dock.py:1861")
 
     def _on_camera_style_toggle(self, checked):
 
         try:
             self.cb_cam_auto_colors.setEnabled(bool(checked))
-        except Exception:
-            pass
+        except Exception as _qcv_exc:
+            _qcv_suppress(_qcv_exc, "qcalview_dock.py:1867")
         if not checked:
             return
         try:
@@ -1875,7 +1875,7 @@ class QCalViewDock(QDockWidget):
                 self._after_camera_layer_changed(layer)
         except Exception as exc:
             try: self.iface.messageBar().pushWarning(tr("QCALVIEW"), tr(f"Style PDV non appliqué : {exc}"))
-            except Exception: pass
+            except Exception as _qcv_exc: _qcv_suppress(_qcv_exc, "qcalview_dock.py:1877")
 
     def _on_camera_auto_colors_toggle(self, checked):
         layer = None
@@ -1887,8 +1887,8 @@ class QCalViewDock(QDockWidget):
             return
         try:
             layer.setCustomProperty("QCALVIEW/pdv_auto_colors", 1 if checked else 0)
-        except Exception:
-            pass
+        except Exception as _qcv_exc:
+            _qcv_suppress(_qcv_exc, "qcalview_dock.py:1889")
         if not bool(getattr(self, 'cb_cam_apply_style', None) and self.cb_cam_apply_style.isChecked()):
             return
         try:
@@ -1901,7 +1901,7 @@ class QCalViewDock(QDockWidget):
             self.iface.mapCanvas().refresh()
         except Exception as exc:
             try: self.iface.messageBar().pushWarning(tr("QCALVIEW"), tr(f"Style PDV non appliqué : {exc}"))
-            except Exception: pass
+            except Exception as _qcv_exc: _qcv_suppress(_qcv_exc, "qcalview_dock.py:1903")
 
     def _current_camera_xy_project_crs(self):
 
@@ -1920,8 +1920,8 @@ class QCalViewDock(QDockWidget):
                 if src.isValid() and dst.isValid() and src != dst:
                     tr = QgsCoordinateTransform(src, dst, QgsProject.instance())
                     pt = tr.transform(QgsPointXY(pt))
-            except Exception:
-                pass
+            except Exception as _qcv_exc:
+                _qcv_suppress(_qcv_exc, "qcalview_dock.py:1922")
             authid = ''
             try:
                 authid = dst.authid()
@@ -1934,31 +1934,31 @@ class QCalViewDock(QDockWidget):
     def resizeEvent(self, ev):
         try:
             self._relayout_calage_cards()
-        except Exception:
-            pass
+        except Exception as _qcv_exc:
+            _qcv_suppress(_qcv_exc, "qcalview_dock.py:1936")
         try:
             super().resizeEvent(ev)
-        except Exception:
-            pass
+        except Exception as _qcv_exc:
+            _qcv_suppress(_qcv_exc, "qcalview_dock.py:1940")
         try:
             if getattr(self, '_export_tab_loaded', False):
                 QTimer.singleShot(0, self._fit_export_table_height)
-        except Exception:
-            pass
+        except Exception as _qcv_exc:
+            _qcv_suppress(_qcv_exc, "qcalview_dock.py:1945")
 
     def _restore_main_geometry(self):
         try:
             geom = self._settings.value("QCALVIEW/ui/main_geometry", None)
             if geom:
                 self.restoreGeometry(geom)
-        except Exception:
-            pass
+        except Exception as _qcv_exc:
+            _qcv_suppress(_qcv_exc, "qcalview_dock.py:1953")
 
     def _save_main_geometry(self):
         try:
             self._settings.setValue("QCALVIEW/ui/main_geometry", self.saveGeometry())
-        except Exception:
-            pass
+        except Exception as _qcv_exc:
+            _qcv_suppress(_qcv_exc, "qcalview_dock.py:1959")
 
     def open_settings_dialog(self):
         dlg = QDialog(self)
@@ -2085,15 +2085,15 @@ class QCalViewDock(QDockWidget):
                 self._settings.setValue("QCALVIEW/export/default_output_dir", str(txt_default_out.text()).strip())
                 try:
                     self.d_earth_radius_km.setValue(float(spin_earth_radius.value()))
-                except Exception:
-                    pass
+                except Exception as _qcv_exc:
+                    _qcv_suppress(_qcv_exc, "qcalview_dock.py:2087")
                 try:
                     getattr(self, "_overlay_cache", {}).clear()
                     getattr(self, "_geom_cache", {}).clear()
-                except Exception:
-                    pass
-            except Exception:
-                pass
+                except Exception as _qcv_exc:
+                    _qcv_suppress(_qcv_exc, "qcalview_dock.py:2092")
+            except Exception as _qcv_exc:
+                _qcv_suppress(_qcv_exc, "qcalview_dock.py:2094")
             self._update_ui_summary()
 
     def _toggle_experimental_ui(self, checked):
@@ -2101,8 +2101,8 @@ class QCalViewDock(QDockWidget):
             want = bool(checked)
             try:
                 self._settings.setValue(_SHOW_EXPERIMENTAL_SETTING, want)
-            except Exception:
-                pass
+            except Exception as _qcv_exc:
+                _qcv_suppress(_qcv_exc, "qcalview_dock.py:2103")
             idx = self.tabs.indexOf(self.tab_gcp)
             if want:
                 if idx < 0:
@@ -2134,19 +2134,19 @@ class QCalViewDock(QDockWidget):
                 if hasattr(self, 'grp_occ'):
                     self.grp_occ.setVisible(False)
             self._calib_tab_index = -1
-        except Exception:
-            pass
+        except Exception as _qcv_exc:
+            _qcv_suppress(_qcv_exc, "qcalview_dock.py:2136")
 
     def refresh_now_full(self):
         try:
             if not getattr(self, '_camera_loading_feature', False):
                 self._camera_save_current_feature()
-        except Exception:
-            pass
+        except Exception as _qcv_exc:
+            _qcv_suppress(_qcv_exc, "qcalview_dock.py:2143")
         try:
             self._sync_pdv_qml()
-        except Exception:
-            pass
+        except Exception as _qcv_exc:
+            _qcv_suppress(_qcv_exc, "qcalview_dock.py:2147")
         return self.force_refresh_now()
 
     def _is360_mode(self) -> bool:
@@ -2166,13 +2166,13 @@ class QCalViewDock(QDockWidget):
         if not isinstance(layer, QgsVectorLayer):
             return
         try: layer.geometryChanged.connect(self._update_canvas_fov)
-        except Exception: pass
+        except Exception as _qcv_exc: _qcv_suppress(_qcv_exc, "qcalview_dock.py:2168")
         try: layer.committedGeometriesChanges.connect(lambda *a, **k: self._update_canvas_fov())
-        except Exception: pass
+        except Exception as _qcv_exc: _qcv_suppress(_qcv_exc, "qcalview_dock.py:2170")
         try: layer.featureAdded.connect(lambda *a, **k: self._update_canvas_fov())
-        except Exception: pass
+        except Exception as _qcv_exc: _qcv_suppress(_qcv_exc, "qcalview_dock.py:2172")
         try: layer.featuresDeleted.connect(lambda *a, **k: self._update_canvas_fov())
-        except Exception: pass
+        except Exception as _qcv_exc: _qcv_suppress(_qcv_exc, "qcalview_dock.py:2174")
 
     def _after_camera_layer_changed(self, layer):
 
@@ -2208,15 +2208,15 @@ class QCalViewDock(QDockWidget):
                 self.cb_cam_auto_colors.setChecked(auto_colors)
             finally:
                 try: self.cb_cam_auto_colors.blockSignals(False)
-                except Exception: pass
+                except Exception as _qcv_exc: _qcv_suppress(_qcv_exc, "qcalview_dock.py:2210")
 
             
             
             apply_style = bool(getattr(self, 'cb_cam_apply_style', None) and self.cb_cam_apply_style.isChecked())
             try:
                 self.cb_cam_auto_colors.setEnabled(apply_style)
-            except Exception:
-                pass
+            except Exception as _qcv_exc:
+                _qcv_suppress(_qcv_exc, "qcalview_dock.py:2217")
             mode_name = "STYLE-PDV.qml" if auto_colors else "STYLE-MOD.qml"
             qcv_log(f"Application {mode_name} demandée={apply_style}", "PDV-QML", "INFO")
             if apply_style:
@@ -2331,8 +2331,8 @@ class QCalViewDock(QDockWidget):
                     tr("QCALVIEW"),
                     tr("Erreur lors de la mise à jour du style/variables PDV — voir Messages > QCALVIEW")
                 )
-            except Exception:
-                pass
+            except Exception as _qcv_exc:
+                _qcv_suppress(_qcv_exc, "qcalview_dock.py:2333")
 
 
 
@@ -2434,8 +2434,8 @@ class QCalViewDock(QDockWidget):
             
             
     
-        except Exception:
-            pass
+        except Exception as _qcv_exc:
+            _qcv_suppress(_qcv_exc, "qcalview_dock.py:2436")
 
 
     def _teardown_overlays(self):
@@ -2445,14 +2445,14 @@ class QCalViewDock(QDockWidget):
                 if rb:
                     rb.reset(True)
                     rb.hide()
-            except Exception:
-                pass
+            except Exception as _qcv_exc:
+                _qcv_suppress(_qcv_exc, "qcalview_dock.py:2447")
         try:
             vm = getattr(self, "_vm_pick", None)
             if vm is not None:
                 vm.hide()
-        except Exception:
-            pass
+        except Exception as _qcv_exc:
+            _qcv_suppress(_qcv_exc, "qcalview_dock.py:2453")
 
     def closeEvent(self, ev):
 
@@ -2462,15 +2462,15 @@ class QCalViewDock(QDockWidget):
             if viewer is not None:
                 try:
                     self._settings.setValue("QCALVIEW/ui/viewer_geometry", viewer.saveGeometry())
-                except Exception:
-                    pass
+                except Exception as _qcv_exc:
+                    _qcv_suppress(_qcv_exc, "qcalview_dock.py:2464")
                 try:
                     viewer.close()
                 except Exception:
                     try:
                         viewer.hide()
-                    except Exception:
-                        pass
+                    except Exception as _qcv_exc:
+                        _qcv_suppress(_qcv_exc, "qcalview_dock.py:2471")
             self._teardown_overlays()
         finally:
             super().closeEvent(ev)
@@ -2490,8 +2490,8 @@ def _do_render_with_quality(self, quality: str):
         try:
             if getattr(self, 'render_scheduler', None) is not None:
                 self.render_scheduler.mark_render_complete()
-        except Exception:
-            pass
+        except Exception as _qcv_exc:
+            _qcv_suppress(_qcv_exc, "qcalview_dock.py:2492")
 
 def force_refresh_now(self):
 
@@ -2502,8 +2502,8 @@ def force_refresh_now(self):
     try:
         if hasattr(self, '_hq_render_timer'):
             self._hq_render_timer.stop()
-    except Exception:
-        pass
+    except Exception as _qcv_exc:
+        _qcv_suppress(_qcv_exc, "qcalview_dock.py:2504")
     try:
         _sched = getattr(self, 'render_scheduler', None)
         if _sched is not None:
@@ -2511,22 +2511,22 @@ def force_refresh_now(self):
                 _sched.debounce_timer.stop()
             if getattr(_sched, 'quality_restore_timer', None) is not None:
                 _sched.quality_restore_timer.stop()
-    except Exception:
-        pass
+    except Exception as _qcv_exc:
+        _qcv_suppress(_qcv_exc, "qcalview_dock.py:2513")
     try:
         if hasattr(self, "_overlay_cache") and isinstance(self._overlay_cache, dict):
             self._overlay_cache.clear()
-    except Exception:
-        pass
+    except Exception as _qcv_exc:
+        _qcv_suppress(_qcv_exc, "qcalview_dock.py:2518")
     try:
         self._base_cache.clear()
-    except Exception:
-        pass
+    except Exception as _qcv_exc:
+        _qcv_suppress(_qcv_exc, "qcalview_dock.py:2522")
     try:
         self._horizon = None
         self._horizon_params = None
-    except Exception:
-        pass
+    except Exception as _qcv_exc:
+        _qcv_suppress(_qcv_exc, "qcalview_dock.py:2527")
     prev_quality = getattr(self, "_current_render_quality", "high")
     prev_full = bool(getattr(self, '_viewer_full_res', False))
     try:
@@ -2608,32 +2608,32 @@ def _sync_relief_mode_controls(self):
             old = w.blockSignals(True)
             w.setChecked(bool(checked))
             w.blockSignals(old)
-        except Exception:
-            pass
+        except Exception as _qcv_exc:
+            _qcv_suppress(_qcv_exc, "qcalview_dock.py:2610")
 
     wire_visible = (mode == 'wireframe')
     try:
         if getattr(self, 'cb_wire_dashed', None) is not None:
             self.cb_wire_dashed.setVisible(wire_visible)
-    except Exception:
-        pass
+    except Exception as _qcv_exc:
+        _qcv_suppress(_qcv_exc, "qcalview_dock.py:2617")
     try:
         if getattr(self, 'combo_wire_mode', None) is not None:
             self.combo_wire_mode.setVisible(wire_visible)
-    except Exception:
-        pass
+    except Exception as _qcv_exc:
+        _qcv_suppress(_qcv_exc, "qcalview_dock.py:2622")
     try:
         if getattr(self, 'lbl_wire_mode', None) is not None:
             self.lbl_wire_mode.setVisible(wire_visible)
-    except Exception:
-        pass
+    except Exception as _qcv_exc:
+        _qcv_suppress(_qcv_exc, "qcalview_dock.py:2627")
 
     skyline_visible = (mode == 'skyline')
     try:
         if getattr(self, 'grp_skyline', None) is not None:
             self.grp_skyline.setVisible(skyline_visible)
-    except Exception:
-        pass
+    except Exception as _qcv_exc:
+        _qcv_suppress(_qcv_exc, "qcalview_dock.py:2634")
 
 
 def _on_relief_mode_changed(self, *_args):
@@ -2642,8 +2642,8 @@ def _on_relief_mode_changed(self, *_args):
     finally:
         try:
             self.render_preview()
-        except Exception:
-            pass
+        except Exception as _qcv_exc:
+            _qcv_suppress(_qcv_exc, "qcalview_dock.py:2644")
 
 from .core._schematic_view_ops import (
     _schematic_background_color, _schematic_background_transparent,

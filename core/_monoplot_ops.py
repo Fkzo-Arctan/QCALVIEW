@@ -1,6 +1,7 @@
 
 
 
+from ._exceptions import qcv_suppress_exception as _qcv_suppress
 from ._i18n import tr
 from ._compat import QC
 import math, datetime
@@ -30,8 +31,8 @@ def _mp_log(self, msg):
     try:
         if hasattr(self, 'lbl_info'):
             self.lbl_info.setText(tr(str(msg)))
-    except Exception:
-        pass
+    except Exception as _qcv_exc:
+        _qcv_suppress(_qcv_exc, "core/_monoplot_ops.py:33")
 
 
 def _monoplot_next_id(self):
@@ -59,13 +60,13 @@ def _monoplot_current_pdv_info(self):
                             pdv_name = str(val)
                         if pdv_id and pdv_name:
                             break
-            except Exception:
-                pass
+            except Exception as _qcv_exc:
+                _qcv_suppress(_qcv_exc, "core/_monoplot_ops.py:62")
         try:
             if not pdv_name:
                 pdv_name = str(feat.id())
-        except Exception:
-            pass
+        except Exception as _qcv_exc:
+            _qcv_suppress(_qcv_exc, "core/_monoplot_ops.py:67")
     return {'layer': layer, 'feat': feat, 'pdv_id': pdv_id or '', 'pdv_name': pdv_name or ''}
 
 
@@ -216,8 +217,8 @@ def _monoplot_rebuild_visible(self, width=None, height=None):
     self._monoplot_visible = vis
     try:
         self._monoplot_refresh_list()
-    except Exception:
-        pass
+    except Exception as _qcv_exc:
+        _qcv_suppress(_qcv_exc, "core/_monoplot_ops.py:219")
     return vis
 
 
@@ -246,8 +247,8 @@ def _monoplot_refresh_list(self):
                 lbl.setText(tr(f'Aucun repère monoplotting. Mode: {mode_label}.'))
             else:
                 lbl.setText(tr(f"{len(records)} repère(s) · {visible_count} visible(s) · mode {mode_label}"))
-    except Exception:
-        pass
+    except Exception as _qcv_exc:
+        _qcv_suppress(_qcv_exc, "core/_monoplot_ops.py:249")
 
 
 
@@ -263,7 +264,8 @@ def _monoplot_sync_from_layers(self):
     for f in points.getFeatures():
         try:
             mp_id = str(f[idx_id])
-        except Exception:
+        except Exception as _qcv_exc:
+            _qcv_suppress(_qcv_exc, "core/_monoplot_ops.py:266")
             continue
         lbl = None
         if idx_label >= 0:
@@ -332,8 +334,8 @@ def _monoplot_invalidate_overlay(self):
     try:
         if hasattr(self, '_overlay_cache') and isinstance(self._overlay_cache, dict):
             self._overlay_cache.clear()
-    except Exception:
-        pass
+    except Exception as _qcv_exc:
+        _qcv_suppress(_qcv_exc, "core/_monoplot_ops.py:335")
 
 def _monoplot_add_record(self, rec, add_ray=True):
     records = getattr(self, '_monoplot_records', None)
@@ -432,16 +434,16 @@ def _monoplot_on_map_click(self, map_pt):
     if uv is None:
         try:
             self.iface.messageBar().pushMessage(tr('QCALVIEW'), tr('Point non visible dans la vue courante'), level=QC.Qgis_MessageLevel_Warning, duration=4)
-        except Exception:
-            pass
+        except Exception as _qcv_exc:
+            _qcv_suppress(_qcv_exc, "core/_monoplot_ops.py:435")
         _mp_log(self, 'Point non visible dans la vue courante')
         return
     rec['_visible_uv'] = uv
     _monoplot_add_record(self, rec, add_ray=False)
     try:
         self.render_preview()
-    except Exception:
-        pass
+    except Exception as _qcv_exc:
+        _qcv_suppress(_qcv_exc, "core/_monoplot_ops.py:443")
 
 
 def start_monoplot_image_to_ground(self):
@@ -518,15 +520,15 @@ def _monoplot_handle_image_click_uv(self, u, v):
     if rec is None:
         try:
             self.iface.messageBar().pushMessage(tr('QCALVIEW'), tr(err or 'Aucune intersection terrain trouvée'), level=QC.Qgis_MessageLevel_Warning, duration=4)
-        except Exception:
-            pass
+        except Exception as _qcv_exc:
+            _qcv_suppress(_qcv_exc, "core/_monoplot_ops.py:521")
         _mp_log(self, err or 'Aucune intersection terrain trouvée')
         return
     _monoplot_add_record(self, rec, add_ray=True)
     try:
         self.render_preview()
-    except Exception:
-        pass
+    except Exception as _qcv_exc:
+        _qcv_suppress(_qcv_exc, "core/_monoplot_ops.py:528")
 
 
 def clear_monoplot_reperes(self):
@@ -543,12 +545,12 @@ def clear_monoplot_reperes(self):
                 lyr.triggerRepaint()
     try:
         self.list_monoplot.clear()
-    except Exception:
-        pass
+    except Exception as _qcv_exc:
+        _qcv_suppress(_qcv_exc, "core/_monoplot_ops.py:546")
     try:
         self.render_preview()
-    except Exception:
-        pass
+    except Exception as _qcv_exc:
+        _qcv_suppress(_qcv_exc, "core/_monoplot_ops.py:550")
     _mp_log(self, 'Repères monoplotting effacés')
 
 
@@ -557,8 +559,8 @@ def stop_monoplot_tools(self):
     self._image_pick_mode = None
     try:
         self._cancel_maptool()
-    except Exception:
-        pass
+    except Exception as _qcv_exc:
+        _qcv_suppress(_qcv_exc, "core/_monoplot_ops.py:560")
 
 
 def _draw_monoplot_overlay(self, painter, width, height):
@@ -594,5 +596,5 @@ def _monoplot_on_pdv_changed(self):
         _monoplot_rebuild_visible(self)
         _monoplot_invalidate_overlay(self)
         self.render_preview()
-    except Exception:
-        pass
+    except Exception as _qcv_exc:
+        _qcv_suppress(_qcv_exc, "core/_monoplot_ops.py:597")

@@ -2,7 +2,10 @@
 
 
 from ._compat import QC, dialog_exec
-
+"""
+Système de rendu adaptatif avec antirebond intelligent.
+Ajuste automatiquement les délais et la qualité selon la complexité.
+"""
 from qgis.PyQt.QtCore import QTimer, QElapsedTimer, pyqtSignal, QObject
 
 
@@ -136,100 +139,3 @@ class AdaptiveRenderScheduler(QObject):
             'current_quality': self.current_quality,
             'adaptive_delay_ms': self._compute_adaptive_delay()
         }
-
-
-
-
-def init_adaptive_scheduler(self):
-    
-    self.render_scheduler = AdaptiveRenderScheduler(self)
-    
-    
-    self.render_scheduler.render_requested.connect(self._do_render_with_quality)
-    
-    
-    
-
-
-def render_preview(self):
-    
-    self.render_scheduler.schedule_render(quality='high')
-
-
-def _do_render_with_quality(self, quality: str):
-    
-    try:
-        
-        if quality == 'low':
-            
-            scale = 0.25
-            antialiasing = False
-            dem_step_mult = 3.0
-        elif quality == 'normal':
-            
-            scale_idx = self.cmb_quality.currentIndex()
-            scale = {0: 0.25, 1: 0.5, 2: 1.0}.get(scale_idx, 0.25)
-            antialiasing = not self.cb_lowlat.isChecked()
-            dem_step_mult = 1.5
-        else:  
-            
-            scale = 1.0
-            antialiasing = True
-            dem_step_mult = 1.0
-        
-        
-        W_full = self.spin_w.value()
-        H_full = self.spin_h.value()
-        W = max(256, int(W_full * scale))
-        H = max(256, int(H_full * scale))
-        
-        
-        overlay = self._render_overlay(
-            width=W, 
-            height=H,
-            dem_step_mult=dem_step_mult,
-            antialiasing=antialiasing
-        )
-        
-        base = self._get_base_scaled(W, H)
-        composed = QImage(base)
-        qp = QPainter(composed)
-        qp.drawImage(0, 0, overlay)
-        qp.end()
-        
-        self.last_preview = composed
-        self.preview.setPixmap(
-            QPixmap.fromImage(composed).scaled(
-                self.preview.size(), 
-                QC.Qt_AspectRatioMode_KeepAspectRatio, 
-                QC.Qt_TransformationMode_SmoothTransformation
-            )
-        )
-        
-        
-        if self.viewer and self.viewer.isVisible():
-            if quality == 'high':  
-                base_full = self._get_base_scaled(W_full, H_full)
-                ov_full = self._render_overlay(width=W_full, height=H_full)
-                self.viewer.update_image(base_full)
-                self.viewer.update_overlay(ov_full)
-        
-    finally:
-        
-        self.render_scheduler.mark_render_complete()
-
-
-def _render_overlay(self, width, height, dem_step_mult=1.0, antialiasing=True):
-    
-    overlay = QImage(width, height, QC.QImage_Format_Format_ARGB32_Premultiplied)
-    overlay.fill(QColor(0,0,0,0))
-    p = QPainter(overlay)
-    
-    
-    p.setRenderHint(QC.QPainter_RenderHint_Antialiasing, antialiasing)
-    
-    
-    
-    
-    p.end()
-    return overlay

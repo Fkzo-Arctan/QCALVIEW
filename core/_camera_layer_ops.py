@@ -1,6 +1,7 @@
 
 
 
+from ._exceptions import qcv_suppress_exception as _qcv_suppress
 from ._i18n import tr
 from ._compat import QC
 import os, json
@@ -71,15 +72,15 @@ def _qcv_style_to_dict(sty):
             v=getattr(sty,k)
             if isinstance(v, (str,int,float,bool)) or v is None or isinstance(v,(dict,list)):
                 out[k]=v
-        except Exception:
-            pass
+        except Exception as _qcv_exc:
+            _qcv_suppress(_qcv_exc, "core/_camera_layer_ops.py:74")
     for k in ('color','fill_color','label_text_color','label_bg_color','label_halo_color','label_callout_color'):
         try: out[k]=_qcv_color_hex(getattr(sty,k))
-        except Exception: pass
+        except Exception as _qcv_exc: _qcv_suppress(_qcv_exc, "core/_camera_layer_ops.py:78")
     try: out['label_offset']=[int(sty.label_offset.x()), int(sty.label_offset.y())]
-    except Exception: pass
+    except Exception as _qcv_exc: _qcv_suppress(_qcv_exc, "core/_camera_layer_ops.py:80")
     try: out['pen_style']=int(sty.pen_style)
-    except Exception: pass
+    except Exception as _qcv_exc: _qcv_suppress(_qcv_exc, "core/_camera_layer_ops.py:82")
     return out
 
 def _qcv_style_from_dict(sty, data):
@@ -88,17 +89,17 @@ def _qcv_style_from_dict(sty, data):
             continue
         if hasattr(sty,k):
             try: setattr(sty,k,v)
-            except Exception: pass
+            except Exception as _qcv_exc: _qcv_suppress(_qcv_exc, "core/_camera_layer_ops.py:91")
     for k in ('color','fill_color','label_text_color','label_bg_color','label_halo_color','label_callout_color'):
         if k in data:
             try: setattr(sty,k,QColor(str(data[k])))
-            except Exception: pass
+            except Exception as _qcv_exc: _qcv_suppress(_qcv_exc, "core/_camera_layer_ops.py:95")
     if 'label_offset' in data:
         try: sty.label_offset=QPoint(int(data['label_offset'][0]),int(data['label_offset'][1]))
-        except Exception: pass
+        except Exception as _qcv_exc: _qcv_suppress(_qcv_exc, "core/_camera_layer_ops.py:98")
     if 'pen_style' in data:
         try: sty.pen_style=QC.Qt_PenStyle(int(data['pen_style']))
-        except Exception: pass
+        except Exception as _qcv_exc: _qcv_suppress(_qcv_exc, "core/_camera_layer_ops.py:101")
 
 def _camera_visual_state_key(self, fid):
     layer=_camera_layer(self)
@@ -150,12 +151,12 @@ def _camera_capture_plugin_settings(self):
         'height_field': '', 'dem_layer_id':'', 'relief_mode':'none',
     }
     try: out['height_field']=str(self.txt_hfield.text() or '')
-    except Exception: pass
+    except Exception as _qcv_exc: _qcv_suppress(_qcv_exc, "core/_camera_layer_ops.py:153")
     try:
         lyr=self.cmb_dem.currentLayer(); out['dem_layer_id']=str(lyr.id()) if lyr is not None else ''
-    except Exception: pass
+    except Exception as _qcv_exc: _qcv_suppress(_qcv_exc, "core/_camera_layer_ops.py:156")
     try: out['relief_mode']=str(self._relief_mode_id())
-    except Exception: pass
+    except Exception as _qcv_exc: _qcv_suppress(_qcv_exc, "core/_camera_layer_ops.py:158")
     return out
 
 
@@ -164,27 +165,27 @@ def _camera_restore_plugin_settings(self, data):
     for name in ('cb_occ_terrain','cb_occ_layers','cb_transparent_objects','cb_debug_no_occ','cb_use_dem_z','cb_force_horizontal_25d','cb_draw_2p5d','cb_show_labels','cb_curvature'):
         if name in data:
             try: getattr(self,name).setChecked(bool(data[name]))
-            except Exception: pass
+            except Exception as _qcv_exc: _qcv_suppress(_qcv_exc, "core/_camera_layer_ops.py:167")
     
     
     
     try:
         self.cb_occ_objects.setChecked(True)
-    except Exception:
-        pass
+    except Exception as _qcv_exc:
+        _qcv_suppress(_qcv_exc, "core/_camera_layer_ops.py:173")
     for name in ('d_eps','d_az_step','d_rad_step','d_hdefault','d_earth_radius_km'):
         if name in data:
             try: getattr(self,name).setValue(float(data[name]))
-            except Exception: pass
+            except Exception as _qcv_exc: _qcv_suppress(_qcv_exc, "core/_camera_layer_ops.py:178")
     if 'height_field' in data:
         try: self.txt_hfield.setText(tr(str(data.get('height_field') or '')))
-        except Exception: pass
+        except Exception as _qcv_exc: _qcv_suppress(_qcv_exc, "core/_camera_layer_ops.py:181")
     lid=str(data.get('dem_layer_id') or '')
     if lid:
         try:
             lyr=QgsProject.instance().mapLayer(lid)
             if lyr is not None: self.cmb_dem.setLayer(lyr)
-        except Exception: pass
+        except Exception as _qcv_exc: _qcv_suppress(_qcv_exc, "core/_camera_layer_ops.py:187")
     mode=str(data.get('relief_mode') or '')
     if mode:
         
@@ -195,7 +196,7 @@ def _camera_restore_plugin_settings(self, data):
                 mapping={'none':0,'transparent':1,'opaque':2,'wireframe':3,'ridgelines':4,'skyline':5}
                 self.combo_relief_mode.setCurrentIndex(int(mapping.get(mode.lower(),0)))
                 if hasattr(self,'_sync_relief_mode_controls'): self._sync_relief_mode_controls()
-        except Exception: pass
+        except Exception as _qcv_exc: _qcv_suppress(_qcv_exc, "core/_camera_layer_ops.py:198")
 
 
 def _camera_collect_visual_state_snapshot(self):
@@ -206,8 +207,8 @@ def _camera_collect_visual_state_snapshot(self):
         state['theme']=str(combo.currentData() or combo.currentText() or '') if combo is not None else ''
         if state['theme'].startswith('—'):
             state['theme']=''
-    except Exception:
-        pass
+    except Exception as _qcv_exc:
+        _qcv_suppress(_qcv_exc, "core/_camera_layer_ops.py:209")
     try:
         state['overlays']=[_qcv_style_to_dict(sty) for sty in list(getattr(self,'layer_styles',[]) or [])]
     except Exception:
@@ -310,12 +311,12 @@ def _camera_restore_visual_state(self, fid):
                         sty.schematic_family = ''
                         sty.schematic_params = {}
                         sty.schematic_asset_paths = []
-            except Exception:
-                pass
+            except Exception as _qcv_exc:
+                _qcv_suppress(_qcv_exc, "core/_camera_layer_ops.py:313")
             restored.append(sty)
         self.layer_styles=restored
         try: self._refresh_layer_list_labels(0 if restored else -1)
-        except Exception: pass
+        except Exception as _qcv_exc: _qcv_suppress(_qcv_exc, "core/_camera_layer_ops.py:318")
     except Exception as exc:
         qcv_log(f"PDV {fid}: restauration overlays incomplète: {exc}", 'PDV/LOAD', 'WARNING')
 
@@ -328,15 +329,15 @@ def _camera_restore_visual_state(self, fid):
                 if idx<0 and theme: idx=combo.findText(theme)
                 if idx>=0: combo.setCurrentIndex(idx)
             finally:self._suspend_theme_auto_apply=prev
-        except Exception: pass
+        except Exception as _qcv_exc: _qcv_suppress(_qcv_exc, "core/_camera_layer_ops.py:331")
     try: getattr(self,'_overlay_cache',{}).clear(); getattr(self,'_geom_cache',{}).clear()
-    except Exception: pass
+    except Exception as _qcv_exc: _qcv_suppress(_qcv_exc, "core/_camera_layer_ops.py:333")
     try:self.iface.mapCanvas().refresh()
-    except Exception:pass
+    except Exception as _qcv_exc: _qcv_suppress(_qcv_exc, "core/_camera_layer_ops.py:335")
     try:self._refresh_preview_and_viewer()
     except Exception:
         try:self.render_preview()
-        except Exception:pass
+        except Exception as _qcv_exc: _qcv_suppress(_qcv_exc, "core/_camera_layer_ops.py:339")
     self._camera_last_visual_restore_fid=int(fid)
     self._camera_last_visual_restore_summary=f"état QCALVIEW restauré ({len(restored)} couches, thème {'appliqué' if theme_applied else (theme or 'aucun')})"
     qcv_log(f"PDV {fid}: {self._camera_last_visual_restore_summary}", 'PDV/LOAD', 'SUCCESS')
@@ -357,8 +358,8 @@ def _camera_metric_project_crs(self):
                 meters = getattr(Qgis, 'DistanceMeters', None)
             if meters is not None and crs.mapUnits() != meters:
                 return None
-        except Exception:
-            pass
+        except Exception as _qcv_exc:
+            _qcv_suppress(_qcv_exc, "core/_camera_layer_ops.py:360")
         return crs
     except Exception:
         return None
@@ -392,7 +393,7 @@ def _camera_warn_if_non_metric_project(self, notify=False):
     _camera_set_status(self, msg, '#b36b00')
     if notify:
         try: self.iface.messageBar().pushWarning(tr('QCALVIEW — CRS'), tr(msg))
-        except Exception: pass
+        except Exception as _qcv_exc: _qcv_suppress(_qcv_exc, "core/_camera_layer_ops.py:395")
     return False
 
 
@@ -494,8 +495,8 @@ def _camera_read_photo_metadata(path):
         inf = probe_image(str(path))
         meta.setdefault('ImageWidth', int(inf.get('width', 0) or 0))
         meta.setdefault('ImageHeight', int(inf.get('height', 0) or 0))
-    except Exception:
-        pass
+    except Exception as _qcv_exc:
+        _qcv_suppress(_qcv_exc, "core/_camera_layer_ops.py:497")
     return meta
 
 
@@ -518,8 +519,8 @@ def _camera_apply_photo_metadata_to_ui(self, meta):
         if w is not None:
             try:
                 w.blockSignals(True)
-            except Exception:
-                pass
+            except Exception as _qcv_exc:
+                _qcv_suppress(_qcv_exc, "core/_camera_layer_ops.py:521")
             widgets.append(w)
     try:
         w = meta.get('ImageWidth')
@@ -544,8 +545,8 @@ def _camera_apply_photo_metadata_to_ui(self, meta):
             idx = self.cmb_proj.findText(mode)
             if idx >= 0:
                 self.cmb_proj.setCurrentIndex(idx)
-        except Exception:
-            pass
+        except Exception as _qcv_exc:
+            _qcv_suppress(_qcv_exc, "core/_camera_layer_ops.py:547")
         try:
             info = []
             if isinstance(w, (int, float)) and isinstance(h, (int, float)) and int(w) > 0 and int(h) > 0:
@@ -553,21 +554,21 @@ def _camera_apply_photo_metadata_to_ui(self, meta):
             if isinstance(foc, (int, float)) and float(foc) > 0:
                 info.append(f"Focale {float(foc):.2f} mm")
             self.lbl_info.setText(tr(" | ".join(info) if info else os.path.basename(str(getattr(self, 'photo_path', '') or ''))))
-        except Exception:
-            pass
+        except Exception as _qcv_exc:
+            _qcv_suppress(_qcv_exc, "core/_camera_layer_ops.py:556")
     finally:
         for w in widgets:
             try:
                 w.blockSignals(False)
-            except Exception:
-                pass
+            except Exception as _qcv_exc:
+                _qcv_suppress(_qcv_exc, "core/_camera_layer_ops.py:562")
 
 def _camera_set_status(self, text, color="#666"):
     try:
         self.lbl_cam_status.setText(tr(str(text)))
         self.lbl_cam_status.setStyleSheet(f"color:{color};")
-    except Exception:
-        pass
+    except Exception as _qcv_exc:
+        _qcv_suppress(_qcv_exc, "core/_camera_layer_ops.py:569")
 
 
 def _camera_update_title(self, label=None):
@@ -582,8 +583,8 @@ def _camera_update_title(self, label=None):
             self.setWindowTitle(tr(base))
             if hasattr(self, 'lbl_current_pdv'):
                 self.lbl_current_pdv.setText(tr(""))
-    except Exception:
-        pass
+    except Exception as _qcv_exc:
+        _qcv_suppress(_qcv_exc, "core/_camera_layer_ops.py:585")
 
 
 def _camera_first_existing_name(names, candidates):
@@ -642,9 +643,9 @@ def _camera_resolve_title(self, layer, feat):
     id_field = ''
     label_field = ''
     try: id_field = str(self.cmb_cam_id_field.currentText() or '').strip()
-    except Exception: pass
+    except Exception as _qcv_exc: _qcv_suppress(_qcv_exc, "core/_camera_layer_ops.py:645")
     try: label_field = str(self.cmb_cam_label_field.currentText() or '').strip()
-    except Exception: pass
+    except Exception as _qcv_exc: _qcv_suppress(_qcv_exc, "core/_camera_layer_ops.py:647")
 
     def value(field):
         if field and field in names:
@@ -681,8 +682,8 @@ def _camera_current_fid(self):
     if fid is not None:
         try:
             return int(fid)
-        except Exception:
-            pass
+        except Exception as _qcv_exc:
+            _qcv_suppress(_qcv_exc, "core/_camera_layer_ops.py:684")
     combo = getattr(self, 'cmb_cam_feature', None)
     if combo is None or combo.currentIndex() < 0:
         return None
@@ -710,8 +711,8 @@ def _camera_disconnect_layer_runtime_signals(self):
     for sig, handler in conns:
         try:
             sig.disconnect(handler)
-        except Exception:
-            pass
+        except Exception as _qcv_exc:
+            _qcv_suppress(_qcv_exc, "core/_camera_layer_ops.py:713")
     self._camera_bound_connections = []
     self._camera_bound_layer = None
 
@@ -739,8 +740,8 @@ def _camera_connect_layer_runtime_signals(self, layer):
         try:
             sig.connect(handler)
             self._camera_bound_connections.append((sig, handler))
-        except Exception:
-            pass
+        except Exception as _qcv_exc:
+            _qcv_suppress(_qcv_exc, "core/_camera_layer_ops.py:742")
 
 
 def _camera_on_layer_changed(self, layer):
@@ -806,8 +807,8 @@ def _camera_refresh_field_combos(self, layer=None):
             except Exception:
                 try:
                     combo.blockSignals(False)
-                except Exception:
-                    pass
+                except Exception as _qcv_exc:
+                    _qcv_suppress(_qcv_exc, "core/_camera_layer_ops.py:809")
     _camera_set_status(self, f"Couche caméra prête : {layer.name()} ({layer.featureCount()} points environ).")
 
 
@@ -830,10 +831,10 @@ def _camera_refresh_feature_list(self, autoload=None):
     try:
         order_field = ''
         try: order_field = str(self.cmb_cam_order_field.currentText() or '').strip()
-        except Exception: pass
+        except Exception as _qcv_exc: _qcv_suppress(_qcv_exc, "core/_camera_layer_ops.py:833")
         id_field = ''
         try: id_field = str(self.cmb_cam_id_field.currentText() or '').strip()
-        except Exception: pass
+        except Exception as _qcv_exc: _qcv_suppress(_qcv_exc, "core/_camera_layer_ops.py:836")
         names = layer.fields().names()
         for feat in layer.getFeatures():
             label = _camera_list_label(self, layer, feat)
@@ -867,8 +868,8 @@ def _camera_refresh_feature_list(self, autoload=None):
         _camera_update_title(self, "")
         try:
             self._sync_pdv_qml()
-        except Exception:
-            pass
+        except Exception as _qcv_exc:
+            _qcv_suppress(_qcv_exc, "core/_camera_layer_ops.py:870")
         return
 
     preferred_fid = selected_ids[0] if selected_ids else prev_fid
@@ -897,14 +898,14 @@ def _camera_refresh_feature_list(self, autoload=None):
         _camera_set_status(self, f"Point courant : {title} — {suffix}.", "#666" if img_path else "#aa6600")
         try:
             self._sync_pdv_qml()
-        except Exception:
-            pass
+        except Exception as _qcv_exc:
+            _qcv_suppress(_qcv_exc, "core/_camera_layer_ops.py:900")
     try:
         if getattr(self, 'viewer', None):
             self.viewer.sync_pdv_controls()
             self.viewer.update_info()
-    except Exception:
-        pass
+    except Exception as _qcv_exc:
+        _qcv_suppress(_qcv_exc, "core/_camera_layer_ops.py:906")
     
     
     
@@ -913,8 +914,8 @@ def _camera_refresh_feature_list(self, autoload=None):
                 and bool(getattr(self, '_export_tab_loaded', False))
                 and hasattr(self, '_refresh_batch_pdv_table')):
             self._refresh_batch_pdv_table()
-    except Exception:
-        pass
+    except Exception as _qcv_exc:
+        _qcv_suppress(_qcv_exc, "core/_camera_layer_ops.py:916")
 
 
 def _camera_select_combo_feature_by_fid(self, fid, autoload=True):
@@ -933,8 +934,8 @@ def _camera_select_combo_feature_by_fid(self, fid, autoload=True):
     else:
         try:
             self._sync_pdv_qml()
-        except Exception:
-            pass
+        except Exception as _qcv_exc:
+            _qcv_suppress(_qcv_exc, "core/_camera_layer_ops.py:936")
     return True
 
 
@@ -961,8 +962,8 @@ def _camera_on_layer_selection_changed(self, *args):
         _camera_select_combo_feature_by_fid(self, int(selected[0]), autoload=True)
         try:
             layer.removeSelection()
-        except Exception:
-            pass
+        except Exception as _qcv_exc:
+            _qcv_suppress(_qcv_exc, "core/_camera_layer_ops.py:964")
     finally:
         self._camera_sync_guard = prev
 
@@ -998,14 +999,14 @@ def _resolve_image_path(layer, raw_path):
         home = QgsProject.instance().homePath()
         if home:
             candidates.append(os.path.join(home, raw))
-    except Exception:
-        pass
+    except Exception as _qcv_exc:
+        _qcv_suppress(_qcv_exc, "core/_camera_layer_ops.py:1001")
     try:
         src = str(layer.source()).split('|')[0]
         if src:
             candidates.append(os.path.join(os.path.dirname(src), raw))
-    except Exception:
-        pass
+    except Exception as _qcv_exc:
+        _qcv_suppress(_qcv_exc, "core/_camera_layer_ops.py:1007")
     for candidate in candidates:
         if candidate and os.path.exists(candidate):
             return os.path.normpath(candidate)
@@ -1021,8 +1022,8 @@ def _camera_set_live_enabled(self, enabled):
             self.viewer._chk_live.blockSignals(True)
             self.viewer._chk_live.setChecked(bool(enabled))
             self.viewer._chk_live.blockSignals(False)
-    except Exception:
-        pass
+    except Exception as _qcv_exc:
+        _qcv_suppress(_qcv_exc, "core/_camera_layer_ops.py:1024")
 
 
 def _camera_on_geometry_changed(self, fid, *args):
@@ -1038,7 +1039,7 @@ def _camera_on_geometry_changed(self, fid, *args):
         return
     self._camera_live_pending_fid = fid
     try: self._camera_live_refresh_timer.start(250)
-    except Exception: pass
+    except Exception as _qcv_exc: _qcv_suppress(_qcv_exc, "core/_camera_layer_ops.py:1041")
 
 
 def _camera_live_refresh_current(self):
@@ -1054,19 +1055,19 @@ def _camera_refresh_current_view(self, force=False):
         getattr(self, '_geom_cache', {}).clear()
         self._horizon = None
         self._horizon_params = None
-    except Exception:
-        pass
+    except Exception as _qcv_exc:
+        _qcv_suppress(_qcv_exc, "core/_camera_layer_ops.py:1057")
     try: self._update_canvas_fov()
-    except Exception: pass
+    except Exception as _qcv_exc: _qcv_suppress(_qcv_exc, "core/_camera_layer_ops.py:1060")
     
     
     try: self.render_preview()
-    except Exception: pass
+    except Exception as _qcv_exc: _qcv_suppress(_qcv_exc, "core/_camera_layer_ops.py:1064")
     try:
         if getattr(self, 'viewer', None):
             self.viewer.update_info()
-    except Exception:
-        pass
+    except Exception as _qcv_exc:
+        _qcv_suppress(_qcv_exc, "core/_camera_layer_ops.py:1068")
 
 
 def _camera_prev_feature(self):
@@ -1114,8 +1115,8 @@ def _camera_feature_image_path(self, layer, feat):
             val = feat[img_field]
             if val not in (None, ''):
                 candidates.append(val)
-        except Exception:
-            pass
+        except Exception as _qcv_exc:
+            _qcv_suppress(_qcv_exc, "core/_camera_layer_ops.py:1117")
 
     
     
@@ -1125,8 +1126,8 @@ def _camera_feature_image_path(self, layer, feat):
                 val = feat[fld]
                 if val not in (None, ''):
                     candidates.append(val)
-            except Exception:
-                pass
+            except Exception as _qcv_exc:
+                _qcv_suppress(_qcv_exc, "core/_camera_layer_ops.py:1128")
     if 'directory' in names and 'filename' in names:
         try:
             directory = feat['directory']
@@ -1141,8 +1142,8 @@ def _camera_feature_image_path(self, layer, feat):
                     os.path.join(str(directory), str(filename) + '.PNG'),
                     os.path.join(str(directory), str(filename) + '.png'),
                 ])
-        except Exception:
-            pass
+        except Exception as _qcv_exc:
+            _qcv_suppress(_qcv_exc, "core/_camera_layer_ops.py:1144")
 
     seen = set()
     for cand in candidates:
@@ -1173,39 +1174,39 @@ def _camera_load_photo_from_path(self, path):
         self._camera_last_photo_meta = photo_meta
     try:
         self._base_cache.clear()
-    except Exception:
-        pass
+    except Exception as _qcv_exc:
+        _qcv_suppress(_qcv_exc, "core/_camera_layer_ops.py:1176")
     try:
         self._z_cache.clear()
-    except Exception:
-        pass
+    except Exception as _qcv_exc:
+        _qcv_suppress(_qcv_exc, "core/_camera_layer_ops.py:1180")
     try:
         self._horizon = None
         self._horizon_params = None
-    except Exception:
-        pass
+    except Exception as _qcv_exc:
+        _qcv_suppress(_qcv_exc, "core/_camera_layer_ops.py:1185")
     try:
         getattr(self, '_overlay_cache', {}).clear()
-    except Exception:
-        pass
+    except Exception as _qcv_exc:
+        _qcv_suppress(_qcv_exc, "core/_camera_layer_ops.py:1189")
     try:
         getattr(self, '_geom_cache', {}).clear()
-    except Exception:
-        pass
+    except Exception as _qcv_exc:
+        _qcv_suppress(_qcv_exc, "core/_camera_layer_ops.py:1193")
     try:
         self._layer_cache_versions = {}
-    except Exception:
-        pass
+    except Exception as _qcv_exc:
+        _qcv_suppress(_qcv_exc, "core/_camera_layer_ops.py:1197")
     try:
         _camera_apply_photo_metadata_to_ui(self, photo_meta)
-    except Exception:
-        pass
+    except Exception as _qcv_exc:
+        _qcv_suppress(_qcv_exc, "core/_camera_layer_ops.py:1201")
     try:
         if getattr(self, 'viewer', None):
             
             self.viewer.update_image(self.image)
-    except Exception:
-        pass
+    except Exception as _qcv_exc:
+        _qcv_suppress(_qcv_exc, "core/_camera_layer_ops.py:1207")
     return photo_meta
 
 
@@ -1294,8 +1295,8 @@ def _camera_apply_state(self, state):
     for w in widgets:
         try:
             w.blockSignals(True)
-        except Exception:
-            pass
+        except Exception as _qcv_exc:
+            _qcv_suppress(_qcv_exc, "core/_camera_layer_ops.py:1297")
     try:
         proj = str(state.get('qcv_proj', self.cmb_proj.currentText()) or self.cmb_proj.currentText())
         idx = self.cmb_proj.findText(proj)
@@ -1330,12 +1331,12 @@ def _camera_apply_state(self, state):
         for w in widgets:
             try:
                 w.blockSignals(False)
-            except Exception:
-                pass
+            except Exception as _qcv_exc:
+                _qcv_suppress(_qcv_exc, "core/_camera_layer_ops.py:1333")
     try:
         self._toggle_hfov_enable(self.cb_auto_hfov.isChecked())
-    except Exception:
-        pass
+    except Exception as _qcv_exc:
+        _qcv_suppress(_qcv_exc, "core/_camera_layer_ops.py:1337")
     
     
     
@@ -1345,8 +1346,8 @@ def _camera_apply_state(self, state):
             full_equirect = bool(self.cb_360.isChecked())
             self.d_hfov.setEnabled(not full_equirect)
             self.d_vfov.setEnabled(not full_equirect)
-    except Exception:
-        pass
+    except Exception as _qcv_exc:
+        _qcv_suppress(_qcv_exc, "core/_camera_layer_ops.py:1348")
 
 
 def _camera_collect_ui_state(self):
@@ -1459,8 +1460,8 @@ def _camera_load_current_feature(self, auto=False):
         _camera_update_title(self, title)
         try:
             self._sync_pdv_qml()
-        except Exception:
-            pass
+        except Exception as _qcv_exc:
+            _qcv_suppress(_qcv_exc, "core/_camera_layer_ops.py:1462")
     finally:
         self._camera_loading_feature = False
 
@@ -1469,8 +1470,8 @@ def _camera_load_current_feature(self, auto=False):
     
     try:
         self.render_preview()
-    except Exception:
-        pass
+    except Exception as _qcv_exc:
+        _qcv_suppress(_qcv_exc, "core/_camera_layer_ops.py:1472")
     try:
         if getattr(self, 'viewer', None):
             if path:
@@ -1486,13 +1487,13 @@ def _camera_load_current_feature(self, auto=False):
                 try:
                     self.viewer.update_image(self._make_schematic_base(
                         int(self.spin_w.value()), int(self.spin_h.value()), for_export=False))
-                except Exception:
-                    pass
+                except Exception as _qcv_exc:
+                    _qcv_suppress(_qcv_exc, "core/_camera_layer_ops.py:1489")
             ov = getattr(self, 'overlay_image', None) or getattr(self, 'overlay_path', None)
             if ov is not None:
                 self.viewer.update_overlay(ov)
-    except Exception:
-        pass
+    except Exception as _qcv_exc:
+        _qcv_suppress(_qcv_exc, "core/_camera_layer_ops.py:1494")
     status = f"Point chargé : {title}"
     mode_now = _camera_normalize_view_mode(getattr(self, '_camera_current_view_mode', view_mode))
     if path:
@@ -1506,8 +1507,8 @@ def _camera_load_current_feature(self, auto=False):
             vs = str(getattr(self, '_camera_last_visual_restore_summary', '') or '')
             if vs and vs != 'aucun état visuel enregistré':
                 status += f" — {vs}"
-    except Exception:
-        pass
+    except Exception as _qcv_exc:
+        _qcv_suppress(_qcv_exc, "core/_camera_layer_ops.py:1509")
     _camera_set_status(self, status, "#2b6" if path else ("#b36b00" if mode_now == 'PHOTO' else "#386a8a"))
 
 
@@ -1520,21 +1521,21 @@ def _camera_make_storable_image_path(layer, path):
         home = QgsProject.instance().homePath()
         if home:
             bases.append(os.path.normpath(home))
-    except Exception:
-        pass
+    except Exception as _qcv_exc:
+        _qcv_suppress(_qcv_exc, "core/_camera_layer_ops.py:1523")
     try:
         src = str(layer.source()).split('|')[0]
         if src:
             bases.append(os.path.normpath(os.path.dirname(src)))
-    except Exception:
-        pass
+    except Exception as _qcv_exc:
+        _qcv_suppress(_qcv_exc, "core/_camera_layer_ops.py:1529")
     for base in bases:
         try:
             rel = os.path.relpath(path, base)
             if rel and not rel.startswith('..'):
                 return rel.replace('\\', '/')
-        except Exception:
-            pass
+        except Exception as _qcv_exc:
+            _qcv_suppress(_qcv_exc, "core/_camera_layer_ops.py:1536")
     return path
 
 
@@ -1546,8 +1547,8 @@ def _camera_assign_current_photo_path(self, path):
     _camera_capture_current_draft(self)
     try:
         self._sync_pdv_qml()
-    except Exception:
-        pass
+    except Exception as _qcv_exc:
+        _qcv_suppress(_qcv_exc, "core/_camera_layer_ops.py:1549")
     return True
 
 
@@ -1593,8 +1594,8 @@ def _camera_write_source_fields(self, mode, image_path=None, silent=False):
         if started:
             try:
                 changed = bool(layer.commitChanges()) or changed
-            except Exception:
-                pass
+            except Exception as _qcv_exc:
+                _qcv_suppress(_qcv_exc, "core/_camera_layer_ops.py:1596")
     finally:
         self._camera_internal_write = prev_write
 
@@ -1634,12 +1635,12 @@ def _camera_set_current_schematic(self):
         if getattr(self, 'viewer', None):
             self.viewer.update_image(self._make_schematic_base(
                 int(self.spin_w.value()), int(self.spin_h.value()), for_export=False))
-    except Exception:
-        pass
+    except Exception as _qcv_exc:
+        _qcv_suppress(_qcv_exc, "core/_camera_layer_ops.py:1637")
     try:
         self.render_preview()
-    except Exception:
-        pass
+    except Exception as _qcv_exc:
+        _qcv_suppress(_qcv_exc, "core/_camera_layer_ops.py:1641")
     title = _camera_resolve_title(self, _camera_layer(self), feat)
     _camera_set_status(self, f"{title} — vue schématique enregistrée (sans photo).", "#386a8a")
 
@@ -1697,17 +1698,17 @@ def _camera_schedule_autosave(self, *_args):
         return
     try:
         _camera_capture_current_draft(self)
-    except Exception:
-        pass
+    except Exception as _qcv_exc:
+        _qcv_suppress(_qcv_exc, "core/_camera_layer_ops.py:1700")
     self._camera_autosave_dirty = False
     try:
         self._camera_autosave_timer.stop()
-    except Exception:
-        pass
+    except Exception as _qcv_exc:
+        _qcv_suppress(_qcv_exc, "core/_camera_layer_ops.py:1705")
     try:
         self._sync_pdv_qml()
-    except Exception:
-        pass
+    except Exception as _qcv_exc:
+        _qcv_suppress(_qcv_exc, "core/_camera_layer_ops.py:1709")
 
 
 def _camera_autosave_timeout(self):
@@ -1802,13 +1803,13 @@ def _camera_save_feature_by_fid(self, fid, silent=False):
                 write_value = NULL if (key == 'qcv_img' and value in (None, '')) else value
                 ok = layer.changeAttributeValue(fid, idx, write_value)
                 changed = bool(ok) or changed
-            except Exception:
-                pass
+            except Exception as _qcv_exc:
+                _qcv_suppress(_qcv_exc, "core/_camera_layer_ops.py:1805")
         if started:
             try:
                 changed = bool(layer.commitChanges()) or changed
-            except Exception:
-                pass
+            except Exception as _qcv_exc:
+                _qcv_suppress(_qcv_exc, "core/_camera_layer_ops.py:1810")
     finally:
         self._camera_internal_write = prev_write
 
@@ -1821,8 +1822,8 @@ def _camera_save_feature_by_fid(self, fid, silent=False):
         _camera_set_status(self, f"Paramètres enregistrés pour {title}.", "#2b6")
     try:
         self._sync_pdv_qml()
-    except Exception:
-        pass
+    except Exception as _qcv_exc:
+        _qcv_suppress(_qcv_exc, "core/_camera_layer_ops.py:1824")
     return changed
 
 
@@ -1866,12 +1867,12 @@ def _camera_on_feature_changed(self, *_):
     if old_fid is not None and new_fid is not None and old_fid != new_fid and not getattr(self, '_camera_loading_feature', False):
         try:
             _camera_capture_current_draft(self, old_fid)
-        except Exception:
-            pass
+        except Exception as _qcv_exc:
+            _qcv_suppress(_qcv_exc, "core/_camera_layer_ops.py:1869")
     self._camera_current_fid = new_fid
     if new_fid is not None:
         try: _camera_restore_visual_state(self, new_fid)
-        except Exception: pass
+        except Exception as _qcv_exc: _qcv_suppress(_qcv_exc, "core/_camera_layer_ops.py:1874")
 
     feat = _camera_current_feature(self)
     if feat is None:
@@ -1879,8 +1880,8 @@ def _camera_on_feature_changed(self, *_):
         _camera_update_title(self, "")
         try:
             self._sync_pdv_qml()
-        except Exception:
-            pass
+        except Exception as _qcv_exc:
+            _qcv_suppress(_qcv_exc, "core/_camera_layer_ops.py:1882")
         return
 
     title = _camera_resolve_title(self, layer, feat)
@@ -1899,5 +1900,5 @@ def _camera_on_feature_changed(self, *_):
         if getattr(self, 'viewer', None):
             self.viewer.sync_pdv_controls()
             self.viewer.update_info()
-    except Exception:
-        pass
+    except Exception as _qcv_exc:
+        _qcv_suppress(_qcv_exc, "core/_camera_layer_ops.py:1902")

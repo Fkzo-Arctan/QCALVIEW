@@ -1,6 +1,7 @@
 
 
 
+from .core._exceptions import qcv_suppress_exception as _qcv_suppress
 from .core._i18n import tr, install_qcalview_translator, remove_qcalview_translator
 from .core._compat import QC, dialog_exec, QAction
 import os
@@ -81,8 +82,8 @@ class QCalViewPlugin:
         if self.layer_context_action:
             try:
                 self.iface.removeCustomActionForLayerType(self.layer_context_action)
-            except Exception:
-                pass
+            except Exception as _qcv_exc:
+                _qcv_suppress(_qcv_exc, "qcalview_photo_plugin.py:84")
             self.layer_context_action = None
         if self.dock:
             self.iface.removeDockWidget(self.dock)
@@ -143,8 +144,8 @@ class QCalViewPlugin:
             self.dock.setFloating(True)
             try:
                 self.dock.visibilityChanged.connect(self._on_dock_visibility_changed)
-            except Exception:
-                pass
+            except Exception as _qcv_exc:
+                _qcv_suppress(_qcv_exc, "qcalview_photo_plugin.py:146")
         if show:
             self.dock.show()
             self.dock.raise_()
@@ -181,8 +182,8 @@ class QCalViewPlugin:
         self.dock.activateWindow()
         try:
             self.dock.open_settings_dialog()
-        except Exception:
-            pass
+        except Exception as _qcv_exc:
+            _qcv_suppress(_qcv_exc, "qcalview_photo_plugin.py:184")
 
     def toggle_dock(self):
         if self.dock is None:

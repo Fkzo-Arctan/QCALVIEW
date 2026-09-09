@@ -3,6 +3,7 @@
 
 
 from __future__ import annotations
+from ._exceptions import qcv_suppress_exception as _qcv_suppress
 
 import math
 import os
@@ -47,8 +48,8 @@ def probe_image(path: str) -> dict:
     reader = QImageReader(path)
     try:
         reader.setAutoTransform(True)
-    except Exception:
-        pass
+    except Exception as _qcv_exc:
+        _qcv_suppress(_qcv_exc, "core/_image_io.py:50")
     size = reader.size()
     w = int(size.width()) if size is not None and size.isValid() else 0
     h = int(size.height()) if size is not None and size.isValid() else 0
@@ -63,14 +64,14 @@ def probe_image(path: str) -> dict:
             err = ''
             try:
                 err = reader.errorString()
-            except Exception:
-                pass
+            except Exception as _qcv_exc:
+                _qcv_suppress(_qcv_exc, "core/_image_io.py:66")
             raise PhotoReadError(err or str(e) or 'Dimensions image illisibles')
     file_bytes = 0
     try:
         file_bytes = int(os.path.getsize(path))
-    except Exception:
-        pass
+    except Exception as _qcv_exc:
+        _qcv_suppress(_qcv_exc, "core/_image_io.py:72")
     return {
         'path': path,
         'width': w,
@@ -118,8 +119,8 @@ def _temporary_qt_allocation_limit(required_bytes: int, enabled: bool):
         if changed and old is not None:
             try:
                 setter(int(old))
-            except Exception:
-                pass
+            except Exception as _qcv_exc:
+                _qcv_suppress(_qcv_exc, "core/_image_io.py:121")
 
 
 def _enough_memory_for_large_read(decoded_bytes: int) -> bool:
@@ -155,15 +156,15 @@ def read_qimage(path: str, width: int | None = None, height: int | None = None,
     reader = QImageReader(str(path))
     try:
         reader.setAutoTransform(True)
-    except Exception:
-        pass
+    except Exception as _qcv_exc:
+        _qcv_suppress(_qcv_exc, "core/_image_io.py:158")
     
     
     if tw != int(info['width']) or th != int(info['height']):
         try:
             reader.setScaledSize(QSize(tw, th))
-        except Exception:
-            pass
+        except Exception as _qcv_exc:
+            _qcv_suppress(_qcv_exc, "core/_image_io.py:165")
 
     with _temporary_qt_allocation_limit(target_bytes, bool(allow_large)):
         img = reader.read()
@@ -171,8 +172,8 @@ def read_qimage(path: str, width: int | None = None, height: int | None = None,
         err = ''
         try:
             err = str(reader.errorString() or '')
-        except Exception:
-            pass
+        except Exception as _qcv_exc:
+            _qcv_suppress(_qcv_exc, "core/_image_io.py:174")
         raise PhotoReadError(err or f"Qt n'a pas pu décoder l'image {tw}×{th}.")
     return img
 

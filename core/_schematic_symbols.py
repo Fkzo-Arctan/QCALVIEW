@@ -3,6 +3,7 @@
 
 
 from __future__ import annotations
+from ._exceptions import qcv_suppress_exception as _qcv_suppress
 from ._compat import QC, dialog_exec
 
 import json
@@ -23,7 +24,7 @@ except Exception:
     QSvgRenderer = None
 
 from ..projector import build_camera_context, project_points_batch
-from ._schematic_math import deterministic_noise, resample_polyline
+from ._schematic_math import _DeterministicVisualRandom, deterministic_noise, resample_polyline
 from ._panorama_primitives import (
     PanoramicPrimitive2D, is_panorama_context, project_panorama_primitive,
     iter_viewport_copies, project_panorama_point_scalar, panorama_quad_rects_scalar,
@@ -121,15 +122,15 @@ def _safe_svg_renderer(path, padding_ratio=_SVG_SAFE_PADDING_RATIO):
             renderer = QSvgRenderer()
             if renderer.load(QByteArray(payload)) and renderer.isValid():
                 return renderer
-    except Exception:
-        pass
+    except Exception as _qcv_exc:
+        _qcv_suppress(_qcv_exc, "core/_schematic_symbols.py:124")
     try:
         renderer = QSvgRenderer(path)
         if renderer.isValid():
             _apply_svg_safe_viewbox(renderer, padding_ratio=padding_ratio)
             return renderer
-    except Exception:
-        pass
+    except Exception as _qcv_exc:
+        _qcv_suppress(_qcv_exc, "core/_schematic_symbols.py:131")
     return None
 
 
@@ -163,8 +164,8 @@ def _panorama_cached_svg_renderer(path):
                         if old_key != key:
                             _PANORAMA_SVG_RENDERER_CACHE.pop(old_key, None)
                 return renderer
-        except Exception:
-            pass
+        except Exception as _qcv_exc:
+            _qcv_suppress(_qcv_exc, "core/_schematic_symbols.py:166")
     return None
 
 def _panorama_cached_image(path):
@@ -202,7 +203,8 @@ def _small_xy_bounds(arr):
     for i in range(int(pts.shape[0])):
         try:
             x = float(pts[i, 0]); y = float(pts[i, 1])
-        except Exception:
+        except Exception as _qcv_exc:
+            _qcv_suppress(_qcv_exc, "core/_schematic_symbols.py:205")
             continue
         if not (math.isfinite(x) and math.isfinite(y)):
             continue
@@ -276,8 +278,8 @@ class SymbolBuildContext:
                 z = float(self.z_sampler(QgsPointXY(float(x), float(y))))
                 if math.isfinite(z):
                     return z
-        except Exception:
-            pass
+        except Exception as _qcv_exc:
+            _qcv_suppress(_qcv_exc, "core/_schematic_symbols.py:279")
         return 0.0
 
     def _ensure_ground_profiles(self):
@@ -313,7 +315,8 @@ class SymbolBuildContext:
                         mean_z = (sum(finite_z) / len(finite_z)) if finite_z else 0.0
                     zs = tuple(mean_z if z is None else float(z) for z in zs)
                     profiles.append((tuple(xy), zs, float(mean_z)))
-                except Exception:
+                except Exception as _qcv_exc:
+                    _qcv_suppress(_qcv_exc, "core/_schematic_symbols.py:316")
                     continue
             if profiles:
                 self._ground_profiles = tuple(profiles)
@@ -322,7 +325,8 @@ class SymbolBuildContext:
         for arr in list(self.parts or []):
             try:
                 n = len(arr)
-            except Exception:
+            except Exception as _qcv_exc:
+                _qcv_suppress(_qcv_exc, "core/_schematic_symbols.py:325")
                 continue
             if n <= 0:
                 continue
@@ -331,7 +335,8 @@ class SymbolBuildContext:
             for i in range(n):
                 try:
                     x = float(arr[i][0]); y = float(arr[i][1])
-                except Exception:
+                except Exception as _qcv_exc:
+                    _qcv_suppress(_qcv_exc, "core/_schematic_symbols.py:334")
                     continue
                 if not (math.isfinite(x) and math.isfinite(y)):
                     continue
@@ -443,8 +448,8 @@ class SymbolBuildContext:
                 value = self.feature[name]
                 if value is not None:
                     return value
-        except Exception:
-            pass
+        except Exception as _qcv_exc:
+            _qcv_suppress(_qcv_exc, "core/_schematic_symbols.py:446")
         return default
 
     def runtime(self, name: str, default: Any = None) -> Any:
@@ -469,8 +474,8 @@ class SymbolBuildContext:
                 if explicit_height:
                     try:
                         return float(self.layer_height_m)
-                    except Exception:
-                        pass
+                    except Exception as _qcv_exc:
+                        _qcv_suppress(_qcv_exc, "core/_schematic_symbols.py:472")
                 return raw.get("default", default)
             fld = str(raw.get("field", "") or "").strip()
             if fld:
@@ -507,7 +512,8 @@ class SymbolLibrary:
                         continue
                     data["_path"] = path
                     defs[sid] = data
-                except Exception:
+                except Exception as _qcv_exc:
+                    _qcv_suppress(_qcv_exc, "core/_schematic_symbols.py:510")
                     continue
         self._defs = defs
 
@@ -1200,8 +1206,7 @@ def _points_in_polygon_grid(ring: Sequence[Tuple[float, float]], spacing: float,
     minx, maxx = min(xs), max(xs); miny, maxy = min(ys), max(ys)
     step = max(0.25, float(spacing))
     
-    import random
-    rnd = random.Random(int(seed) & 0xFFFFFFFF)  
+    rnd = _DeterministicVisualRandom(int(seed) & 0xFFFFFFFF)  
     out: List[Tuple[float, float]] = []
     row = 0
     y = miny + step * 0.5
@@ -1300,8 +1305,8 @@ def schematic_role_colors(style, definition: Dict[str, Any], role: str) -> Tuple
                 c_fill = QColor(c); c_fill.setAlpha(fill_alpha)
                 c_line = QColor(c); c_line.setAlpha(outline_alpha)
                 base_fill, base_line = c_fill, c_line
-        except Exception:
-            pass
+        except Exception as _qcv_exc:
+            _qcv_suppress(_qcv_exc, "core/_schematic_symbols.py:1303")
     return base_fill, base_line
 
 
@@ -1517,8 +1522,8 @@ class SchematicPainterRenderer:
                 try:
                     if not any(bool(self.visibility_test(px,py,pz)) for px,py,pz in quad):
                         return False
-                except Exception:
-                    pass
+                except Exception as _qcv_exc:
+                    _qcv_suppress(_qcv_exc, "core/_schematic_symbols.py:1520")
             projected=[]
             for px,py,pz in quad:
                 q=project_panorama_point_scalar(self.ctx,px,py,pz,dist_max=dist_max)
@@ -1556,8 +1561,8 @@ class SchematicPainterRenderer:
                             self.painter.save(); self.painter.setOpacity(max(0.0,min(1.0,fill.alphaF())))
                             for rect in rects: renderer.render(self.painter,rect)
                             self.painter.restore(); return True
-                except Exception:
-                    pass
+                except Exception as _qcv_exc:
+                    _qcv_suppress(_qcv_exc, "core/_schematic_symbols.py:1559")
             fallback=str((primitive.metadata or {}).get('fallback','generic') or 'generic').lower()
             self.painter.save(); self.painter.setPen(QPen(line,max(0.7,float(getattr(self.style,'width',1.0) or 1.0)))); self.painter.setBrush(QBrush(fill))
             for rect in rects:
@@ -1690,8 +1695,8 @@ class SchematicPainterRenderer:
                     if renderer is not None and renderer.isValid():
                         self.painter.save(); self.painter.setOpacity(max(0.0, min(1.0, fill.alphaF())))
                         renderer.render(self.painter, rect); self.painter.restore(); return True
-            except Exception:
-                pass
+            except Exception as _qcv_exc:
+                _qcv_suppress(_qcv_exc, "core/_schematic_symbols.py:1693")
 
         
         fallback = str((primitive.metadata or {}).get("fallback", "generic") or "generic").lower()

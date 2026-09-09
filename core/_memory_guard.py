@@ -3,6 +3,7 @@
 
 
 from __future__ import annotations
+from ._exceptions import qcv_suppress_exception as _qcv_suppress
 from ._i18n import tr
 
 from dataclasses import dataclass
@@ -64,15 +65,15 @@ def _windows_snapshot() -> MemorySnapshot:
         stat = MEMORYSTATUSEX(); stat.dwLength = ctypes.sizeof(MEMORYSTATUSEX)
         if ctypes.windll.kernel32.GlobalMemoryStatusEx(ctypes.byref(stat)):
             total = int(stat.ullTotalPhys); avail = int(stat.ullAvailPhys)
-    except Exception:
-        pass
+    except Exception as _qcv_exc:
+        _qcv_suppress(_qcv_exc, "core/_memory_guard.py:67")
     try:
         counters = PROCESS_MEMORY_COUNTERS_EX(); counters.cb = ctypes.sizeof(PROCESS_MEMORY_COUNTERS_EX)
         hproc = ctypes.windll.kernel32.GetCurrentProcess()
         if ctypes.windll.psapi.GetProcessMemoryInfo(hproc, ctypes.byref(counters), counters.cb):
             proc = int(counters.PrivateUsage or counters.WorkingSetSize)
-    except Exception:
-        pass
+    except Exception as _qcv_exc:
+        _qcv_suppress(_qcv_exc, "core/_memory_guard.py:74")
     return MemorySnapshot(total, avail, proc)
 
 
@@ -88,8 +89,8 @@ def _posix_snapshot() -> MemorySnapshot:
                     k, v = line.split(':', 1)
                     try:
                         vals[k.strip()] = int(v.strip().split()[0]) * 1024
-                    except Exception:
-                        pass
+                    except Exception as _qcv_exc:
+                        _qcv_suppress(_qcv_exc, "core/_memory_guard.py:91")
             total = int(vals.get('MemTotal', 0))
             avail = int(vals.get('MemAvailable', vals.get('MemFree', 0)))
         if os.path.exists('/proc/self/statm'):
@@ -97,8 +98,8 @@ def _posix_snapshot() -> MemorySnapshot:
                 p = fh.read().split()
             if len(p) >= 2:
                 proc = int(p[1]) * int(os.sysconf('SC_PAGE_SIZE'))
-    except Exception:
-        pass
+    except Exception as _qcv_exc:
+        _qcv_suppress(_qcv_exc, "core/_memory_guard.py:100")
     return MemorySnapshot(total, avail, proc)
 
 
@@ -106,8 +107,8 @@ def memory_snapshot() -> MemorySnapshot:
     try:
         if sys.platform.startswith('win'):
             return _windows_snapshot()
-    except Exception:
-        pass
+    except Exception as _qcv_exc:
+        _qcv_suppress(_qcv_exc, "core/_memory_guard.py:109")
     return _posix_snapshot()
 
 
@@ -154,10 +155,11 @@ def _symbol_instance_meta():
                 raw = (d.get('parameters', {}) or {}).get('max_instances', 1)
                 if isinstance(raw, dict): raw = raw.get('default', 1)
                 out[sid] = (gen, max(1, int(round(float(raw or 1)))))
-            except Exception:
+            except Exception as _qcv_exc:
+                _qcv_suppress(_qcv_exc, "core/_memory_guard.py:157")
                 continue
-    except Exception:
-        pass
+    except Exception as _qcv_exc:
+        _qcv_suppress(_qcv_exc, "core/_memory_guard.py:159")
     _SYMBOL_INSTANCE_META = out
     return out
 
@@ -199,8 +201,8 @@ def _visible_feature_estimate(owner) -> Tuple[int, int, int]:
         if counts:
             total = int(min(sum(counts), 50000)); snap_used = True
             schematic = int(min(sum(max(0,int(s.get('count',0))) for s in accepted if bool(s.get('schematic',False))), 20000))
-    except Exception:
-        pass
+    except Exception as _qcv_exc:
+        _qcv_suppress(_qcv_exc, "core/_memory_guard.py:202")
     try:
         styles = list(getattr(owner, 'layer_styles', []) or [])
     except Exception:
@@ -221,7 +223,8 @@ def _visible_feature_estimate(owner) -> Tuple[int, int, int]:
                 if factor > 0:
                     
                     instance_est += n * factor
-        except Exception:
+        except Exception as _qcv_exc:
+            _qcv_suppress(_qcv_exc, "core/_memory_guard.py:224")
             continue
     if not snap_used:
         total = int(min(provider_total, 50000)); schematic = int(min(provider_schematic, 20000))
@@ -234,8 +237,8 @@ def _relief_mode(owner) -> str:
     try:
         if hasattr(owner, '_relief_mode_id'):
             return str(owner._relief_mode_id() or 'none').lower()
-    except Exception:
-        pass
+    except Exception as _qcv_exc:
+        _qcv_suppress(_qcv_exc, "core/_memory_guard.py:237")
     return 'none'
 
 
@@ -261,8 +264,8 @@ def _show_guard_dialog(owner, details: str, dangerous: bool) -> str:
         cancel_btn = box.addButton('Annuler le rendu', _button_role('RejectRole'))
         try:
             box.setDefaultButton(safe_btn)
-        except Exception:
-            pass
+        except Exception as _qcv_exc:
+            _qcv_suppress(_qcv_exc, "core/_memory_guard.py:264")
         dialog_exec(box)
         clicked = box.clickedButton()
         if clicked is cont_btn:
@@ -283,24 +286,24 @@ def release_stale_panorama_buffers(owner, *, aggressive: bool = False) -> int:
         released += cache_bytes(cache)
         try:
             cache.clear()
-        except Exception:
-            pass
+        except Exception as _qcv_exc:
+            _qcv_suppress(_qcv_exc, "core/_memory_guard.py:286")
     try:
         released += qimage_bytes(getattr(owner, 'overlay_image', None))
         owner.overlay_image = None
-    except Exception:
-        pass
+    except Exception as _qcv_exc:
+        _qcv_suppress(_qcv_exc, "core/_memory_guard.py:291")
     try:
         released += qimage_bytes(getattr(owner, 'last_preview', None))
         owner.last_preview = None
-    except Exception:
-        pass
+    except Exception as _qcv_exc:
+        _qcv_suppress(_qcv_exc, "core/_memory_guard.py:296")
     try:
         viewer = getattr(owner, 'viewer', None)
         if viewer is not None and viewer.isVisible():
             viewer.clear_overlay()
-    except Exception:
-        pass
+    except Exception as _qcv_exc:
+        _qcv_suppress(_qcv_exc, "core/_memory_guard.py:302")
     if aggressive:
         
         
@@ -308,12 +311,12 @@ def release_stale_panorama_buffers(owner, *, aggressive: bool = False) -> int:
         try:
             owner._horizon = None
             owner._horizon_params = None
-        except Exception:
-            pass
+        except Exception as _qcv_exc:
+            _qcv_suppress(_qcv_exc, "core/_memory_guard.py:311")
     try:
         gc.collect()
-    except Exception:
-        pass
+    except Exception as _qcv_exc:
+        _qcv_suppress(_qcv_exc, "core/_memory_guard.py:315")
     return int(released)
 
 
@@ -339,8 +342,8 @@ def prune_base_cache_for_size(owner, width: int, height: int) -> int:
             try:
                 img = cache.pop(key, None)
                 removed += qimage_bytes(img)
-            except Exception:
-                pass
+            except Exception as _qcv_exc:
+                _qcv_suppress(_qcv_exc, "core/_memory_guard.py:342")
     return int(removed)
 
 def _guard_signature(owner, w: int, h: int, feature_count: int, relief: str, level: str) -> tuple:
@@ -490,8 +493,8 @@ def prepare_panorama_preview(owner, requested_w: int, requested_h: int,
         decisions = {}
         try:
             owner._memory_guard_choices = decisions
-        except Exception:
-            pass
+        except Exception as _qcv_exc:
+            _qcv_suppress(_qcv_exc, "core/_memory_guard.py:493")
     choice = decisions.get(signature)
     if choice not in ('safe', 'continue', 'cancel'):
         mem_lines = []

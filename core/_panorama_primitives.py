@@ -3,6 +3,7 @@
 
 
 from __future__ import annotations
+from ._exceptions import qcv_suppress_exception as _qcv_suppress
 
 from dataclasses import dataclass, field
 from typing import Any, Dict, Optional, Sequence
@@ -357,7 +358,8 @@ def _small_finite_x_stats(base):
         try:
             row = base[i]
             x = float(row[0])
-        except Exception:
+        except Exception as _qcv_exc:
+            _qcv_suppress(_qcv_exc, "core/_panorama_primitives.py:360")
             continue
         if not math.isfinite(x):
             continue
@@ -454,7 +456,7 @@ def panorama_angles_batch(ctx, xyz, dist_max=None):
     bad=~(np.isfinite(alpha)&np.isfinite(beta)&np.isfinite(dep)&(dep>0.0))
     if dist_max is not None:
         try: bad |= ((dx*dx+dy*dy) > float(dist_max)**2)
-        except Exception: pass
+        except Exception as _qcv_exc: _qcv_suppress(_qcv_exc, "core/_panorama_primitives.py:457")
     if np.any(bad):
         alpha=alpha.copy(); beta=beta.copy(); dep=dep.copy()
         alpha[bad]=np.nan; beta[bad]=np.nan; dep[bad]=np.inf
@@ -667,7 +669,8 @@ def panorama_faces_from_world_mesh(ctx, world_xyz, triangle_indices, dist_max=No
                 if not all(math.isfinite(v) for v in pre) or pre[2]<=0.0: verts=[]; break
                 verts.append(_make_angle_vertex(ctx,xyz[ii],tex=(None if tex is None else tex[ii]),dist_max=dist_max,pre=pre))
             if len(verts)!=3: continue
-        except Exception:
+        except Exception as _qcv_exc:
+            _qcv_suppress(_qcv_exc, "core/_panorama_primitives.py:670")
             continue
         clipped=_clip_vertices_beta(ctx,verts,lower,upper,dist_max=dist_max)
         if len(clipped)<3: continue
@@ -688,7 +691,7 @@ def panorama_faces_from_world_mesh(ctx, world_xyz, triangle_indices, dist_max=No
                         if two is not None:
                             if isinstance(extra_face_budget,dict):
                                 try: extra_face_budget['remaining']=max(0,int(extra_face_budget.get('remaining',0))-1)
-                                except Exception: pass
+                                except Exception as _qcv_exc: _qcv_suppress(_qcv_exc, "core/_panorama_primitives.py:691")
                             for child in reversed(two):
                                 cclip=_clip_vertices_beta(ctx,child,lower,upper,dist_max=dist_max)
                                 if len(cclip)==3: stack.append((cclip,depth+1,extras+1))
@@ -760,7 +763,7 @@ def project_panorama_path_safe(ctx, world_xyz, dist_max=None, *, closed=False, r
                 stack.append((mid,bb,depth+1)); stack.append((aa,mid,depth+1)); used_extra+=1
                 if isinstance(budget_state,dict):
                     try: budget_state['remaining']=max(0,int(budget_state.get('remaining',0))-1)
-                    except Exception: pass
+                    except Exception as _qcv_exc: _qcv_suppress(_qcv_exc, "core/_panorama_primitives.py:763")
             else: leaves.append((aa,bb))
         for aa,bb in leaves:
             seg=_clip_world_segment_beta(ctx,aa,bb,lower,upper,dist_max=dist_max)
@@ -811,7 +814,8 @@ def surface_faces_from_primitive(primitive: PanoramicPrimitive2D, triangle_indic
             d3 = np.asarray([dep[i] for i in ids], dtype=np.float64)
             xyz3 = np.asarray([xyz[i] for i in ids], dtype=np.float64)
             tex3 = None if tex is None else np.asarray([tex[i] for i in ids], dtype=np.float64)
-        except Exception:
+        except Exception as _qcv_exc:
+            _qcv_suppress(_qcv_exc, "core/_panorama_primitives.py:814")
             continue
         if not (_finite_uv_rows_scalar(uv3, 3) and _finite_positive_depth_scalar(d3, 3)):
             continue
@@ -848,8 +852,8 @@ def wall_faces_from_primitives(base: PanoramicPrimitive2D, top: PanoramicPrimiti
         try:
             if _xy_distance2_scalar(bxyz[0], bxyz[n - 1]) <= 1e-16:
                 n -= 1
-        except Exception:
-            pass
+        except Exception as _qcv_exc:
+            _qcv_suppress(_qcv_exc, "core/_panorama_primitives.py:851")
     seg_count = n if closed else n - 1
     W = float(wrap_width or 0.0)
     md = dict(metadata or {})
@@ -859,7 +863,8 @@ def wall_faces_from_primitives(base: PanoramicPrimitive2D, top: PanoramicPrimiti
             uv4 = np.asarray([buv[i], buv[j], tuv[j], tuv[i]], dtype=np.float64)
             d4 = np.asarray([bd[i], bd[j], td[j], td[i]], dtype=np.float64)
             xyz4 = np.asarray([bxyz[i], bxyz[j], txyz[j], txyz[i]], dtype=np.float64)
-        except Exception:
+        except Exception as _qcv_exc:
+            _qcv_suppress(_qcv_exc, "core/_panorama_primitives.py:862")
             continue
         if not (_finite_uv_rows_scalar(uv4, 4) and _finite_positive_depth_scalar(d4, 4)):
             continue

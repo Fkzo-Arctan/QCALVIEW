@@ -1,6 +1,7 @@
 
 
 
+from ._exceptions import qcv_suppress_exception as _qcv_suppress
 from ._i18n import tr
 from ._compat import QC, dialog_exec
 """SPLIT-ONLY extracted implementations from qcalview_window.QCalViewDock.
@@ -9,8 +10,8 @@ Attached to the class via setattr after class definition.
 import os, sys, math, json, re, pathlib, functools, itertools, typing
 import numpy as np
 from qgis.PyQt import QtCore, QtGui, QtWidgets
-from qgis.core import *
-from qgis.gui import *
+from qgis.core import QgsCoordinateTransform, QgsPointXY, QgsProject, QgsRasterLayer, QgsVectorLayer
+from qgis.gui import QgsMapTool, QgsRubberBand, QgsVertexMarker
 from ..projector import (project_point, hfov_from_focal_sensor, vfov_from_hfov_ratio, _validated_vfov_for_cylindrical)
 
 
@@ -203,8 +204,8 @@ def _draw_calib_grid(self, p, cam_pt, cam_z, cam_crs, proj, W, H, yaw_eff, pitch
     if self.cb_calib_snap_dem.isChecked() and z_sampler is not None:
         try:
             Z0 = float(z_sampler(QgsPointXY(Cx, Cy)))
-        except Exception:
-            pass
+        except Exception as _qcv_exc:
+            _qcv_suppress(_qcv_exc, "core/_gcp_ops.py:206")
     Z0 += dz  
 
     
@@ -421,23 +422,23 @@ def _on_map_pick_pdv_center(self, map_pt):
             self.current_pdv_azimuth = float(az_deg)
             try:
                 self.render_preview()
-            except Exception:
-                pass
+            except Exception as _qcv_exc:
+                _qcv_suppress(_qcv_exc, "core/_gcp_ops.py:424")
         try:
             self.iface.messageBar().pushMessage(tr("Centre image"), tr(f"Azimut PDV ≈ {az_deg:.2f}°"), level=QC.Qgis_MessageLevel_Info, duration=4)
-        except Exception:
-            pass
+        except Exception as _qcv_exc:
+            _qcv_suppress(_qcv_exc, "core/_gcp_ops.py:428")
         try:
             self._cancel_maptool()
-        except Exception:
-            pass
+        except Exception as _qcv_exc:
+            _qcv_suppress(_qcv_exc, "core/_gcp_ops.py:432")
     except Exception as e:
         if hasattr(self, "lbl_info"):
             self.lbl_info.setText(tr(f"Erreur centre image : {e}"))
         try:
             self._cancel_maptool()
-        except Exception:
-            pass
+        except Exception as _qcv_exc:
+            _qcv_suppress(_qcv_exc, "core/_gcp_ops.py:439")
 
 
 def _start_add_gcp(self):
@@ -466,7 +467,7 @@ def _clear_gcp_markers(self):
             canvas.scene().removeItem(m)
         except Exception:
             try: m.setVisible(False)
-            except Exception: pass
+            except Exception as _qcv_exc: _qcv_suppress(_qcv_exc, "core/_gcp_ops.py:469")
     self._gcp_markers = []
 
 def _ensure_fov_rubberbands(self):
@@ -491,25 +492,25 @@ def _connect_fov_signals(self):
             if hasattr(w, sig):
                 try:
                     getattr(w, sig).connect(self._update_canvas_fov)
-                except Exception:
-                    pass
+                except Exception as _qcv_exc:
+                    _qcv_suppress(_qcv_exc, "core/_gcp_ops.py:494")
     
     try:
         self.iface.mapCanvas().destinationCrsChanged.connect(self._update_canvas_fov)
-    except Exception:
-        pass
+    except Exception as _qcv_exc:
+        _qcv_suppress(_qcv_exc, "core/_gcp_ops.py:499")
 
     
     layer = self.cmb_camera.currentLayer()
     if isinstance(layer, QgsVectorLayer):
         try: layer.geometryChanged.connect(self._update_canvas_fov)
-        except Exception: pass
+        except Exception as _qcv_exc: _qcv_suppress(_qcv_exc, "core/_gcp_ops.py:506")
         try: layer.committedGeometriesChanges.connect(lambda *a, **k: self._update_canvas_fov())
-        except Exception: pass
+        except Exception as _qcv_exc: _qcv_suppress(_qcv_exc, "core/_gcp_ops.py:508")
         try: layer.featureAdded.connect(lambda *a, **k: self._update_canvas_fov())
-        except Exception: pass
+        except Exception as _qcv_exc: _qcv_suppress(_qcv_exc, "core/_gcp_ops.py:510")
         try: layer.featuresDeleted.connect(lambda *a, **k: self._update_canvas_fov())
-        except Exception: pass
+        except Exception as _qcv_exc: _qcv_suppress(_qcv_exc, "core/_gcp_ops.py:512")
 
 
 def _refresh_gcp_markers(self):
@@ -736,8 +737,8 @@ def _update_canvas_fov(self):
         if hasattr(self, "cmb_proj") and self.cmb_proj is not None:
             try:
                 proj_upper = str(self.cmb_proj.currentText()).strip().upper()
-            except Exception:
-                pass
+            except Exception as _qcv_exc:
+                _qcv_suppress(_qcv_exc, "core/_gcp_ops.py:739")
         is360 = bool(self._is360_mode()) if hasattr(self, '_is360_mode') else (
             bool(self.cb_360.isChecked()) and proj_upper in ("EQUIRECT", "EQUIRECTANGULAR", "CYLINDRICAL")
         )
@@ -781,8 +782,8 @@ def _update_canvas_fov(self):
                 self._rb_fov.addPoint(QgsPointXY(pk.x(), pk.y()), False)
             self._rb_fov.addPoint(QgsPointXY(p0.x(), p0.y()), True)
             self._rb_fov.show()
-    except Exception:
-        pass
+    except Exception as _qcv_exc:
+        _qcv_suppress(_qcv_exc, "core/_gcp_ops.py:784")
 
         
 def _ensure_nav_overlays(self):
@@ -874,16 +875,16 @@ def _on_map_pick_set_view(self, map_pt):
             self.lbl_nav_state.setText(tr("Mode navigation : visée carte → image appliquée"))
         try:
             self.iface.messageBar().pushMessage(tr("QCALVIEW"), tr(msg), level=QC.Qgis_MessageLevel_Info, duration=4)
-        except Exception:
-            pass
+        except Exception as _qcv_exc:
+            _qcv_suppress(_qcv_exc, "core/_gcp_ops.py:877")
     except Exception as e:
         if hasattr(self, "lbl_info"):
             self.lbl_info.setText(tr(f"Erreur visée carte → image : {e}"))
     finally:
         try:
             self._cancel_maptool()
-        except Exception:
-            pass
+        except Exception as _qcv_exc:
+            _qcv_suppress(_qcv_exc, "core/_gcp_ops.py:885")
 
 
 def start_image_to_canvas_pick(self):
@@ -894,16 +895,16 @@ def start_image_to_canvas_pick(self):
         self.lbl_info.setText(tr("Cliquez dans l’aperçu ou la visionneuse pour viser dans le canevas"))
     try:
         self.iface.messageBar().pushMessage(tr("QCALVIEW"), tr("Cliquez dans l’image pour viser dans le canevas."), level=QC.Qgis_MessageLevel_Info, duration=4)
-    except Exception:
-        pass
+    except Exception as _qcv_exc:
+        _qcv_suppress(_qcv_exc, "core/_gcp_ops.py:897")
 
 
 def stop_interaction_tools(self):
     self._image_pick_mode = None
     try:
         self._cancel_maptool()
-    except Exception:
-        pass
+    except Exception as _qcv_exc:
+        _qcv_suppress(_qcv_exc, "core/_gcp_ops.py:905")
     try:
         self._ensure_nav_overlays()
         if getattr(self, "_rb_pick", None):
@@ -911,8 +912,8 @@ def stop_interaction_tools(self):
             self._rb_pick.hide()
         if getattr(self, "_vm_pick", None):
             self._vm_pick.hide()
-    except Exception:
-        pass
+    except Exception as _qcv_exc:
+        _qcv_suppress(_qcv_exc, "core/_gcp_ops.py:914")
     if hasattr(self, "lbl_nav_state"):
         self.lbl_nav_state.setText(tr("Mode navigation : inactif"))
 
@@ -962,8 +963,8 @@ def _draw_canvas_pick_ray(self, az_deg, target_point=None):
         if getattr(self, "cb_center_canvas_on_pick", None) is not None and self.cb_center_canvas_on_pick.isChecked():
             canvas.setCenter(QgsPointXY(p1.x(), p1.y()))
             canvas.refresh()
-    except Exception:
-        pass
+    except Exception as _qcv_exc:
+        _qcv_suppress(_qcv_exc, "core/_gcp_ops.py:965")
 
 
 def _handle_image_navigation_click_uv(self, u, v):
@@ -1050,8 +1051,8 @@ def _dispatch_image_uv_click(self, u, v):
         except Exception as e:
             try:
                 self.lbl_info.setText(tr(f"Erreur image → terrain : {e}"))
-            except Exception:
-                pass
+            except Exception as _qcv_exc:
+                _qcv_suppress(_qcv_exc, "core/_gcp_ops.py:1053")
         return
     if self._adding_gcp_uv is None:
         return
@@ -1072,8 +1073,8 @@ def _on_preview_click(self, x, y):
 def _on_viewer_image_clicked(self, u, v):
     try:
         self._dispatch_image_uv_click(float(u), float(v))
-    except Exception:
-        pass
+    except Exception as _qcv_exc:
+        _qcv_suppress(_qcv_exc, "core/_gcp_ops.py:1075")
 
 def _safe_line(self, painter, uv1, uv2):
     if uv1 is None or uv2 is None:
@@ -1121,13 +1122,3 @@ def _safe_line(self, painter, uv1, uv2):
         return False
 
 
-def _ensure_fov_rubberbands(self):
-    canvas = self.iface.mapCanvas()
-    if not hasattr(self, "_rb_dir") or self._rb_dir is None:
-        self._rb_dir = QgsRubberBand(canvas, QC.QgsWkbTypes_GeometryType_LineGeometry)
-        self._rb_dir.setColor(QColor(200, 60, 60, 220))
-        self._rb_dir.setWidth(2)
-    if not hasattr(self, "_rb_fov") or self._rb_fov is None:
-        self._rb_fov = QgsRubberBand(canvas, QC.QgsWkbTypes_GeometryType_PolygonGeometry)
-        self._rb_fov.setColor(QColor(60, 120, 220, 80))
-        self._rb_fov.setWidth(2)

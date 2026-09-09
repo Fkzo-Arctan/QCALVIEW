@@ -3,6 +3,7 @@
 
 
 from __future__ import annotations
+from ._exceptions import qcv_suppress_exception as _qcv_suppress
 from ._i18n import tr
 from ._compat import QC, dialog_exec
 import os, shutil
@@ -398,7 +399,7 @@ def edit_symbol_params(parent, definition, current_params):
             sp.setDecimals(int(raw.get("decimals", 3)) if isinstance(raw, dict) else 3)
             if isinstance(raw, dict) and raw.get("step") is not None:
                 try: sp.setSingleStep(float(raw.get("step")))
-                except Exception: pass
+                except Exception as _qcv_exc: _qcv_suppress(_qcv_exc, "core/_schematic_ui.py:401")
             sp.setValue(float(current.get(name, default or 0.0)))
             reset = QPushButton(tr("Défaut"))
             reset.clicked.connect(lambda _=False, s=sp, v=float(default or 0.0): s.setValue(v))
@@ -507,8 +508,8 @@ def _asset_memberships(path: str, plugin_dir: str):
     try:
         if os.path.commonpath([internal, pnorm]) == internal:
             return list(_INTERNAL_ASSET_TAXONOMY.get(name, []))
-    except Exception:
-        pass
+    except Exception as _qcv_exc:
+        _qcv_suppress(_qcv_exc, "core/_schematic_ui.py:510")
     rec = _load_user_catalog().get(name, {})
     memberships = rec.get('memberships') if isinstance(rec, dict) else None
     out=[]

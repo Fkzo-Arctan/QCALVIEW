@@ -3,12 +3,12 @@
 
 
 from __future__ import annotations
+from ._exceptions import qcv_suppress_exception as _qcv_suppress
 
 import os
 import re
-import xml.etree.ElementTree as ET  
 
-from qgis.PyQt.QtCore import QCoreApplication, QLocale, QSettings, QTranslator
+from qgis.PyQt.QtCore import QByteArray, QCoreApplication, QLocale, QSettings, QTranslator, QXmlStreamReader
 
 _PLUGIN_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 _I18N_DIR = os.path.join(_PLUGIN_ROOT, "i18n")
@@ -81,19 +81,75 @@ class _TsRuntimeTranslator(QTranslator):
 
     def _load_ts(self, ts_path):
         try:
-            root = ET.parse(ts_path).getroot()  
+            with open(ts_path, "rb") as stream:
+                data = stream.read()
+            reader = QXmlStreamReader()
+            reader.addData(QByteArray(data))
+            stack = []
+            context_name = ""
+            source = None
+            translation = ""
+            capture_context = None
+            capture_source = None
+            capture_translation = None
+            context_parts = []
+            source_parts = []
+            translation_parts = []
+            while not reader.atEnd():
+                reader.readNext()
+                if reader.isStartElement():
+                    tag = str(reader.name())
+                    parent = stack[-1] if stack else ""
+                    stack.append(tag)
+                    depth = len(stack)
+                    if tag == "context":
+                        context_name = ""
+                    elif tag == "message":
+                        source = None
+                        translation = ""
+                    elif tag == "name" and parent == "context":
+                        capture_context = depth
+                        context_parts = []
+                    elif tag == "source" and parent == "message":
+                        capture_source = depth
+                        source_parts = []
+                    elif tag == "translation" and parent == "message":
+                        capture_translation = depth
+                        translation_parts = []
+                elif reader.isCharacters():
+                    value = str(reader.text())
+                    if capture_context is not None:
+                        context_parts.append(value)
+                    if capture_source is not None:
+                        source_parts.append(value)
+                    if capture_translation is not None:
+                        translation_parts.append(value)
+                elif reader.isEndElement():
+                    tag = str(reader.name())
+                    depth = len(stack)
+                    if capture_context == depth and tag == "name":
+                        context_name = "".join(context_parts).strip()
+                        capture_context = None
+                    if capture_source == depth and tag == "source":
+                        source = "".join(source_parts)
+                        capture_source = None
+                    if capture_translation == depth and tag == "translation":
+                        translation = "".join(translation_parts)
+                        capture_translation = None
+                    if tag == "message":
+                        if source is not None and translation:
+                            self._by_context[(context_name, source)] = translation
+                            self._by_source.setdefault(source, translation)
+                    if stack:
+                        stack.pop()
+            if reader.hasError():
+                self._by_context.clear()
+                self._by_source.clear()
+                return
         except Exception:
+            self._by_context.clear()
+            self._by_source.clear()
             return
-        for ctx in root.findall("context"):
-            context_name = (ctx.findtext("name") or "").strip()
-            for msg in ctx.findall("message"):
-                source = msg.findtext("source")
-                trans_node = msg.find("translation")
-                translation = "" if trans_node is None else "".join(trans_node.itertext())
-                if source is None or not translation:
-                    continue
-                self._by_context[(context_name, source)] = translation
-                self._by_source.setdefault(source, translation)
         for source, translation in self._by_source.items():
             if source == translation:
                 continue
@@ -183,8 +239,8 @@ def remove_qcalview_translator():
     if _active_translator is not None:
         try:
             QCoreApplication.removeTranslator(_active_translator)
-        except Exception:
-            pass
+        except Exception as _qcv_exc:
+            _qcv_suppress(_qcv_exc, "core/_i18n.py:186")
         _active_translator = None
     _translation_memory = None
 
@@ -210,6 +266,6 @@ def tr(value, context=_CONTEXT):
     if translated == value and _translation_memory is not None:
         try:
             translated = _translation_memory.lookup_text(value, context)
-        except Exception:
-            pass
+        except Exception as _qcv_exc:
+            _qcv_suppress(_qcv_exc, "core/_i18n.py:213")
     return translated

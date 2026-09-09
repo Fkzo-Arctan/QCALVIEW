@@ -6,7 +6,7 @@
 
 **Visual Simulation & Geomatics for QGIS**
 
-QCALVIEW is an open-source QGIS plugin developed by **Fabrice Kerzerho - ArcTan°** for photographic viewpoint calibration, visual simulation, projected GIS overlays and rapid landscape representations directly inside QGIS.
+QCALVIEW is an open-source QGIS plugin developed by **Fabrice Kerzerho — ArcTan°** for photographic viewpoint calibration, visual simulation, projected GIS overlays and rapid landscape representations directly inside QGIS.
 
 - Project: https://qcalview.com
 - ArcTan°: https://arctan.fr
@@ -41,7 +41,7 @@ See [Current limitations](docs/limitations.md).
 
 ## Documentation
 
-See https://qcalview.com/DOCS/#/ or `docs/` for the user manuals, current limitations and licensing notes.
+See `docs/` for the user manuals, current limitations and licensing notes.
 
 ## Licence
 

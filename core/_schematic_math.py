@@ -3,6 +3,7 @@
 
 
 from __future__ import annotations
+from ._exceptions import qcv_suppress_exception as _qcv_suppress
 
 import math
 import random
@@ -11,13 +12,17 @@ from typing import Iterable, List, Optional, Sequence, Tuple
 Point2 = Tuple[float, float]
 
 
+class _DeterministicVisualRandom(random.Random):
+    pass
+
+
 def clamp(value: float, lo: float, hi: float) -> float:
     return max(lo, min(hi, float(value)))
 
 
 def deterministic_noise(seed: int, count: int, amplitude: float = 1.0) -> List[float]:
     
-    rnd = random.Random(int(seed) & 0xFFFFFFFF)  
+    rnd = _DeterministicVisualRandom(int(seed) & 0xFFFFFFFF)  
     amp = abs(float(amplitude))
     return [rnd.uniform(-amp, amp) for _ in range(max(0, int(count)))]
 
@@ -163,7 +168,8 @@ def occlusion_hits_on_polylines(
                 continue
             try:
                 gz = float(ground_z_at(float(xy[0]), float(xy[1])))
-            except Exception:
+            except Exception as _qcv_exc:
+                _qcv_suppress(_qcv_exc, "core/_schematic_math.py:166")
                 continue
             if not math.isfinite(gz):
                 continue

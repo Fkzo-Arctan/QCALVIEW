@@ -3,6 +3,7 @@
 
 
 from __future__ import annotations
+from ._exceptions import qcv_suppress_exception as _qcv_suppress
 from ._i18n import tr
 from ._compat import QC, dialog_exec
 
@@ -38,8 +39,8 @@ def _feature_height(feature, field_name: str, default: float) -> float:
             v = _finite_float(feature[field_name], None)
             if v is not None:
                 return v
-    except Exception:
-        pass
+    except Exception as _qcv_exc:
+        _qcv_suppress(_qcv_exc, "core/_schematic_tools.py:41")
     return float(default)
 
 
@@ -66,8 +67,8 @@ def _target_sample_points(geom, gtype: int):
                 pts.extend([p for i, p in enumerate(ring) if i % step == 0])
                 try:
                     pts.append(geom.centroid().asPoint())
-                except Exception:
-                    pass
+                except Exception as _qcv_exc:
+                    _qcv_suppress(_qcv_exc, "core/_schematic_tools.py:69")
     except Exception:
         return []
     return pts
@@ -92,7 +93,8 @@ def _find_qcalview_style(dock, layer):
             lyr = getattr(sty, "layer", None)
             if lyr is layer or (lid is not None and lyr is not None and lyr.id() == lid):
                 return sty
-        except Exception:
+        except Exception as _qcv_exc:
+            _qcv_suppress(_qcv_exc, "core/_schematic_tools.py:95")
             continue
     return None
 
@@ -108,8 +110,8 @@ def _style_explicit_layer_height(feature, style):
                 v = _finite_float(feature[fld], None)
                 if v is not None:
                     return v
-        except Exception:
-            pass
+        except Exception as _qcv_exc:
+            _qcv_suppress(_qcv_exc, "core/_schematic_tools.py:111")
     val = getattr(style, "default_height_override", None)
     return _finite_float(val, None) if val is not None else None
 
@@ -137,8 +139,8 @@ def _symbol_param_value(feature, style, definition: Dict[str, Any], name: str, f
                 val = feature[fld]
                 if val not in (None, ""):
                     return val
-        except Exception:
-            pass
+        except Exception as _qcv_exc:
+            _qcv_suppress(_qcv_exc, "core/_schematic_tools.py:140")
     return raw.get("default", fallback)
 
 
@@ -201,8 +203,8 @@ def _target_height(dock, target_layer, feature, explicit_field: str, default_h: 
                 v = _finite_float(feature[fld], None)
                 if v is not None:
                     return max(0.0, v), f"champ {fld}"
-        except Exception:
-            pass
+        except Exception as _qcv_exc:
+            _qcv_suppress(_qcv_exc, "core/_schematic_tools.py:204")
     if use_avr:
         h, src = _schematic_target_height(dock, target_layer, feature)
         if h is not None:
@@ -254,8 +256,8 @@ def _diagnostic_layer(cam_crs, hedge_layer, target_layer, records):
     authid = ""
     try:
         authid = cam_crs.authid()
-    except Exception:
-        pass
+    except Exception as _qcv_exc:
+        _qcv_suppress(_qcv_exc, "core/_schematic_tools.py:257")
     uri = "Point"
     if authid:
         uri += f"?crs={authid}"
@@ -305,8 +307,8 @@ def _diagnostic_layer(cam_crs, hedge_layer, target_layer, records):
             try:
                 if old.id() != layer.id() and old.customProperty("qcalview/occ_diag_key", "") == key:
                     project.removeMapLayer(old.id())
-            except Exception:
-                pass
+            except Exception as _qcv_exc:
+                _qcv_suppress(_qcv_exc, "core/_schematic_tools.py:308")
         project.addMapLayer(layer)
     except Exception:
         QgsProject.instance().addMapLayer(layer)
@@ -336,8 +338,8 @@ def calculate_hedge_occlusion_dialog(
     cmb_target = QgsMapLayerComboBox(); cmb_target.setFilters(QC.QgsMapLayerProxyModel_Filter_VectorLayer)
     try:
         cmb_target.setExceptedLayerList([hedge_layer])
-    except Exception:
-        pass
+    except Exception as _qcv_exc:
+        _qcv_suppress(_qcv_exc, "core/_schematic_tools.py:339")
     le_target_hfield = QLineEdit(); le_target_hfield.setPlaceholderText(tr("optionnel — prioritaire sur le motif AVR"))
     cb_avr_height = QCheckBox(tr("Utiliser automatiquement la hauteur du motif QCALVIEW si disponible"))
     cb_avr_height.setChecked(True)
@@ -435,7 +437,8 @@ def calculate_hedge_occlusion_dialog(
                     "height_m": float(h), "height_source": h_source,
                     "fid": feat.id(), "sample_idx": sample_idx,
                 })
-            except Exception:
+            except Exception as _qcv_exc:
+                _qcv_suppress(_qcv_exc, "core/_schematic_tools.py:438")
                 continue
     if not targets:
         QMessageBox.warning(dock, tr("Hauteur d'occultation"), tr("Aucun point cible exploitable dans la couche sélectionnée."))
@@ -464,8 +467,8 @@ def calculate_hedge_occlusion_dialog(
                     try:
                         q = tr_hedge.transform(p) if tr_hedge else p
                         pts.append((float(q.x()), float(q.y())))
-                    except Exception:
-                        pass
+                    except Exception as _qcv_exc:
+                        _qcv_suppress(_qcv_exc, "core/_schematic_tools.py:467")
                 if len(pts) >= 2:
                     parts_cam.append(pts)
             if not parts_cam:
@@ -546,7 +549,7 @@ def calculate_hedge_occlusion_dialog(
         try:
             if started_edit and hedge_layer.isEditable():
                 hedge_layer.rollBack()
-        except Exception:
-            pass
+        except Exception as _qcv_exc:
+            _qcv_suppress(_qcv_exc, "core/_schematic_tools.py:549")
         QMessageBox.warning(dock, tr("Hauteur d'occultation"), tr(f"Calcul interrompu : {e}"))
         return None

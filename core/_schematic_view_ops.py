@@ -1,6 +1,7 @@
 
 
 
+from ._exceptions import qcv_suppress_exception as _qcv_suppress
 from ._i18n import tr
 from ._compat import QC, dialog_exec
 """QCALVIEW — gestion des vues schématiques sans photographie.
@@ -61,29 +62,29 @@ def _schematic_update_background_controls(self):
                 "QPushButton { background:%s; color:%s; border:1px solid #777; padding:3px 8px; }" %
                 (c.name(QC.QColor_NameFormat_HexRgb), fg)
             )
-        except Exception:
-            pass
+        except Exception as _qcv_exc:
+            _qcv_suppress(_qcv_exc, "core/_schematic_view_ops.py:64")
     cb = getattr(self, "cb_schematic_bg_transparent", None)
     if cb is not None:
         try:
             old = cb.blockSignals(True)
             cb.setChecked(_schematic_background_transparent(self))
             cb.blockSignals(old)
-        except Exception:
-            pass
+        except Exception as _qcv_exc:
+            _qcv_suppress(_qcv_exc, "core/_schematic_view_ops.py:72")
 
 
 def _schematic_invalidate_base(self):
     try:
         getattr(self, "_base_cache", {}).clear()
-    except Exception:
-        pass
+    except Exception as _qcv_exc:
+        _qcv_suppress(_qcv_exc, "core/_schematic_view_ops.py:79")
     try:
         mgr = getattr(self, "cache_mgr", None)
         if mgr is not None and hasattr(mgr, "invalidate"):
             mgr.invalidate("photo")
-    except Exception:
-        pass
+    except Exception as _qcv_exc:
+        _qcv_suppress(_qcv_exc, "core/_schematic_view_ops.py:85")
 
 
 def _schematic_choose_background_color(self):
@@ -94,26 +95,26 @@ def _schematic_choose_background_color(self):
     c.setAlpha(255)
     try:
         self._settings.setValue(_BG_KEY, c.name(QC.QColor_NameFormat_HexRgb))
-    except Exception:
-        pass
+    except Exception as _qcv_exc:
+        _qcv_suppress(_qcv_exc, "core/_schematic_view_ops.py:97")
     _schematic_update_background_controls(self)
     _schematic_invalidate_base(self)
     try:
         self.render_preview()
-    except Exception:
-        pass
+    except Exception as _qcv_exc:
+        _qcv_suppress(_qcv_exc, "core/_schematic_view_ops.py:103")
 
 
 def _schematic_set_background_transparent(self, checked):
     try:
         self._settings.setValue(_ALPHA_KEY, bool(checked))
-    except Exception:
-        pass
+    except Exception as _qcv_exc:
+        _qcv_suppress(_qcv_exc, "core/_schematic_view_ops.py:110")
     _schematic_invalidate_base(self)
     try:
         self.render_preview()
-    except Exception:
-        pass
+    except Exception as _qcv_exc:
+        _qcv_suppress(_qcv_exc, "core/_schematic_view_ops.py:115")
 
 
 def _make_checkerboard(width, height):
@@ -158,17 +159,17 @@ def _activate_schematic_view(self):
     self._camera_current_photo_path = None
     try:
         self._camera_last_photo_meta = {}
-    except Exception:
-        pass
+    except Exception as _qcv_exc:
+        _qcv_suppress(_qcv_exc, "core/_schematic_view_ops.py:161")
     _schematic_invalidate_base(self)
     try:
         getattr(self, "_overlay_cache", {}).clear()
-    except Exception:
-        pass
+    except Exception as _qcv_exc:
+        _qcv_suppress(_qcv_exc, "core/_schematic_view_ops.py:166")
     try:
         getattr(self, "_geom_cache", {}).clear()
-    except Exception:
-        pass
+    except Exception as _qcv_exc:
+        _qcv_suppress(_qcv_exc, "core/_schematic_view_ops.py:170")
 
 
 def _is_schematic_view(self):

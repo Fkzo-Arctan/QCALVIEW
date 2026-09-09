@@ -6,14 +6,14 @@ from ._compat import QC, dialog_exec
 from qgis.PyQt.QtWidgets import (
     QDockWidget, QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton,
     QFileDialog, QComboBox, QSpinBox, QDoubleSpinBox, QCheckBox, QListWidget,
-    QListWidgetItem, QColorDialog, QGroupBox, QFormLayout, QLineEdit, QScrollArea
+    QListWidgetItem, QColorDialog, QGroupBox, QFormLayout, QLineEdit, QScrollArea,
+    QDialog, QDialogButtonBox
 )
 
 
 class QInputDialogWithDefault:
     @staticmethod
     def getDouble(parent, title, label, value, minv, maxv, decimals):
-        from qgis.PyQt.QtWidgets import QDialog, QDialogButtonBox, QVBoxLayout, QDoubleSpinBox, QLabel
         dlg = QDialog(parent); dlg.setWindowTitle(tr(title))
         v = QVBoxLayout(dlg); v.addWidget(QLabel(tr(label)))
         sp = QDoubleSpinBox(); sp.setRange(minv, maxv); sp.setDecimals(decimals); sp.setValue(value); v.addWidget(sp)
@@ -24,7 +24,6 @@ class QInputDialogWithDefault:
 
     @staticmethod
     def getText(parent, title, label, text):
-        from qgis.PyQt.QtWidgets import QDialog, QDialogButtonBox, QVBoxLayout, QLineEdit, QLabel
         dlg = QDialog(parent); dlg.setWindowTitle(tr(title))
         v = QVBoxLayout(dlg); v.addWidget(QLabel(tr(label)))
         le = QLineEdit(text); v.addWidget(le)
@@ -35,7 +34,6 @@ class QInputDialogWithDefault:
 
     @staticmethod
     def getInt(parent, title, label, value, minv, maxv, step):
-        from qgis.PyQt.QtWidgets import QDialog, QDialogButtonBox, QVBoxLayout, QSpinBox, QLabel
         dlg = QDialog(parent); dlg.setWindowTitle(tr(title))
         v = QVBoxLayout(dlg); v.addWidget(QLabel(tr(label)))
         sp = QSpinBox(); sp.setRange(minv, maxv); sp.setSingleStep(step); sp.setValue(value); v.addWidget(sp)
@@ -46,7 +44,6 @@ class QInputDialogWithDefault:
 
     @staticmethod
     def getChoice(parent, title, label, options, current_index=0):
-        from qgis.PyQt.QtWidgets import QDialog, QDialogButtonBox, QVBoxLayout, QLabel, QComboBox
         dlg = QDialog(parent); dlg.setWindowTitle(tr(title))
         v = QVBoxLayout(dlg); v.addWidget(QLabel(tr(label)))
         cb = QComboBox(); cb.addItems(tr(options))

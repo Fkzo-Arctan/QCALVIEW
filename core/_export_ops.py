@@ -1,6 +1,7 @@
 
 
 
+from ._exceptions import qcv_suppress_exception as _qcv_suppress
 from ._i18n import tr
 from ._compat import QC, dialog_exec
 """SPLIT-ONLY extracted implementations from qcalview_window.QCalViewDock.
@@ -8,8 +9,7 @@ Attached to the class via setattr after class definition.
 """
 import os, sys, math, json, re, pathlib, functools, itertools, typing, csv, shutil, subprocess, tempfile
 from qgis.PyQt import QtCore, QtGui, QtWidgets
-from qgis.core import *
-from qgis.gui import *
+from qgis.core import QgsCoordinateReferenceSystem, QgsCoordinateTransform, QgsPointXY, QgsProject
 
 
 try:
@@ -121,16 +121,16 @@ def _camera_datetime_candidates(layer, feat, img_path):
                 val = tags.get(k)
                 if val not in (None, ''):
                     vals.append(val)
-    except Exception:
-        pass
+    except Exception as _qcv_exc:
+        _qcv_suppress(_qcv_exc, "core/_export_ops.py:123")
     
     try:
         if img_path and os.path.exists(img_path):
             dt = QtCore.QDateTime.fromSecsSinceEpoch(int(os.path.getmtime(img_path)))
             if dt.isValid():
                 vals.append(dt.toString('yyyy:MM:dd HH:mm:ss'))
-    except Exception:
-        pass
+    except Exception as _qcv_exc:
+        _qcv_suppress(_qcv_exc, "core/_export_ops.py:131")
     
     try:
         field_map = {str(n).lower(): n for n in layer.fields().names()}
@@ -143,8 +143,8 @@ def _camera_datetime_candidates(layer, feat, img_path):
                 val = feat[real]
                 if val not in (None, ''):
                     vals.append(val)
-            except Exception:
-                pass
+            except Exception as _qcv_exc:
+                _qcv_suppress(_qcv_exc, "core/_export_ops.py:145")
     vals.append(QtCore.QDateTime.currentDateTime().toString('yyyy:MM:dd HH:mm:ss'))
     return vals
 
@@ -157,11 +157,11 @@ def _coerce_exif_datetime(value):
             if hasattr(value, 'date') and hasattr(value, 'time'):
                 try:
                     return value.toString('yyyy:MM:dd HH:mm:ss')
-                except Exception:
-                    pass
+                except Exception as _qcv_exc:
+                    _qcv_suppress(_qcv_exc, "core/_export_ops.py:159")
             return str(value.toString('yyyy:MM:dd HH:mm:ss'))
-        except Exception:
-            pass
+        except Exception as _qcv_exc:
+            _qcv_suppress(_qcv_exc, "core/_export_ops.py:162")
     s = str(value).strip()
     if not s:
         return None
@@ -477,16 +477,16 @@ def _write_metadata_with_exiftool(self, out_path, layer, feat):
         img.save(tmp_path, **save_kwargs)
         try:
             img.close()
-        except Exception:
-            pass
+        except Exception as _qcv_exc:
+            _qcv_suppress(_qcv_exc, "core/_export_ops.py:479")
         os.replace(tmp_path, out_path)
         return True, 'Métadonnées EXIF écrites (piexif embarqué).'
     except Exception as e:
         try:
             if os.path.exists(tmp_path):
                 os.remove(tmp_path)
-        except Exception:
-            pass
+        except Exception as _qcv_exc:
+            _qcv_suppress(_qcv_exc, "core/_export_ops.py:487")
         return False, f"Échec écriture métadonnées EXIF : {e}"
 
 def export_legend(self):
@@ -529,7 +529,8 @@ def _batch_visible_feature_ids(self):
             if fid is None:
                 continue
             fids.append(int(fid))
-        except Exception:
+        except Exception as _qcv_exc:
+            _qcv_suppress(_qcv_exc, "core/_export_ops.py:531")
             continue
     return fids
 
@@ -551,14 +552,14 @@ def _default_export_dir(self):
         d = str(getattr(self, '_settings', QtCore.QSettings('ArcTan', 'QCALVIEW')).value('QCALVIEW/export/default_output_dir', '') or '').strip()
         if d and os.path.isdir(d):
             return d
-    except Exception:
-        pass
+    except Exception as _qcv_exc:
+        _qcv_suppress(_qcv_exc, "core/_export_ops.py:553")
     try:
         hp = QgsProject.instance().homePath()
         if hp and os.path.isdir(hp):
             return hp
-    except Exception:
-        pass
+    except Exception as _qcv_exc:
+        _qcv_suppress(_qcv_exc, "core/_export_ops.py:559")
     return ''
 
 def _feature_export_name(self, layer, feat, existing=None):
@@ -588,25 +589,25 @@ def _feature_export_name(self, layer, feat, existing=None):
 def _invalidate_render_caches(self):
     try:
         getattr(self, '_overlay_cache', {}).clear()
-    except Exception:
-        pass
+    except Exception as _qcv_exc:
+        _qcv_suppress(_qcv_exc, "core/_export_ops.py:590")
     try:
         getattr(self, '_geom_cache', {}).clear()
-    except Exception:
-        pass
+    except Exception as _qcv_exc:
+        _qcv_suppress(_qcv_exc, "core/_export_ops.py:594")
     try:
         self._base_cache.clear()
-    except Exception:
-        pass
+    except Exception as _qcv_exc:
+        _qcv_suppress(_qcv_exc, "core/_export_ops.py:598")
     try:
         self._z_cache.clear()
-    except Exception:
-        pass
+    except Exception as _qcv_exc:
+        _qcv_suppress(_qcv_exc, "core/_export_ops.py:602")
     try:
         self._horizon = None
         self._horizon_params = None
-    except Exception:
-        pass
+    except Exception as _qcv_exc:
+        _qcv_suppress(_qcv_exc, "core/_export_ops.py:607")
 
 
 def _render_current_export_image(self, mode='composite', schematic_transparent=None):
@@ -683,8 +684,8 @@ def _batch_render_feature_to_file(self, out_dir, mode, stem, layer=None, feat=No
             _camera_set_status(self, err_meta or 'Échec écriture métadonnées.', '#c44')
         elif err_meta:
             _camera_set_status(self, err_meta, '#666')
-    except Exception:
-        pass
+    except Exception as _qcv_exc:
+        _qcv_suppress(_qcv_exc, "core/_export_ops.py:685")
     return out_path, ok_meta, err_meta
 
 
@@ -693,8 +694,8 @@ def _batch_restore_current_feature(self, original_fid):
         return
     try:
         self._camera_select_combo_feature_by_fid(int(original_fid), autoload=True)
-    except Exception:
-        pass
+    except Exception as _qcv_exc:
+        _qcv_suppress(_qcv_exc, "core/_export_ops.py:695")
 
 
 def _collect_camera_export_rows(self):
@@ -725,8 +726,8 @@ def _collect_camera_export_rows(self):
                 pt = geom.asPoint()
                 x = float(pt.x())
                 y = float(pt.y())
-            except Exception:
-                pass
+            except Exception as _qcv_exc:
+                _qcv_suppress(_qcv_exc, "core/_export_ops.py:727")
         row = {
             'fid': int(fid),
             'pdv_title': _camera_resolve_title(self, layer, feat),
@@ -791,8 +792,8 @@ def export_camera_variables_csv(self):
             writer.writerow(row)
     try:
         _camera_set_status(self, f'CSV exporté : {os.path.basename(path)}', '#2b6')
-    except Exception:
-        pass
+    except Exception as _qcv_exc:
+        _qcv_suppress(_qcv_exc, "core/_export_ops.py:793")
     QMessageBox.information(self, tr('QCALVIEW'), tr(f'CSV exporté :\n{path}'))
 
 
@@ -848,8 +849,8 @@ def export_current_composite(self):
             _camera_set_status(self, f'Vue exportée : {os.path.basename(path)}', '#2b6')
         else:
             _camera_set_status(self, meta_msg or 'Échec écriture métadonnées.', '#c44')
-    except Exception:
-        pass
+    except Exception as _qcv_exc:
+        _qcv_suppress(_qcv_exc, "core/_export_ops.py:850")
     msg = f'Vue exportée :\n{path}'
     if is_schematic and low.endswith('.png'):
         msg += '\n\nFond : ' + ('transparent' if use_alpha else 'opaque')
@@ -896,8 +897,8 @@ def _apply_batch_row_highlight(self, row):
             it = table.item(int(row), int(c))
             if it is not None:
                 it.setBackground(brush)
-        except Exception:
-            pass
+        except Exception as _qcv_exc:
+            _qcv_suppress(_qcv_exc, "core/_export_ops.py:898")
 
 
 def _on_batch_table_item_changed(self, item):
@@ -915,8 +916,8 @@ def _on_batch_table_item_changed(self, item):
                 tr(f'{checked}/{table.rowCount()} point(s) de vue cochés pour export. '
                 '« Brouillon » = réglage non persisté dans la couche PDV.')
             )
-    except Exception:
-        pass
+    except Exception as _qcv_exc:
+        _qcv_suppress(_qcv_exc, "core/_export_ops.py:917")
 
 
 def _set_all_batch_rows_checked(self, checked=True):
@@ -935,8 +936,8 @@ def _set_all_batch_rows_checked(self, checked=True):
     finally:
         try:
             table.blockSignals(False)
-        except Exception:
-            pass
+        except Exception as _qcv_exc:
+            _qcv_suppress(_qcv_exc, "core/_export_ops.py:937")
     try:
         count = table.rowCount() if checked else 0
         if hasattr(self, 'lbl_batch_status'):
@@ -944,8 +945,8 @@ def _set_all_batch_rows_checked(self, checked=True):
                 tr(f'{count}/{table.rowCount()} point(s) de vue cochés pour export. '
                 '« Brouillon » = réglage non persisté dans la couche PDV.')
             )
-    except Exception:
-        pass
+    except Exception as _qcv_exc:
+        _qcv_suppress(_qcv_exc, "core/_export_ops.py:946")
 
 
 def _fit_export_table_height(self):
@@ -973,8 +974,8 @@ def _fit_export_table_height(self):
         target = max(120, min(int(content_h), int(available_h)))
         table.setMinimumHeight(target)
         table.setMaximumHeight(target)
-    except Exception:
-        pass
+    except Exception as _qcv_exc:
+        _qcv_suppress(_qcv_exc, "core/_export_ops.py:975")
 
 
 def _selected_batch_feature_ids(self):
@@ -991,7 +992,8 @@ def _selected_batch_feature_ids(self):
             if fid is None:
                 continue
             fids.append(int(fid))
-        except Exception:
+        except Exception as _qcv_exc:
+            _qcv_suppress(_qcv_exc, "core/_export_ops.py:993")
             continue
     return fids
 
@@ -1003,8 +1005,8 @@ def _batch_has_unsaved_selected(self, fids):
         try:
             if int(fid) in drafts:
                 dirty.append(int(fid))
-        except Exception:
-            pass
+        except Exception as _qcv_exc:
+            _qcv_suppress(_qcv_exc, "core/_export_ops.py:1005")
     return dirty
 
 
@@ -1021,8 +1023,8 @@ def _batch_preflight_save_current_visual_state(self, fids):
     param_dirty=False
     try:
         param_dirty=current_fid in (getattr(self,'_camera_drafts',{}) or {})
-    except Exception:
-        pass
+    except Exception as _qcv_exc:
+        _qcv_suppress(_qcv_exc, "core/_export_ops.py:1023")
     try:
         visual_dirty=bool(_camera_visual_state_dirty(self,current_fid))
     except Exception:
@@ -1092,18 +1094,18 @@ def _refresh_batch_pdv_table(self):
             it = table.item(r, 0)
             if it and it.checkState() == QC.Qt_CheckState_Checked:
                 prev_checked.add(int(it.data(QC.Qt_ItemDataRole_UserRole)))
-    except Exception:
-        pass
+    except Exception as _qcv_exc:
+        _qcv_suppress(_qcv_exc, "core/_export_ops.py:1094")
     try:
         table.blockSignals(True)
-    except Exception:
-        pass
+    except Exception as _qcv_exc:
+        _qcv_suppress(_qcv_exc, "core/_export_ops.py:1098")
     table.setRowCount(0)
     if layer is None:
         try:
             table.blockSignals(False)
-        except Exception:
-            pass
+        except Exception as _qcv_exc:
+            _qcv_suppress(_qcv_exc, "core/_export_ops.py:1104")
         return
     try:
         features = []
@@ -1159,13 +1161,13 @@ def _refresh_batch_pdv_table(self):
             if hasattr(self, 'lbl_batch_status'):
                 _checked = len(_selected_batch_feature_ids(self))
                 self.lbl_batch_status.setText(tr(f'{_checked}/{table.rowCount()} point(s) de vue cochés pour export. « Brouillon » = non persisté dans la couche PDV.'))
-        except Exception:
-            pass
+        except Exception as _qcv_exc:
+            _qcv_suppress(_qcv_exc, "core/_export_ops.py:1161")
     finally:
         try:
             table.blockSignals(False)
-        except Exception:
-            pass
+        except Exception as _qcv_exc:
+            _qcv_suppress(_qcv_exc, "core/_export_ops.py:1166")
 
 
 def export_batch_selected(self):
@@ -1279,8 +1281,8 @@ def _run_batch_export(self, mode='composite'):
     finally:
         try:
             self._camera_drafts = saved_drafts
-        except Exception:
-            pass
+        except Exception as _qcv_exc:
+            _qcv_suppress(_qcv_exc, "core/_export_ops.py:1281")
         _batch_restore_current_feature(self, original_fid)
     if mode == 'selected' and bool(getattr(self, 'cb_batch_csv', None) and self.cb_batch_csv.isChecked()):
         try:

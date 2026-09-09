@@ -1,6 +1,7 @@
 
 
 
+from ._exceptions import qcv_suppress_exception as _qcv_suppress
 from ._i18n import tr
 from ._compat import QC, dialog_exec
 
@@ -111,8 +112,8 @@ def apply_pdv_qml_style(self, layer, qml_rel_path="core/style/STYLE-PDV.qml"):
             f"qml='{qml_path}', exists={os.path.isfile(qml_path)}, readable={os.access(qml_path, os.R_OK)}"),
             "QCALVIEW", QC.Qgis_MessageLevel_Info
         )
-    except Exception:
-        pass
+    except Exception as _qcv_exc:
+        _qcv_suppress(_qcv_exc, "core/_layerstyle.py:114")
 
     if not os.path.isfile(qml_path):
         QgsMessageLog.logMessage(
@@ -227,12 +228,12 @@ def _activate_qml_as_named_style(self, layer, style_name, qml_rel_path, refresh_
             try:
                 if previous in _style_manager_names(manager):
                     manager.setCurrentStyle(previous)
-            except Exception:
-                pass
+            except Exception as _qcv_exc:
+                _qcv_suppress(_qcv_exc, "core/_layerstyle.py:230")
             try:
                 manager.removeStyle(temp_name)
-            except Exception:
-                pass
+            except Exception as _qcv_exc:
+                _qcv_suppress(_qcv_exc, "core/_layerstyle.py:234")
             return False
         if not bool(manager.addStyleFromLayer(style_name)):
             return False
@@ -240,8 +241,8 @@ def _activate_qml_as_named_style(self, layer, style_name, qml_rel_path, refresh_
             return False
         try:
             manager.removeStyle(temp_name)
-        except Exception:
-            pass
+        except Exception as _qcv_exc:
+            _qcv_suppress(_qcv_exc, "core/_layerstyle.py:243")
         layer.triggerRepaint()
         return True
     except Exception as exc:
@@ -252,13 +253,13 @@ def _activate_qml_as_named_style(self, layer, style_name, qml_rel_path, refresh_
         try:
             if previous in _style_manager_names(manager):
                 manager.setCurrentStyle(previous)
-        except Exception:
-            pass
+        except Exception as _qcv_exc:
+            _qcv_suppress(_qcv_exc, "core/_layerstyle.py:255")
         try:
             if temp_name in _style_manager_names(manager):
                 manager.removeStyle(temp_name)
-        except Exception:
-            pass
+        except Exception as _qcv_exc:
+            _qcv_suppress(_qcv_exc, "core/_layerstyle.py:260")
         return False
 
 
@@ -269,8 +270,8 @@ def apply_pdv_style_mode(self, layer, automatic=True):
     automatic = bool(automatic)
     try:
         layer.setCustomProperty(PDV_AUTO_COLOR_PROPERTY, 1 if automatic else 0)
-    except Exception:
-        pass
+    except Exception as _qcv_exc:
+        _qcv_suppress(_qcv_exc, "core/_layerstyle.py:272")
     if automatic:
         
         

@@ -7,8 +7,7 @@ Attached to the class via setattr after class definition.
 """
 import os, sys, math, json, re, pathlib, functools, itertools, typing
 from qgis.PyQt import QtCore, QtGui, QtWidgets
-from qgis.core import *
-from qgis.gui import *
+from qgis.core import QgsExpression, QgsExpressionContext, QgsExpressionContextUtils, QgsWkbTypes
 from ..projector import project_point
 
 

@@ -2,10 +2,9 @@
 
 
 
+from ._exceptions import qcv_suppress_exception as _qcv_suppress
 import os, sys, math, json, re, pathlib, functools, itertools, typing
 from qgis.PyQt import QtCore, QtGui, QtWidgets
-from qgis.core import *
-from qgis.gui import *
 
 
 try:
@@ -24,16 +23,7 @@ try:
 except Exception:
     QWidget = QtWidgets.QWidget; QLabel = QtWidgets.QLabel
 
-try:
-    from ._utils_ops import hfov_from_focal_sensor, vfov_from_hfov_ratio
-except Exception:
-    
-    def hfov_from_focal_sensor(f, sw):
-        try: return self.hfov_from_focal_sensor(f, sw)  
-        except Exception: return 0.0
-    def vfov_from_hfov_ratio(h, w, ht):
-        try: return self.vfov_from_hfov_ratio(h, w, ht)  
-        except Exception: return 0.0
+from ..projector import hfov_from_focal_sensor, vfov_from_hfov_ratio
 
 
 def _toggle_hfov_enable(self, checked):
@@ -57,6 +47,6 @@ def _get_projection_mode(self) -> str:
             txt = cmb.currentText().strip().upper()
             if txt in ("PINHOLE", "EQUIRECT", "CYLINDRICAL"):
                 return txt
-        except Exception:
-            pass
+        except Exception as _qcv_exc:
+            _qcv_suppress(_qcv_exc, "core/_projection_ops.py:49")
     return getattr(self, "_projection_mode", "PINHOLE")
