@@ -41,7 +41,7 @@ See [Current limitations](docs/limitations.md).
 
 ## Documentation
 
-See `https://qcalview.com/DOCS/#/` or `docs/` for the user manuals, current limitations and licensing notes.
+See https://qcalview.com/DOCS/#/ or `docs/` for the user manuals, current limitations and licensing notes.
 
 ## Licence
 
