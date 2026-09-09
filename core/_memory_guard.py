@@ -1,19 +1,7 @@
-# -*- coding: utf-8 -*-
-# SPDX-FileCopyrightText: 2026 Fabrice Kerzerho — ArcTan°
-# SPDX-License-Identifier: GPL-3.0-or-later
-"""Conservative memory guard for interactive panoramic previews.
 
-QCALVIEW 40.18.9 keeps the conservative 40.18.6 preflight and adds
-procedural-instance awareness:
-- it never changes saved project/UI values;
-- it is active only while an interactive EQUIRECT/CYLINDRICAL preview is built;
-- it purges stale rendered images *before* allocating the next panorama;
-- it can temporarily reduce preview resolution, visible depth, DEM density and
-  per-layer feature count when native-memory pressure becomes unsafe.
 
-It does NOT tessellate geometry and does NOT split the renderer into additional
-cache pipelines.  Those experimental 40.18.5 changes were intentionally removed.
-"""
+
+
 from __future__ import annotations
 from ._i18n import tr
 
@@ -175,7 +163,7 @@ def _symbol_instance_meta():
 
 
 def _style_instance_factor(sty, lyr) -> int:
-    """Conservative per-feature billboard upper bound for Memory Guard."""
+    
     try:
         sid = str(getattr(sty, 'schematic_symbol_id', '') or '')
         gen, default_max = _symbol_instance_meta().get(sid, ('', 1))
@@ -184,8 +172,8 @@ def _style_instance_factor(sty, lyr) -> int:
         try: gtype = int(lyr.geometryType())
         except Exception: gtype = -1
         if gen == 'billboard_svg':
-            if gtype == 2: return min(mx, 1000)  # polygons scatter instances
-            if gtype == 1: return min(mx, 80)    # line vertices/alignments
+            if gtype == 2: return min(mx, 1000)  
+            if gtype == 1: return min(mx, 80)    
             return 1
         if gen == 'vegetation_adaptive':
             if gtype == 2:
@@ -201,7 +189,7 @@ def _style_instance_factor(sty, lyr) -> int:
 
 
 def _visible_feature_estimate(owner) -> Tuple[int, int, int]:
-    """Estimate visible entities and potential procedural billboard instances."""
+    
     total = schematic = 0
     snap_used = False
     try:
@@ -231,13 +219,13 @@ def _visible_feature_estimate(owner) -> Tuple[int, int, int]:
                 provider_schematic += n
                 factor = _style_instance_factor(sty, lyr)
                 if factor > 0:
-                    # This is an upper bound before spatial/sub-pixel culling.
+                    
                     instance_est += n * factor
         except Exception:
             continue
     if not snap_used:
         total = int(min(provider_total, 50000)); schematic = int(min(provider_schematic, 20000))
-    # Never allow arithmetic/pathological providers to overflow the heuristic.
+    
     instance_est = int(min(max(0, instance_est), 5_000_000))
     return int(total), int(schematic), instance_est
 
@@ -259,7 +247,7 @@ def _button_role(name: str):
 
 
 def _show_guard_dialog(owner, details: str, dangerous: bool) -> str:
-    """Return 'safe', 'continue' or 'cancel'.  Safe is always the default."""
+    
     try:
         box = QMessageBox(owner)
         box.setWindowTitle(tr('QCalView — limites de rendu'))
@@ -283,16 +271,12 @@ def _show_guard_dialog(owner, details: str, dangerous: bool) -> str:
             return 'cancel'
         return 'safe'
     except Exception:
-        # If the warning UI itself cannot be created, fail safe.
+        
         return 'safe'
 
 
 def release_stale_panorama_buffers(owner, *, aggressive: bool = False) -> int:
-    """Drop old rendered panorama images before the next large allocation.
-
-    Geometry/style/DEM source caches are intentionally retained.  Only rendered
-    image state from previous camera orientations is released here.
-    """
+    
     released = 0
     cache = getattr(owner, '_overlay_cache', None)
     if isinstance(cache, dict):
@@ -318,9 +302,9 @@ def release_stale_panorama_buffers(owner, *, aggressive: bool = False) -> int:
     except Exception:
         pass
     if aggressive:
-        # A horizon is camera-orientation dependent and can contain several
-        # large NumPy matrices.  Dropping it before rebuilding avoids old+new
-        # copies coexisting at the peak of a critical render.
+        
+        
+        
         try:
             owner._horizon = None
             owner._horizon_params = None
@@ -335,12 +319,7 @@ def release_stale_panorama_buffers(owner, *, aggressive: bool = False) -> int:
 
 
 def prune_base_cache_for_size(owner, width: int, height: int) -> int:
-    """Keep only base-image variants matching the current panorama preview size.
-
-    The historical base cache is useful, but 25/50/100% panorama variants can
-    otherwise coexist as several large QImages.  Camera pitch does not affect
-    the base image, so retaining only the current dimensions is enough.
-    """
+    
     cache = getattr(owner, '_base_cache', None)
     if not isinstance(cache, dict) or not cache:
         return 0
@@ -350,8 +329,8 @@ def prune_base_cache_for_size(owner, width: int, height: int) -> int:
         keep = False
         try:
             if isinstance(key, tuple):
-                # Photo key: (path, W, H, mode)
-                # Schematic key: ('__schematic__', W, H, color, transparent)
+                
+                
                 if len(key) >= 3 and int(key[1]) == W and int(key[2]) == H:
                     keep = True
         except Exception:
@@ -377,8 +356,8 @@ def _guard_signature(owner, w: int, h: int, feature_count: int, relief: str, lev
         dem_step = round(float(owner.spin_dem_step.value()), 1)
     except Exception:
         dem_step = 50.0
-    # Pitch/yaw/roll are deliberately excluded: manipulating the camera should
-    # not open the same modal warning on every intermediate frame.
+    
+    
     return (proj, level, int(round(w / 256.0)), int(round(h / 256.0)),
             int(feature_count // 500), relief, maxdist, dem_step)
 
@@ -386,12 +365,7 @@ def _guard_signature(owner, w: int, h: int, feature_count: int, relief: str, lev
 def prepare_panorama_preview(owner, requested_w: int, requested_h: int,
                              full_w: int, full_h: int,
                              render_quality: str = 'high') -> Dict[str, Any]:
-    """Preflight an interactive panorama preview.
-
-    This is intentionally conservative.  It estimates *peak* native memory,
-    warns before allocation, and returns temporary overrides.  Saved UI/project
-    values are never changed.
-    """
+    
     try:
         proj = str(owner.cmb_proj.currentText()).strip().upper()
     except Exception:
@@ -425,32 +399,31 @@ def prepare_panorama_preview(owner, requested_w: int, requested_h: int,
     full_frame_bytes = full_pixels * 4
     viewer_full = bool(getattr(owner, '_viewer_full_res', False)) and str(render_quality) == 'high'
 
-    # Preview peak: new overlay + base/scaled image + composed image + QPixmap
-    # conversion/painting headroom.  A full-res viewer may require another pair
-    # if its requested size differs from the preview.
+    
+    
+    
     image_peak = int(frame_bytes * 4.0)
     if viewer_full and (int(full_w) != W or int(full_h) != H):
         image_peak += int(full_frame_bytes * 2.6)
 
-    # 40.18.9: common panorama object z-buffer.  Interactive depth is deliberately
-    # lower-resolution than the display overlay (2.5/5/8 Mpx), avoiding the huge
-    # 40.18.8 native allocation while still budgeting it before rendering.
+    
+    
+    
     zbuffer_peak = 0
-    try:
-        zbuf_on = bool(getattr(owner,'cb_occ_objects',None) and owner.cb_occ_objects.isChecked())
-    except Exception:
-        zbuf_on = False
+    
+    
+    zbuf_on = True
     if zbuf_on:
         q=str(render_quality or 'high').lower()
-        target_px = 2_500_000 if q=='low' else 5_000_000 if q=='normal' else 8_000_000
+        target_px = 3_000_000 if q=='low' else 7_000_000 if q=='normal' else 24_000_000
         zpx=min(pixels,target_px)
         zbuffer_peak=int(zpx*8.0 + min(32.0*_MIB,zpx*0.75))
         image_peak += zbuffer_peak
 
     topo_units = 0.0; topo_peak = 0
     if relief == 'wireframe':
-        # 40.18.4 already uses a sparse generator for pathological grids, but
-        # the requested grid still indicates native-pressure risk.
+        
+        
         n = maxdist_est / max(0.5, dem_step)
         topo_units = (2.0 * n + 1.0) ** 2
         topo_peak = int(min(900.0 * _MIB, max(20.0 * _MIB, topo_units * 10.0)))
@@ -458,8 +431,8 @@ def prepare_panorama_preview(owner, requested_w: int, requested_h: int,
         topo_units = (360.0 / az_step) * (maxdist_est / rad_step)
         topo_peak = int(min(550.0 * _MIB, max(12.0 * _MIB, topo_units * 34.0)))
 
-    # This deliberately overestimates Python/Qt face overhead.  The guard's job
-    # is to preserve QGIS, not to maximize one interactive frame.
+    
+    
     geometry_peak = int(min(2.2 * _GIB, feat_count * 1200 + schematic_count * 1800 + schematic_instances * 520))
     predicted_increment = int(image_peak + topo_peak + geometry_peak)
     projected_free = int(snap.available_bytes - predicted_increment) if snap.available_bytes > 0 else 0
@@ -467,9 +440,9 @@ def prepare_panorama_preview(owner, requested_w: int, requested_h: int,
     if snap.total_bytes > 0:
         projected_ratio = float(snap.used_bytes + predicted_increment) / float(snap.total_bytes)
 
-    # Independent native-pressure triggers remain useful when OS memory metrics
-    # are unavailable or deceptively comfortable (fragmentation / contiguous
-    # allocation failures can happen well before 95% physical RAM).
+    
+    
+    
     pixel_pressure = pixels / 30_000_000.0
     topo_pressure = topo_units / 3_000_000.0 if topo_units > 0 else 0.0
     entity_pressure = feat_count / 12000.0 if feat_count > 0 else 0.0
@@ -503,9 +476,9 @@ def prepare_panorama_preview(owner, requested_w: int, requested_h: int,
         'zbuffer_peak_bytes': int(zbuffer_peak),
     }
 
-    # For panoramas we never retain rendered overlays from previous camera
-    # states.  This purge happens even in normal state and, critically, before
-    # the next QImage is allocated.
+    
+    
+    
     release_stale_panorama_buffers(owner, aggressive=(level in ('critical', 'dangerous')))
 
     if level in ('normal', 'elevated'):
@@ -554,7 +527,7 @@ def prepare_panorama_preview(owner, requested_w: int, requested_h: int,
     state['safe_mode'] = True
     dangerous = level == 'dangerous'
 
-    # 1) Reduce only interactive pixels, never export dimensions.
+    
     target_pixels = 10_000_000 if dangerous else 18_000_000
     if pixels > target_pixels:
         s = math.sqrt(float(target_pixels) / float(max(1, pixels)))
@@ -562,20 +535,20 @@ def prepare_panorama_preview(owner, requested_w: int, requested_h: int,
         state['height'] = max(180, int(H * s))
     state['disable_viewer_full_res'] = True
 
-    # 2) Topography limits are temporary and projection-family agnostic.
+    
     if relief == 'wireframe':
         state['dem_step_min'] = max(dem_step, 20.0 if dangerous else 10.0, maxdist_est / (500.0 if dangerous else 800.0))
     elif relief in ('skyline', 'ridgelines', 'opaque'):
         state['rad_step_min'] = max(rad_step, 80.0 if dangerous else 50.0, maxdist_est / (120.0 if dangerous else 180.0))
 
-    # 3) Depth/entity culling only after image/topography reductions.
+    
     state['maxdist_cap'] = 6000.0 if dangerous else 8000.0
     if maxdist_ui > 0.0:
         state['maxdist_cap'] = min(float(maxdist_ui), float(state['maxdist_cap']))
     state['entity_limit_per_layer'] = 1000 if dangerous else 1800
-    # Preview-only global billboard cap.  Dense tree stands remain available:
-    # export is not capped, and normal non-critical previews use a much higher
-    # renderer budget.
+    
+    
+    
     state['schematic_instance_budget'] = 12000 if dangerous else 28000
     state['min_billboard_px'] = 1.15 if dangerous else 0.85
     return state

@@ -14,5 +14,3 @@ Contributions should:
 - include a clear description of the problem and the proposed change.
 
 By submitting code intended for inclusion in QCALVIEW, contributors agree that their contribution may be distributed under **GPL-3.0-or-later**. Contributors retain copyright in their own contributions unless separately agreed.
-
-For development conventions, public contributors should use this file and the repository issue/PR history. The private `dev_docs/` directory is intentionally not part of the public repository.

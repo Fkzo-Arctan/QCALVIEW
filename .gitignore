@@ -1,18 +1,12 @@
-# Development-only QCALVIEW context: never publish in the public repository.
-dev_docs/
-
-# Python / QGIS runtime artefacts
 __pycache__/
 *.py[cod]
 *.pyo
 
-# Local IDE/editor state
 .vscode/
 .idea/
 *.swp
 *~
 
-# Crash/debug/local outputs
 *.dmp
 *.log
 *.tmp
@@ -21,6 +15,5 @@ __pycache__/
 exports/
 test_exports/
 
-# OS noise
 .DS_Store
 Thumbs.db

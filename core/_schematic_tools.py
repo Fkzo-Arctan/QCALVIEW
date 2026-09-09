@@ -1,7 +1,7 @@
-# -*- coding: utf-8 -*-
-# SPDX-FileCopyrightText: 2026 Fabrice Kerzerho — ArcTan°
-# SPDX-License-Identifier: GPL-3.0-or-later
-"""Interactive tools attached to QCALVIEW schematic symbols."""
+
+
+
+
 from __future__ import annotations
 from ._i18n import tr
 from ._compat import QC, dialog_exec
@@ -44,7 +44,7 @@ def _feature_height(feature, field_name: str, default: float) -> float:
 
 
 def _target_sample_points(geom, gtype: int):
-    """Representative planimetric target points in the source layer CRS."""
+    
     pts = []
     try:
         if gtype == QC.QgsWkbTypes_GeometryType_PointGeometry:
@@ -98,7 +98,7 @@ def _find_qcalview_style(dock, layer):
 
 
 def _style_explicit_layer_height(feature, style):
-    """Mirror the explicit per-layer height semantics used by SymbolBuildContext."""
+    
     if style is None:
         return None
     fld = str(getattr(style, "height_field_override", "") or "").strip()
@@ -115,7 +115,7 @@ def _style_explicit_layer_height(feature, style):
 
 
 def _symbol_param_value(feature, style, definition: Dict[str, Any], name: str, fallback=None):
-    """Resolve an AVR parameter with the same priority as the schematic renderer."""
+    
     try:
         overrides = dict(getattr(style, "schematic_params", {}) or {})
     except Exception:
@@ -143,11 +143,7 @@ def _symbol_param_value(feature, style, definition: Dict[str, Any], name: str, f
 
 
 def _schematic_target_height(dock, target_layer, feature) -> Tuple[Optional[float], str]:
-    """Return the conservative top height represented by the target AVR symbol.
-
-    The returned height is relative to local ground.  Wind turbines deliberately
-    use hub + rotor radius, independent of the displayed rotor angle.
-    """
+    
     style = _find_qcalview_style(dock, target_layer)
     if style is None or not bool(getattr(style, "schematic_enabled", False)):
         return None, ""
@@ -187,7 +183,7 @@ def _schematic_target_height(dock, target_layer, feature) -> Tuple[Optional[floa
         if h is not None:
             return max(0.0, h), f"AVR {symbol_id}: extrusion"
 
-    # Generic safety net for future symbols exposing a height_m parameter.
+    
     params = definition.get("parameters", {}) or {}
     if "height_m" in params:
         h = _finite_float(_symbol_param_value(feature, style, definition, "height_m", None), None)
@@ -197,7 +193,7 @@ def _schematic_target_height(dock, target_layer, feature) -> Tuple[Optional[floa
 
 
 def _target_height(dock, target_layer, feature, explicit_field: str, default_h: float, use_avr: bool):
-    """Resolve target height with explicit user field > AVR > default precedence."""
+    
     fld = str(explicit_field or "").strip()
     if fld:
         try:
@@ -215,13 +211,7 @@ def _target_height(dock, target_layer, feature, explicit_field: str, default_h: 
 
 
 def _hedge_min_render_ratio(dock, hedge_layer, symbol_id=None, params_override=None):
-    """Minimum rendered crown ratio for a continuous AVR hedge ribbon.
-
-    The renderer varies the top by ``irregularity``.  A geometric screening
-    height therefore has to be divided by this minimum ratio if qcv_h_req is to
-    remain a *nominal* hedge height while still guaranteeing visual screening.
-    Returns (ratio, description, continuous_screen).
-    """
+    
     style = _find_qcalview_style(dock, hedge_layer)
     sid = str(symbol_id or getattr(style, "schematic_symbol_id", "") or "").strip()
     if not sid:
@@ -258,7 +248,7 @@ def _hedge_min_render_ratio(dock, hedge_layer, symbol_id=None, params_override=N
 
 
 def _diagnostic_layer(cam_crs, hedge_layer, target_layer, records):
-    """Create/replace a memory point layer showing exact LOS/hedge intersections."""
+    
     if not records:
         return None
     authid = ""
@@ -327,14 +317,7 @@ def calculate_hedge_occlusion_dialog(
     dock, hedge_layer, initial_output_field="qcv_h_req",
     hedge_symbol_id=None, hedge_params=None,
 ):
-    """Calculate the screening height required on each hedge feature.
-
-    For each target sample, the controlling barrier location is the FIRST exact
-    intersection of the camera→target ray with the whole hedge feature (including
-    multipart geometries).  The feature output is the maximum required height of
-    these controlling intersections.  An optional diagnostic point layer exposes
-    every intersection and identifies the first/control points.
-    """
+    
     if hedge_layer is None or QgsWkbTypes.geometryType(hedge_layer.wkbType()) != QC.QgsWkbTypes_GeometryType_LineGeometry:
         QMessageBox.warning(dock, tr("Hauteur d'occultation"), tr("La couche de haie doit être une couche linéaire."))
         return None
@@ -393,7 +376,7 @@ def calculate_hedge_occlusion_dialog(
         return None
     out_field = le_out.text().strip() or "qcv_h_req"
 
-    # Camera / CRS / DEM follow the exact QCALVIEW rendering context.
+    
     try:
         cam_layer = dock.cmb_camera.currentLayer()
         cam_feat = dock._camera_current_feature()
@@ -437,7 +420,7 @@ def calculate_hedge_occlusion_dialog(
     effective_ratio = crown_ratio if (compensate_crown and continuous_screen) else 1.0
     target_gtype = QgsWkbTypes.geometryType(target_layer.wkbType())
 
-    # target records retain their feature id and resolved height source for diagnostics.
+    
     targets = []
     source_counts = {}
     for feat in target_layer.getFeatures():
@@ -498,8 +481,8 @@ def calculate_hedge_occlusion_dialog(
                 )
                 if not hits:
                     continue
-                # This is the key correction: FIRST hit across the complete multipart
-                # hedge feature, not a maximum assembled from individual parts.
+                
+                
                 first = dict(hits[0])
                 first["height_nominal_m"] = float(first["height_m"]) / max(0.05, effective_ratio)
                 first["crown_ratio"] = float(effective_ratio)
@@ -528,7 +511,7 @@ def calculate_hedge_occlusion_dialog(
             updated += 1; max_value = max(max_value, best_h)
 
             if create_diag:
-                # Mark the exact first hit that controls the final feature height.
+                
                 cx, cy = controlling_hit["xy"]
                 for rec in diagnostic_records:
                     if (str(rec.get("hedge_fid")) == str(hfeat.id()) and

@@ -1,6 +1,6 @@
-# -*- coding: utf-8 -*-
-# SPDX-FileCopyrightText: 2026 Fabrice Kerzerho — ArcTan°
-# SPDX-License-Identifier: GPL-3.0-or-later
+
+
+
 from ._i18n import tr
 from ._compat import QC, dialog_exec
 """SPLIT-ONLY extracted implementations from qcalview_window.QCalViewDock.
@@ -13,7 +13,7 @@ from qgis.core import *
 from qgis.gui import *
 from ..projector import (project_point, hfov_from_focal_sensor, vfov_from_hfov_ratio, _validated_vfov_for_cylindrical)
 
-# --- Explicit Qt imports ---
+
 try:
     from qgis.PyQt.QtGui import QImage, QPainter, QPen, QColor, QFont, QPixmap, QTransform
 except Exception:
@@ -72,10 +72,10 @@ def _proj_grid_uv(proj_name, W, H, HFOV, VFOV, is360, alpha_deg, beta_deg):
                 u = (a + math.pi) / (2.0 * math.pi) * W
             else:
                 u = W * 0.5 + fx * a
-            # Projection cylindrique centrale : étirement vertical fonction de l'élévation.
+            
             v = H * 0.5 - fy * math.tan(b)
             return (u, v) if (math.isfinite(u) and math.isfinite(v)) else None
-        # EQUIRECT
+        
         if bool(is360):
             u = (a + math.pi) / (2.0 * math.pi) * W
             v = (math.pi * 0.5 - b) / math.pi * H
@@ -169,17 +169,12 @@ def _draw_projection_grid_overlay(self, p, proj, W, H, HFOV, VFOV, is360):
 
 
 def _draw_calib_grid(self, p, cam_pt, cam_z, cam_crs, proj, W, H, yaw_eff, pitch, roll, HFOV, VFOV, is360, z_sampler):
-    """
-    Dessine une grille/cube de calibration 3D et, optionnellement, une grille de projection 2D.
-    - Plan au sol: plan horizontal à Z fixe (option: calage sur MNT au centre)
-    - Plan vertical: “mur” perpendiculaire à l’axe optique à distance D
-    - Cube étalon: boîte LxPxH centrée à distance D
-    """
+    
     _draw_projection_grid_overlay(self, p, proj, W, H, HFOV, VFOV, is360)
     if not bool(getattr(self, 'cb_calib_enable', None) and self.cb_calib_enable.isChecked()):
         return
 
-    # Paramètres
+    
     typ = self.cmb_calib_type.currentText()
     S   = float(self.d_calib_spacing.value())
     Lx  = float(self.d_calib_width.value())
@@ -188,21 +183,21 @@ def _draw_calib_grid(self, p, cam_pt, cam_z, cam_crs, proj, W, H, yaw_eff, pitch
     D   = float(self.d_calib_dist.value())
     dz  = float(self.d_calib_elev.value())
 
-    # Style
+    
     pen = QPen(self._calib_color); pen.setWidth(int(self.spin_calib_width.value()))
     p.setPen(pen)
 
-    # Base yaw (cap) → directions “avant” et “droite” en XY
+    
     yr = math.radians(yaw_eff)
-    fxy = (math.sin(yr), math.cos(yr))          # “avant” sur le plan XY
-    rxy = (math.cos(yr), -math.sin(yr))         # “droite” sur le plan XY
+    fxy = (math.sin(yr), math.cos(yr))          
+    rxy = (math.cos(yr), -math.sin(yr))         
 
-    # Centre de la structure à distance D devant la caméra
+    
     Cx = cam_pt.x() + D * fxy[0]
     Cy = cam_pt.y() + D * fxy[1]
 
-    # Z de base au centre
-    # cam_z = cam_ground_z + cam_height ; on reconstruit cam_ground_z
+    
+    
     cam_ground_z = cam_z - float(self.d_camheight.value())
     Z0 = cam_ground_z
     if self.cb_calib_snap_dem.isChecked() and z_sampler is not None:
@@ -210,9 +205,9 @@ def _draw_calib_grid(self, p, cam_pt, cam_z, cam_crs, proj, W, H, yaw_eff, pitch
             Z0 = float(z_sampler(QgsPointXY(Cx, Cy)))
         except Exception:
             pass
-    Z0 += dz  # offset utilisateur
+    Z0 += dz  
 
-    # Helpers
+    
     def proj_xy_z(x, y, z):
         return self._finite_uv(project_point(cam_pt, cam_z, QgsPointXY(x, y), None,
                                              proj, W, H, yaw_eff, pitch, roll, HFOV, VFOV, is360,
@@ -246,16 +241,16 @@ def _draw_calib_grid(self, p, cam_pt, cam_z, cam_crs, proj, W, H, yaw_eff, pitch
                 p.drawLine(prev, q)
             prev = q
 
-    # Limites raisonnables
+    
     if S <= 0.0 or Lx <= 0.0:
         return
     max_lines = 400
 
     if typ == "Plan au sol":
-        # Grille 2D sur plan z = Z0, centrée sur (Cx,Cy), taille Lx x Ly (Ly = profondeur)
+        
         half_x = Lx * 0.5
         half_y = max(Ly, S) * 0.5
-        # lignes // avant (varie sur rxy)
+        
         n1 = int(math.floor(Lx / S))
         n2 = int(math.floor(Ly / S))
         n1 = max(1, min(n1, max_lines))
@@ -265,26 +260,26 @@ def _draw_calib_grid(self, p, cam_pt, cam_z, cam_crs, proj, W, H, yaw_eff, pitch
             P = (Cx - half_y * fxy[0] + ox, Cy - half_y * fxy[1] + oy, Z0)
             Q = (Cx + half_y * fxy[0] + ox, Cy + half_y * fxy[1] + oy, Z0)
             draw_seg(P, Q)
-        # lignes // droite (varie sur fxy)
+        
         for j in range(-n2//2, n2//2 + 1):
             oy = j * S * fxy[1]; ox = j * S * fxy[0]
             P = (Cx - half_x * rxy[0] + ox, Cy - half_x * rxy[1] + oy, Z0)
             Q = (Cx + half_x * rxy[0] + ox, Cy + half_x * rxy[1] + oy, Z0)
             draw_seg(P, Q)
 
-        # Graduations et axes
+        
         if self.cb_calib_axes.isChecked():
-            # axes locaux: X= droite (rxy), Y= avant (fxy), Z= haut
+            
             ax_len = max(5.0, min(Lx, Ly, Hz if Hz>0 else 100.0) * 0.25)
             uvC = proj_xy_z(Cx, Cy, Z0)
             if uvC:
-                # X (rouge)
+                
                 p.setPen(QPen(QColor(255,80,80,220), int(self.spin_calib_width.value()+1)))
                 draw_seg((Cx, Cy, Z0), (Cx + ax_len*rxy[0], Cy + ax_len*rxy[1], Z0))
-                # Y (vert)
+                
                 p.setPen(QPen(QColor(80,220,80,220), int(self.spin_calib_width.value()+1)))
                 draw_seg((Cx, Cy, Z0), (Cx + ax_len*fxy[0], Cy + ax_len*fxy[1], Z0))
-                # Z (bleu)
+                
                 p.setPen(QPen(QColor(80,120,255,220), int(self.spin_calib_width.value()+1)))
                 draw_seg((Cx, Cy, Z0), (Cx, Cy, Z0 + ax_len))
                 p.setPen(pen)
@@ -306,29 +301,29 @@ def _draw_calib_grid(self, p, cam_pt, cam_z, cam_crs, proj, W, H, yaw_eff, pitch
             p.restore()
 
     elif typ == "Plan vertical":
-        # Mur vertical centré en (Cx,Cy), largeur Lx (horizontale), hauteur Hz
+        
         half_x = Lx * 0.5
         z0 = Z0
         nX = max(1, min(int(math.floor(Lx / S)), max_lines))
         nZ = max(1, min(int(math.floor(max(Hz, S) / S)), max_lines))
-        # Verticales (|) le long de X (rxy), de z0 à z0+Hz
+        
         for i in range(-nX//2, nX//2 + 1):
             ox = i * S * rxy[0]; oy = i * S * rxy[1]
             P = (Cx + ox, Cy + oy, z0)
             Q = (Cx + ox, Cy + oy, z0 + Hz)
             draw_seg(P, Q)
-        # Horizontales (—) le long de Z, de -Lx/2 à +Lx/2
+        
         for k in range(0, nZ + 1):
             z = z0 + k * S
             P = (Cx - half_x * rxy[0], Cy - half_x * rxy[1], z)
             Q = (Cx + half_x * rxy[0], Cy + half_x * rxy[1], z)
             draw_seg(P, Q)
 
-    else:  # Cube étalon
-        # Cube centré en (Cx,Cy,z0 + Hz/2). Largeur=Lx, Profondeur=Ly, Hauteur=Hz
+    else:  
+        
         half_x = Lx * 0.5; half_y = max(Ly, S) * 0.5; half_z = Hz * 0.5
         zc = Z0 + half_z
-        # 8 sommets (XY par rxy/fxy, Z en ±half_z)
+        
         def V(sx, sy, sz):
             return (Cx + sx*half_x*rxy[0] + sy*half_y*fxy[0],
                     Cy + sx*half_x*rxy[1] + sy*half_y*fxy[1],
@@ -336,9 +331,9 @@ def _draw_calib_grid(self, p, cam_pt, cam_z, cam_crs, proj, W, H, yaw_eff, pitch
         V000 = V(-1,-1,-1); V100 = V(1,-1,-1); V110 = V(1,1,-1); V010 = V(-1,1,-1)
         V001 = V(-1,-1, 1); V101 = V(1,-1, 1); V111 = V(1,1, 1); V011 = V(-1,1, 1)
         edges = [
-            (V000, V100), (V100, V110), (V110, V010), (V010, V000),  # base
-            (V001, V101), (V101, V111), (V111, V011), (V011, V001),  # top
-            (V000, V001), (V100, V101), (V110, V111), (V010, V011)   # montants
+            (V000, V100), (V100, V110), (V110, V010), (V010, V000),  
+            (V001, V101), (V101, V111), (V111, V011), (V011, V001),  
+            (V000, V001), (V100, V101), (V110, V111), (V010, V011)   
         ]
         for P, Q in edges:
             draw_seg(P, Q)
@@ -349,12 +344,12 @@ def _on_map_pick_for_gcp(self, map_pt):
         if not cam_layer or cam_layer.featureCount() < 1:
             self._cancel_maptool(); self._adding_gcp_uv = None; return
         cam_crs = cam_layer.crs()
-        # Transformer depuis le CRS du canevas vers CRS caméra
+        
         src = self.iface.mapCanvas().mapSettings().destinationCrs()
         tr = QgsCoordinateTransform(src, cam_crs, QgsProject.instance())
         pt_cam = tr.transform(map_pt)
 
-        # Z cible via DEM si dispo
+        
         z = 0.0
         dem_layer = self.cmb_dem.currentLayer()
         if isinstance(dem_layer, QgsRasterLayer) and dem_layer.isValid():
@@ -379,79 +374,75 @@ def _on_map_pick_for_gcp(self, map_pt):
         self.lbl_info.setText(tr(f"Erreur ajout GCP: {e}"))
 
 def start_pick_pdv_center(self):
-    """
-    Active un MapTool: clic sur le canevas = point considéré comme 'centre visuel'.
-    Calcule l'azimut caméra→point et l'envoie au rendu (barre rouge).
-    """
+    
     canvas = self.iface.mapCanvas()
     self._maptool_backup = canvas.mapTool()
-    # Réutilise le MapPointTool déjà utilisé pour les GCP (même pattern de callback)
+    
     canvas.setMapTool(MapPointTool(canvas, self._on_map_pick_pdv_center))
     if hasattr(self, "lbl_info"):
         self.lbl_info.setText(tr("clic on canvas"))
 
 
 def _on_map_pick_pdv_center(self, map_pt):
-    """
-    Callback: transforme le clic en CRS caméra, calcule l'azimut, pousse vers le rendu.
-    """
+    
     try:
         cam_layer = self.cmb_camera.currentLayer()
         if not isinstance(cam_layer, QgsVectorLayer) or cam_layer.featureCount() < 1:
-            if hasattr(self, "lbl_info"): self.lbl_info.setText(tr("Aucune couche caméra valide."))
+            if hasattr(self, "lbl_info"):
+                self.lbl_info.setText(tr("Aucune couche caméra valide."))
             self._cancel_maptool()
             return
 
-        # Géométrie de la caméra (première entité)
-        cam_feat = next(cam_layer.getFeatures(), None)
-        if cam_feat is None or cam_feat.geometry() is None:
-            self._cancel_maptool(); return
-        cam_pt = cam_feat.geometry().asPoint()
-        cam_crs = cam_layer.crs()
+        try:
+            cam_feat = self._camera_current_feature()
+        except Exception:
+            cam_feat = None
+        if cam_feat is None or cam_feat.geometry() is None or cam_feat.geometry().isEmpty():
+            cam_feat = next(cam_layer.getFeatures(), None)
+        if cam_feat is None:
+            self._cancel_maptool()
+            return
 
-        # Transforme le clic (CRS du canevas) -> CRS caméra
+        cam_pt, work_crs = self._camera_point_in_work_crs(cam_feat)
+        if cam_pt is None or work_crs is None:
+            self._camera_warn_if_non_metric_project(notify=True)
+            self._cancel_maptool()
+            return
+
         src = self.iface.mapCanvas().mapSettings().destinationCrs()
-        tr  = QgsCoordinateTransform(src, cam_crs, QgsProject.instance())
-        pt_cam = tr.transform(map_pt)
-
-        # Azimut (0° = Nord, horaire)
-        dx = float(pt_cam.x() - cam_pt.x())
-        dy = float(pt_cam.y() - cam_pt.y())
-        # Helper déjà présent dans _utils_ops.py
+        pt_work = QgsCoordinateTransform(src, work_crs, QgsProject.instance()).transform(map_pt)
+        dx = float(pt_work.x() - cam_pt.x())
+        dy = float(pt_work.y() - cam_pt.y())
         az_deg = self._azimuth_deg(dx, dy)
 
-        # Alimente la barre rouge et rafraîchit
         if hasattr(self, "set_pdv_azimuth"):
             self.set_pdv_azimuth(az_deg)
         else:
-            
             self.current_pdv_azimuth = float(az_deg)
-            try: self.render_preview()
-            except Exception: pass
-        
-        # feedback non intrusif
+            try:
+                self.render_preview()
+            except Exception:
+                pass
         try:
             self.iface.messageBar().pushMessage(tr("Centre image"), tr(f"Azimut PDV ≈ {az_deg:.2f}°"), level=QC.Qgis_MessageLevel_Info, duration=4)
         except Exception:
             pass
-        # IMPORTANT: restaurer l'outil même si la case reste cochée
-        try: self._cancel_maptool()
-        except Exception: pass
-        
-        if hasattr(self, "lbl_info"):
-            self.lbl_info.setText(tr(f"Centre PDV fixé (azimut ≈ {az_deg:.2f}°)."))
+        try:
+            self._cancel_maptool()
+        except Exception:
+            pass
     except Exception as e:
         if hasattr(self, "lbl_info"):
-            self.lbl_info.setText(tr(f"Erreur pick centre PDV: {e}"))
-    finally:
-        # Restaure l’outil de carte précédent
-        try: self._cancel_maptool()
-        except Exception: pass
+            self.lbl_info.setText(tr(f"Erreur centre image : {e}"))
+        try:
+            self._cancel_maptool()
+        except Exception:
+            pass
 
 
 def _start_add_gcp(self):
-    # Démarre séquence d'ajout: clic photo → clic carte
-    self._adding_gcp_uv = (0, 0)  # flag actif; valeur finale prise au clic photo
+    
+    self._adding_gcp_uv = (0, 0)  
     self.lbl_info.setText(tr("Ajout GCP : cliquez d'abord dans la photo, puis sur la carte…"))
 
 def _delete_gcp(self):
@@ -479,21 +470,21 @@ def _clear_gcp_markers(self):
     self._gcp_markers = []
 
 def _ensure_fov_rubberbands(self):
-    """Instancie et style les RubberBands (azimut + FOV) une fois."""
+    
     canvas = self.iface.mapCanvas()
-    # Ligne d'azimut
+    
     if not hasattr(self, "_rb_dir") or self._rb_dir is None:
         self._rb_dir = QgsRubberBand(canvas, QC.QgsWkbTypes_GeometryType_LineGeometry)
-        self._rb_dir.setColor(QColor(200, 60, 60, 220))  # rouge doux
+        self._rb_dir.setColor(QColor(200, 60, 60, 220))  
         self._rb_dir.setWidth(2)
-    # Secteur/cercle FOV
+    
     if not hasattr(self, "_rb_fov") or self._rb_fov is None:
         self._rb_fov = QgsRubberBand(canvas, QC.QgsWkbTypes_GeometryType_PolygonGeometry)
-        self._rb_fov.setColor(QColor(60, 120, 220, 80))  # bleu translucide
+        self._rb_fov.setColor(QColor(60, 120, 220, 80))  
         self._rb_fov.setWidth(2)
 
 def _connect_fov_signals(self):
-    """Connecte les changements UI/canevas à l’update du FOV."""
+    
     widgets = [self.d_yaw, self.d_hfov, self.cb_360, self.d_maxdist, self.cmb_camera]
     for w in widgets:
         for sig in ('valueChanged', 'currentIndexChanged', 'toggled'):
@@ -502,13 +493,13 @@ def _connect_fov_signals(self):
                     getattr(w, sig).connect(self._update_canvas_fov)
                 except Exception:
                     pass
-    # Changement de CRS du canevas
+    
     try:
         self.iface.mapCanvas().destinationCrsChanged.connect(self._update_canvas_fov)
     except Exception:
         pass
 
-    # Mouvements/édition de la couche caméra → retracer
+    
     layer = self.cmb_camera.currentLayer()
     if isinstance(layer, QgsVectorLayer):
         try: layer.geometryChanged.connect(self._update_canvas_fov)
@@ -538,7 +529,7 @@ def _draw_gcps_overlay(self, painter, W, H):
         return
     pen = QPen(QColor(255, 80, 80, 220)); pen.setWidth(2)
     painter.setPen(pen)
-    # conversion aux dimensions actuelles de l'overlay
+    
     W_full, H_full = float(self.spin_w.value()), float(self.spin_h.value())
     sx = W / max(1.0, W_full); sy = H / max(1.0, H_full)
     for g in self.gcps:
@@ -547,7 +538,7 @@ def _draw_gcps_overlay(self, painter, W, H):
         painter.drawLine(u,   v-6, u,   v+6)
 
 def _solve_camera(self):
-    # Besoin d'au moins 4 GCP
+    
     if len(self.gcps) < 4:
         self.lbl_info.setText(tr("Besoin d’au moins 4 GCP pour une résolution stable."))
         return
@@ -564,7 +555,7 @@ def _solve_camera(self):
     cam_crs = cam_layer.crs()
 
 
-    # DEM → Z sol au point caméra si demandé
+    
     cam_ground_z = 0.0
     dem_layer = self.cmb_dem.currentLayer()
     z_sampler = None
@@ -578,16 +569,21 @@ def _solve_camera(self):
             cam_ground_z = 0.0
     cam_z = cam_ground_z + float(self.d_camheight.value())
 
-    # Image & projection
+    
     W_full, H_full = int(self.spin_w.value()), int(self.spin_h.value())
     proj = self.cmb_proj.currentText()
     is360 = bool(self._is360_mode()) if hasattr(self, '_is360_mode') else bool(self.cb_360.isChecked())
     proj_upper = str(proj).strip().upper()
-    is_proj_360 = proj_upper in ("EQUIRECT", "EQUIRECTANGULAR")
-    is360 = bool(self._is360_mode()) if hasattr(self, '_is360_mode') else (bool(self.cb_360.isChecked()) and proj_upper in ("EQUIRECT", "EQUIRECTANGULAR", "CYLINDRICAL"))
+    is_proj_360 = bool(
+        proj_upper in ("EQUIRECT", "EQUIRECTANGULAR")
+        and self.cb_360.isChecked()
+    )
+    is360 = bool(self._is360_mode()) if hasattr(self, '_is360_mode') else (
+        is_proj_360 or (proj_upper == 'CYLINDRICAL' and float(self.d_hfov.value()) >= 359.999)
+    )
     maxdist = None if float(self.d_maxdist.value()) <= 0 else float(self.d_maxdist.value())
 
-    # Paramètres initiaux et masque
+    
     params0 = [float(self.d_yaw.value()), float(self.d_pitch.value()),
                float(self.d_roll.value()), float(self.d_hfov.value())]
     mask = [self.cb_sol_yaw.isChecked(), self.cb_sol_pitch.isChecked(),
@@ -597,9 +593,9 @@ def _solve_camera(self):
         self.lbl_info.setText(tr("Choisissez au moins un paramètre (Yaw/Pitch/Roll/HFOV)."))
         return
     if is_proj_360:
-        params0[3] = 360.0  # HFOV fixé pour 360°
-        # et on supprime HFOV des paramètres optimisés (même si coché)
-        # admettons que l’ordre soit [yaw, pitch, roll, HFOV] -> index 3
+        params0[3] = 360.0  
+        
+        
         if 3 in idxs:
             idxs.remove(3)
         
@@ -622,7 +618,7 @@ def _solve_camera(self):
             du = (uv[0]-g['u']); dv = (uv[1]-g['v'])
             dx = g['x'] - cam_pt.x(); dy = g['y'] - cam_pt.y()
             dist = (dx*dx + dy*dy) ** 0.5
-            w = max(1e-6, dist)      # loin ⇒ plus de poids
+            w = max(1e-6, dist)      
             sse  += w * (du*du + dv*dv)
             wsum += w
             n += 1
@@ -631,12 +627,12 @@ def _solve_camera(self):
 
     def nelder_mead(f, x_init, step=2.0, max_iter=250, tol=0.5):
         import numpy as np
-        x = np.array(x_init, dtype=float)   # <- on travaille avec 'x', pas 'x0'
+        x = np.array(x_init, dtype=float)   
         n = x.size
         simplex = [x]
         for i in range(n):
             xi = x.copy()
-            xi[i] += (step if i < 3 else max(1.0, step))  # pas un peu plus grand pour HFOV si besoin
+            xi[i] += (step if i < 3 else max(1.0, step))  
             simplex.append(xi)
         simplex = np.array(simplex)
         vals = np.array([f(s) for s in simplex])
@@ -648,23 +644,23 @@ def _solve_camera(self):
                 break
             x_best = simplex[0]
             x_cent = simplex[:-1].mean(axis=0)
-            # réflexion
+            
             xr = x_cent + (x_cent - simplex[-1])
             fr = f(xr)
             if fr < vals[0]:
-                # expansion
+                
                 xe = x_cent + 2.0*(x_cent - simplex[-1])
                 fe = f(xe)
                 simplex[-1] = (xe if fe < fr else xr)
                 vals[-1] = min(fe, fr)
             else:
-                # contraction
+                
                 xc = x_cent + 0.5*(simplex[-1] - x_cent)
                 fc = f(xc)
                 if fc < vals[-1]:
                     simplex[-1] = xc; vals[-1] = fc
                 else:
-                    # réduction
+                    
                     for i in range(1, n+1):
                         simplex[i] = simplex[0] + 0.5*(simplex[i] - simplex[0])
                     vals = np.array([f(s) for s in simplex])
@@ -673,7 +669,7 @@ def _solve_camera(self):
         return simplex[0], vals[0]
 
 
-    # <<< appel avec le bon nom de variable >>>
+    
     x_opt, err = nelder_mead(reproj_rms, x_init=x0_vec, step=2.0, max_iter=250, tol=0.5)
 
     yaw, pitch, roll, HFOV = params_full(x_opt)
@@ -685,12 +681,12 @@ def _solve_camera(self):
     self.d_vfov.blockSignals(True); self.d_vfov.setValue(vfov_out); self.d_vfov.blockSignals(False)
     self.lbl_info.setText(tr(f"Résolution OK — RMS ≈ {err:.2f} px"))
     self._update_canvas_fov()
-    # HFOV
+    
     if is_proj_360:
         HFOV = 360.0
         self.d_hfov.blockSignals(True)
         self.d_hfov.setValue(360.0)
-        self.d_hfov.setEnabled(False)  # grisé en 360°
+        self.d_hfov.setEnabled(False)  
         self.d_hfov.blockSignals(False)
     else:
         self.d_hfov.blockSignals(True)
@@ -698,105 +694,94 @@ def _solve_camera(self):
         self.d_hfov.setValue(float(HFOV))
         self.d_hfov.blockSignals(False)
 
-    # VFOV (dérivé)
+    
     self.d_vfov.blockSignals(True)
     self.d_vfov.setValue(40.0 if proj_upper == 'CYLINDRICAL' else vfov_from_hfov_ratio(float(HFOV), W_full, H_full))
     self.d_vfov.blockSignals(False)
     self.render_preview()
 
 def _update_canvas_fov(self):
+    
     try:
         canvas = self.iface.mapCanvas()
-        self._ensure_fov_rubberbands()  # s’assure que RB existent/stylés
+        self._ensure_fov_rubberbands()
 
         cam_layer = self.cmb_camera.currentLayer()
         if not isinstance(cam_layer, QgsVectorLayer) or cam_layer.featureCount() < 1:
             return
 
-        # --- entité sélectionnée > sinon première
-        sel = cam_layer.selectedFeatures()
-        cam_feat = sel[0] if sel else next(cam_layer.getFeatures(), None)
+        try:
+            cam_feat = self._camera_current_feature()
+        except Exception:
+            cam_feat = None
+        if cam_feat is None or cam_feat.geometry() is None or cam_feat.geometry().isEmpty():
+            sel = cam_layer.selectedFeatures()
+            cam_feat = sel[0] if sel else next(cam_layer.getFeatures(), None)
         if cam_feat is None or cam_feat.geometry() is None or cam_feat.geometry().isEmpty():
             return
-        g = cam_feat.geometry()
-        pt = None
-        try:
-            # Point simple
-            pt = g.asPoint()
-            if pt is None or (pt.x() == 0 and pt.y() == 0 and g.constGet() is None):
-                raise Exception()
-        except Exception:
-            # PointZ / MultiPoint / autres wrappers
-            try:
-                geom = g.constGet()
-                # Multipoint -> prends le premier
-                if hasattr(geom, "points") and len(geom.points()) > 0:
-                    p = geom.points()[0]
-                    pt = QgsPointXY(p.x(), p.y())
-                elif hasattr(geom, "x"):
-                    pt = QgsPointXY(geom.x(), geom.y())
-            except Exception:
-                pass
 
-        if pt is None:
-            return    
-            
+        try:
+            cam_pt, work_crs = self._camera_point_in_work_crs(cam_feat)
+        except Exception:
+            cam_pt, work_crs = None, None
+        if cam_pt is None or work_crs is None:
+            return
+
+        dst = canvas.mapSettings().destinationCrs()
+        project = QgsProject.instance()
+        to_canvas = QgsCoordinateTransform(work_crs, dst, project)
+        p0 = to_canvas.transform(QgsPointXY(cam_pt.x(), cam_pt.y()))
+
         proj_upper = ""
         if hasattr(self, "cmb_proj") and self.cmb_proj is not None:
             try:
                 proj_upper = str(self.cmb_proj.currentText()).strip().upper()
             except Exception:
                 pass
-        is_proj_360 = proj_upper in ("EQUIRECT", "EQUIRECTANGULAR")
-        is360 = bool(self._is360_mode()) if hasattr(self, '_is360_mode') else (bool(self.cb_360.isChecked()) and proj_upper in ("EQUIRECT", "EQUIRECTANGULAR", "CYLINDRICAL"))
+        is360 = bool(self._is360_mode()) if hasattr(self, '_is360_mode') else (
+            bool(self.cb_360.isChecked()) and proj_upper in ("EQUIRECT", "EQUIRECTANGULAR", "CYLINDRICAL")
+        )
 
-        cam_pt = cam_feat.geometry().asPoint()
-        src = cam_layer.crs()
-        dst = canvas.mapSettings().destinationCrs()
-        tr = QgsCoordinateTransform(src, dst, QgsProject.instance())
-        p0 = tr.transform(cam_pt)
-
-        az = math.radians(self.d_yaw.value())
+        az = math.radians(float(self.d_yaw.value()))
         hfov_deg = 360.0 if is360 else float(self.d_hfov.value())
         hfov = math.radians(hfov_deg)
 
-        # Longueur L en m (50–500, ou 200 par défaut)
+        
         L = 200.0
         md = float(self.d_maxdist.value())
         if md > 0:
             L = max(50.0, min(500.0, md / 5.0))
 
-        # --- Ligne d’azimut (toujours affichée)
         if self._rb_dir:
             self._rb_dir.reset(False)
-            p1 = tr.transform(QgsPointXY(cam_pt.x() + L*math.sin(az), cam_pt.y() + L*math.cos(az)))
+            p1_work = QgsPointXY(cam_pt.x() + L * math.sin(az), cam_pt.y() + L * math.cos(az))
+            p1 = to_canvas.transform(p1_work)
             self._rb_dir.addPoint(QgsPointXY(p0.x(), p0.y()), False)
             self._rb_dir.addPoint(QgsPointXY(p1.x(), p1.y()), True)
             self._rb_dir.show()
 
-        # --- Couleur du FOV en fonction du pitch (conseil visuel)
         if self._rb_fov:
             pitch_deg = float(self.d_pitch.value())
-            col = QColor(60, 120, 220, 80)   # neutre
+            col = QColor(60, 120, 220, 80)
             if pitch_deg > 10:
-                col = QColor(60, 180, 80, 80)    # monte
+                col = QColor(60, 180, 80, 80)
             elif pitch_deg < -10:
-                col = QColor(220, 160, 60, 80)   # baisse
+                col = QColor(220, 160, 60, 80)
             self._rb_fov.setColor(col)
 
-            # secteur ou cercle (si 360°)
             self._rb_fov.reset(True)
             n = 64
-            a0 = az - hfov*0.5; a1 = az + hfov*0.5
+            a0 = az - hfov * 0.5
+            a1 = az + hfov * 0.5
             self._rb_fov.addPoint(QgsPointXY(p0.x(), p0.y()), False)
-            for k in range(n+1):
-                a = a0 + (a1-a0)*k/n
-                pk = tr.transform(QgsPointXY(cam_pt.x() + L*math.sin(a), cam_pt.y() + L*math.cos(a)))
+            for k in range(n + 1):
+                a = a0 + (a1 - a0) * k / n
+                pk_work = QgsPointXY(cam_pt.x() + L * math.sin(a), cam_pt.y() + L * math.cos(a))
+                pk = to_canvas.transform(pk_work)
                 self._rb_fov.addPoint(QgsPointXY(pk.x(), pk.y()), False)
             self._rb_fov.addPoint(QgsPointXY(p0.x(), p0.y()), True)
             self._rb_fov.show()
     except Exception:
-        # volontairement silencieux en prod; mets un log si besoin
         pass
 
         
@@ -833,16 +818,23 @@ def _on_map_pick_set_view(self, map_pt):
             if hasattr(self, "lbl_info"):
                 self.lbl_info.setText(tr("Aucune couche caméra valide."))
             return
-        cam_feat = next(cam_layer.getFeatures(), None)
-        if cam_feat is None or cam_feat.geometry() is None:
+        try:
+            cam_feat = self._camera_current_feature()
+        except Exception:
+            cam_feat = None
+        if cam_feat is None or cam_feat.geometry() is None or cam_feat.geometry().isEmpty():
+            cam_feat = next(cam_layer.getFeatures(), None)
+        if cam_feat is None:
             return
-        cam_pt = cam_feat.geometry().asPoint()
-        cam_crs = cam_layer.crs()
+
+        cam_pt, work_crs = self._camera_point_in_work_crs(cam_feat)
+        if cam_pt is None or work_crs is None:
+            self._camera_warn_if_non_metric_project(notify=True)
+            return
         src = self.iface.mapCanvas().mapSettings().destinationCrs()
-        tr = QgsCoordinateTransform(src, cam_crs, QgsProject.instance())
-        pt_cam = tr.transform(map_pt)
-        dx = float(pt_cam.x() - cam_pt.x())
-        dy = float(pt_cam.y() - cam_pt.y())
+        pt_work = QgsCoordinateTransform(src, work_crs, QgsProject.instance()).transform(map_pt)
+        dx = float(pt_work.x() - cam_pt.x())
+        dy = float(pt_work.y() - cam_pt.y())
         az_deg = self._azimuth_deg(dx, dy)
         try:
             self.d_yaw.blockSignals(True)
@@ -858,9 +850,9 @@ def _on_map_pick_set_view(self, map_pt):
             try:
                 dem_layer = self.cmb_dem.currentLayer()
                 if isinstance(dem_layer, QgsRasterLayer) and dem_layer.isValid():
-                    z_sampler, _ = self._make_z_sampler(dem_layer, cam_crs)
+                    z_sampler, _ = self._make_z_sampler(dem_layer, work_crs)
                     z_cam_ground = float(z_sampler(QgsPointXY(cam_pt.x(), cam_pt.y())))
-                    z_tgt = float(z_sampler(QgsPointXY(pt_cam.x(), pt_cam.y())))
+                    z_tgt = float(z_sampler(QgsPointXY(pt_work.x(), pt_work.y())))
                     cam_z = z_cam_ground + float(self.d_camheight.value())
                     dist_xy = math.hypot(dx, dy)
                     if dist_xy > 1e-6:
@@ -931,21 +923,35 @@ def _draw_canvas_pick_ray(self, az_deg, target_point=None):
         cam_layer = self.cmb_camera.currentLayer()
         if not isinstance(cam_layer, QgsVectorLayer) or cam_layer.featureCount() < 1:
             return
-        cam_feat = next(cam_layer.getFeatures(), None)
-        if cam_feat is None or cam_feat.geometry() is None:
+        try:
+            cam_feat = self._camera_current_feature()
+        except Exception:
+            cam_feat = None
+        if cam_feat is None or cam_feat.geometry() is None or cam_feat.geometry().isEmpty():
+            cam_feat = next(cam_layer.getFeatures(), None)
+        if cam_feat is None:
             return
-        cam_pt = cam_feat.geometry().asPoint()
-        src = cam_layer.crs()
+
+        cam_pt, work_crs = self._camera_point_in_work_crs(cam_feat)
+        if cam_pt is None or work_crs is None:
+            return
         canvas = self.iface.mapCanvas()
         dst = canvas.mapSettings().destinationCrs()
-        tr = QgsCoordinateTransform(src, dst, QgsProject.instance())
-        p0 = tr.transform(cam_pt)
+        project = QgsProject.instance()
+        to_canvas = QgsCoordinateTransform(work_crs, dst, project)
+        p0 = to_canvas.transform(QgsPointXY(cam_pt.x(), cam_pt.y()))
         if target_point is None:
             L = float(self.d_maxdist.value()) if float(self.d_maxdist.value()) > 0 else 1000.0
-            tgt_src = QgsPointXY(cam_pt.x() + L * math.sin(math.radians(az_deg)), cam_pt.y() + L * math.cos(math.radians(az_deg)))
-            p1 = tr.transform(tgt_src)
+            target_work = QgsPointXY(
+                cam_pt.x() + L * math.sin(math.radians(az_deg)),
+                cam_pt.y() + L * math.cos(math.radians(az_deg)),
+            )
+            p1 = to_canvas.transform(target_work)
         else:
-            p1 = tr.transform(target_point)
+            
+            src = cam_layer.crs()
+            target_work = QgsCoordinateTransform(src, work_crs, project).transform(target_point)
+            p1 = to_canvas.transform(target_work)
         self._rb_pick.reset(False)
         self._rb_pick.addPoint(QgsPointXY(p0.x(), p0.y()), False)
         self._rb_pick.addPoint(QgsPointXY(p1.x(), p1.y()), True)
@@ -1085,7 +1091,7 @@ def _safe_line(self, painter, uv1, uv2):
         u1, v1 = _coords(uv1)
         u2, v2 = _coords(uv2)
 
-        # --- Clip vertical simple au cadre [0,H]
+        
         def _clip_y(u, v):
             if H > 0:
                 if v < 0.0:   v = 0.0
@@ -1099,7 +1105,7 @@ def _safe_line(self, painter, uv1, uv2):
             painter.drawLine(int(u1), int(v1), int(u2), int(v2))
             return True
 
-        # --- Gestion coutures horizontales 360°
+        
         du = abs(u2 - u1)
         if du > (W * 0.5):
             if u2 > u1:

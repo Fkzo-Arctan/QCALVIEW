@@ -1,13 +1,8 @@
-#!/usr/bin/env python3
-# -*- coding: utf-8 -*-
-# SPDX-FileCopyrightText: 2026 Fabrice Kerzerho — ArcTan°
-# SPDX-License-Identifier: GPL-3.0-or-later
-"""Compile QCALVIEW Qt Linguist .ts catalogs into .qm files.
 
-Run this script inside a QGIS/OSGeo4W or Qt development environment where
-``lrelease`` is available. No fake .qm file is generated when Qt Linguist is
-missing: the plugin can still use the bundled .ts fallback at runtime.
-"""
+
+
+
+
 from __future__ import annotations
 
 import shutil

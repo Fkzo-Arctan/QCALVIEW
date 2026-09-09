@@ -1,6 +1,6 @@
-# -*- coding: utf-8 -*-
-# SPDX-FileCopyrightText: 2026 Fabrice Kerzerho — ArcTan°
-# SPDX-License-Identifier: GPL-3.0-or-later
+
+
+
 from ._i18n import tr
 from ._compat import QC, dialog_exec
 
@@ -25,89 +25,85 @@ class LayerStyle:
         self.layer = layer
         self.color = color
         self.width = width
-        # Visibilité propre à QCALVIEW : permet de neutraliser temporairement une couche
-        # sans modifier le thème ou la visibilité QGIS.
+        
+        
         self.visible = True
-        # Opacité propre à la couche overlay (1.0 = opaque).
-        # Utilisée pour respecter la transparence QGIS par couche, comme dans QCALVIEW Lite.
+        
+        
         self.opacity = 1.0
-        # Étiquettes
+        
         self.show_labels = True
         self.label_field = label_field
         self.label_size = label_size
-        self.label_offset = label_offset  # décalage fin (px)
-        self.label_pos = "N"             # N, NE, E, SE, S, SW, W, NW, C
+        self.label_offset = label_offset  
+        self.label_pos = "N"             
         self.label_text_color = QColor(20,20,20,255)
-        # Fond (“ombrelle”)
+        
         self.label_bg = False
         self.label_bg_color = QColor(255,255,255,220)
         self.label_bg_padding = 4
         self.label_bg_radius = 4
-        # Halo (contour du texte)
+        
         self.label_halo = False
         self.label_halo_color = QColor(0,0,0,220)
         self.label_halo_width = 2
-        # Callout (trait d’accroche)
+        
         self.label_callout = False
         self.label_callout_color = QColor(0,0,0,180)
         self.label_callout_width = 1
-        # --- Nouveaux réglages d'ancrage/texte ---
-        self.label_anchor_mode = "AUTO"   # "AUTO" | "CENTROID" | "IMAGE_CENTER"
-        self.label_text = ""              # si non vide, remplace le champ
-        # --- 2,5D par couche ---
-        # Conserver True par défaut pour rester compatible avec le comportement historique
-        # dès lors que la case globale "Extruder les polygones" est cochée.
+        
+        self.label_anchor_mode = "AUTO"   
+        self.label_text = ""              
+        
+        
+        
         self.enable_25d = True
-        self.height_field_override = ""   # vide => utiliser le champ global
-        self.default_height_override = None # None => utiliser la hauteur globale
-        # --- Remplissages / occultation visuelle ---
+        self.height_field_override = ""   
+        self.default_height_override = None 
+        
         self.fill_polygons = True
         self.fill_color = QColor(color.red(), color.green(), color.blue(), 255)
         self.fill_walls = True
-        # Reprendre automatiquement le style courant de la couche QGIS
-        # (couleurs, épaisseurs, remplissage, style de trait) tant que
-        # l'utilisateur ne désactive pas explicitement ce comportement.
+        
+        
+        
         self.use_qgis_style = True
-        # Reprise fidèle best-effort du remplissage polygonal QGIS
-        # (SimpleFill / LinePatternFill / PointPatternFill / GradientFill).
+        
+        
         self.qgis_fill_style = None
         self.pen_style = QC.Qt_PenStyle_SolidLine
-        # Contexte optionnel issu d'un thème QGIS. Sert surtout à documenter
-        # l'origine de la couche dans la liste QCALVIEW et à permettre une
-        # resynchronisation ultérieure.
+        
+        
+        
         self.qgis_theme_name = ""
         self.qgis_theme_style_name = ""
-        # --- Représentation schématique AVR 0/1 ---
-        # Désactivée par défaut pour préserver strictement le rendu historique.
+        
+        
         self.schematic_enabled = False
         self.schematic_symbol_id = ""
-        # Taxonomie de bibliothèque (type/famille) indépendante du générateur.
-        # Permet de filtrer logiquement les modèles SVG/PNG sans changer le rendu.
+        
+        
         self.schematic_type = ""
         self.schematic_family = ""
         self.schematic_params = {}
-        # Modèles graphiques optionnels (SVG/PNG), 3 maximum. Vide = modèle de la définition JSON.
+        
         self.schematic_asset_paths = []
-        # Par défaut, les étiquettes suivent celles de la couche QGIS si elles existent.
+        
         self.use_qgis_labels = True
         self.qgis_label_is_expression = False
         self.qgis_label_expr = ""
 
 
 def apply_pdv_qml_style(self, layer, qml_rel_path="core/style/STYLE-PDV.qml"):
-    """
-    Applique le style QML STYLE-PDV.qml à la couche PDV.
-    Compatibilité PyQGIS : selon les versions, loadNamedStyle peut retourner
-    (ok, msg) ou (msg, ok).
-    """
+    
     if not isinstance(layer, QgsVectorLayer):
         return False
 
     plugin_dir = os.path.dirname(os.path.dirname(__file__))
     qml_path = os.path.join(plugin_dir, qml_rel_path)
 
-    # 40.19.4 : le QML reste volontairement la source de vérité éditable.
-    # Journalisation détaillée pour diagnostiquer les différences QGIS 3 / QGIS 4.
+    
+    
     try:
         layer_name = layer.name() if hasattr(layer, "name") else "<sans nom>"
         QgsMessageLog.logMessage(
@@ -172,15 +168,135 @@ def apply_pdv_qml_style(self, layer, qml_rel_path="core/style/STYLE-PDV.qml"):
     return True
 
 
+
+PDV_AUTO_STYLE_NAME = "QCALVIEW — Couleurs automatiques"
+PDV_MANUAL_STYLE_NAME = "QCALVIEW — Style modifiable"
+PDV_AUTO_COLOR_PROPERTY = "QCALVIEW/pdv_auto_colors"
+
+
+def _style_manager_names(manager):
+    try:
+        return [str(n) for n in manager.styles()]
+    except Exception:
+        return []
+
+
+def _activate_qml_as_named_style(self, layer, style_name, qml_rel_path, refresh_existing=False):
+    
+    if not isinstance(layer, QgsVectorLayer):
+        return False
+    try:
+        manager = layer.styleManager()
+    except Exception:
+        manager = None
+    if manager is None:
+        return apply_pdv_qml_style(self, layer, qml_rel_path)
+
+    names = _style_manager_names(manager)
+    if style_name in names:
+        try:
+            if not bool(manager.setCurrentStyle(style_name)):
+                return False
+        except Exception:
+            return False
+        if refresh_existing:
+            return bool(apply_pdv_qml_style(self, layer, qml_rel_path))
+        layer.triggerRepaint()
+        return True
+
+    
+    
+    
+    previous = ''
+    try:
+        previous = str(manager.currentStyle())
+    except Exception:
+        previous = ''
+    temp_base = "__QCALVIEW_STYLE_WORK__"
+    temp_name = temp_base
+    idx = 1
+    while temp_name in names:
+        temp_name = f"{temp_base}_{idx}"
+        idx += 1
+    try:
+        if not bool(manager.addStyleFromLayer(temp_name)):
+            return False
+        if not bool(manager.setCurrentStyle(temp_name)):
+            return False
+        if not bool(apply_pdv_qml_style(self, layer, qml_rel_path)):
+            try:
+                if previous in _style_manager_names(manager):
+                    manager.setCurrentStyle(previous)
+            except Exception:
+                pass
+            try:
+                manager.removeStyle(temp_name)
+            except Exception:
+                pass
+            return False
+        if not bool(manager.addStyleFromLayer(style_name)):
+            return False
+        if not bool(manager.setCurrentStyle(style_name)):
+            return False
+        try:
+            manager.removeStyle(temp_name)
+        except Exception:
+            pass
+        layer.triggerRepaint()
+        return True
+    except Exception as exc:
+        QgsMessageLog.logMessage(
+            tr(f"[QCALVIEW][PDV-QML] Création style nommé impossible: {exc}"),
+            "QCALVIEW", QC.Qgis_MessageLevel_Warning
+        )
+        try:
+            if previous in _style_manager_names(manager):
+                manager.setCurrentStyle(previous)
+        except Exception:
+            pass
+        try:
+            if temp_name in _style_manager_names(manager):
+                manager.removeStyle(temp_name)
+        except Exception:
+            pass
+        return False
+
+
+def apply_pdv_style_mode(self, layer, automatic=True):
+    
+    if not isinstance(layer, QgsVectorLayer):
+        return False
+    automatic = bool(automatic)
+    try:
+        layer.setCustomProperty(PDV_AUTO_COLOR_PROPERTY, 1 if automatic else 0)
+    except Exception:
+        pass
+    if automatic:
+        
+        
+        return _activate_qml_as_named_style(
+            self, layer, PDV_AUTO_STYLE_NAME, "core/style/STYLE-PDV.qml", refresh_existing=True
+        )
+    
+    
+    return _activate_qml_as_named_style(
+        self, layer, PDV_MANUAL_STYLE_NAME, "core/style/STYLE-MOD.qml", refresh_existing=False
+    )
+
+
+def pdv_layer_auto_colors(layer, default=True):
+    if not isinstance(layer, QgsVectorLayer):
+        return bool(default)
+    try:
+        value = layer.customProperty(PDV_AUTO_COLOR_PROPERTY, 1 if default else 0)
+        if isinstance(value, str):
+            return value.strip().lower() not in ('0', 'false', 'no', 'off', '')
+        return bool(int(value)) if isinstance(value, (int, float)) else bool(value)
+    except Exception:
+        return bool(default)
+
 def update_pdv_qml_vars(self, layer, yaw_deg, hfov_deg, range_m, pitch_deg, is360=False):
-    """
-    Met à jour les variables consommées par STYLE-PDV.qml :
-      - @fov_yaw   (°)
-      - @fov_hfov  (°) -> si 360° coché, on force 360
-      - @fov_is360 (0/1)
-      - @fov_range (m)
-      - @fov_pitch (°)
-    """
+    
     if not isinstance(layer, QgsVectorLayer):
         return False
 
@@ -198,6 +314,14 @@ def update_pdv_qml_vars(self, layer, yaw_deg, hfov_deg, range_m, pitch_deg, is36
         QgsExpressionContextUtils.setLayerVariable(layer, "fov_is360", 1 if bool(is360) else 0)
         QgsExpressionContextUtils.setLayerVariable(layer, "fov_range", rng)
         QgsExpressionContextUtils.setLayerVariable(layer, "fov_pitch", pitch)
+        try:
+            layer_crs = layer.crs()
+            work_crs = self._camera_metric_project_crs()
+            QgsExpressionContextUtils.setLayerVariable(layer, "qcv_layer_crs", str(layer_crs.authid() or layer_crs.toWkt()))
+            QgsExpressionContextUtils.setLayerVariable(layer, "qcv_work_crs", str(work_crs.authid() or work_crs.toWkt()) if work_crs is not None else "")
+        except Exception:
+            QgsExpressionContextUtils.setLayerVariable(layer, "qcv_layer_crs", "")
+            QgsExpressionContextUtils.setLayerVariable(layer, "qcv_work_crs", "")
 
         layer.triggerRepaint()
         return True

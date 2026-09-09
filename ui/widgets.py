@@ -1,14 +1,14 @@
-# -*- coding: utf-8 -*-
-# SPDX-FileCopyrightText: 2026 Fabrice Kerzerho — ArcTan°
-# SPDX-License-Identifier: GPL-3.0-or-later
+
+
+
 from ..core._i18n import tr
 from ..core._compat import QC, dialog_exec
-# ui/widgets.py — QGIS 4 / Qt6 compatible (uses QGIS PyQt shim)
+
 from qgis.PyQt.QtCore import Qt, pyqtSignal
 from qgis.PyQt.QtWidgets import QWidget, QToolButton, QSizePolicy, QVBoxLayout
 
 class CollapsibleBox(QWidget):
-    # API miroir QGroupBox utilisée par le dock QCALVIEW.
+    
     toggled = pyqtSignal(bool)
 
     def __init__(self, title: str = "", *, checked: bool = True, parent=None):

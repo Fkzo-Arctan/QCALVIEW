@@ -22,6 +22,6 @@ QCALVIEW brings photographic calibration and visual simulation workflows directl
 ## Important
 This manual is intentionally concise for the experimental release. Detailed workflows, screenshots and methodological guidance will be expanded as QCALVIEW stabilises.
 
-## Experimental tools in ALPHA-40.20
+## Experimental tools in ALPHA-40.20.3
 
 The public Alpha exposes the Projection grid, Azimuth ruler and Interactive monoplotting for testing. These tools remain under active development and their behaviour or interface may change. Other internal experimental modules are intentionally not exposed in public builds yet.

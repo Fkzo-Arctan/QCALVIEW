@@ -1,11 +1,7 @@
-# -*- coding: utf-8 -*-
-# SPDX-FileCopyrightText: 2026 Fabrice Kerzerho — ArcTan°
-# SPDX-License-Identifier: GPL-3.0-or-later
-"""Small dialogs for the schematic symbol library.
 
-Qt Designer owns the static dialog layouts. Python only populates the dynamic
-parameter forms and connects their behaviour to QCALVIEW.
-"""
+
+
+
 from __future__ import annotations
 from ._i18n import tr
 from ._compat import QC, dialog_exec
@@ -23,9 +19,9 @@ from qgis.core import QgsApplication
 from ._schematic_symbols import get_symbol_library
 
 
-# -----------------------------------------------------------------------------
-# Taxonomie de bibliothèque
-# -----------------------------------------------------------------------------
+
+
+
 
 MOTIF_TAXONOMY = {
     "vegetation": {
@@ -103,8 +99,8 @@ MOTIF_TAXONOMY = {
     },
 }
 
-# Compatibilité avec les définitions historiques qui ne disposent pas encore
-# des clés taxonomy_type / taxonomy_family dans leur JSON.
+
+
 _SYMBOL_TAXONOMY_FALLBACK = {
     "tree_conifer_pine": ("vegetation", "conifers"),
     "tree_conifer_spruce": ("vegetation", "conifers"),
@@ -141,9 +137,9 @@ _INTERNAL_ASSET_TAXONOMY = {
     "combine_harvester.svg": [("vehicles", "harvesters"), ("agriculture_objects", "farm_equipment")],
 }
 
-# Types/familles proposés selon la géométrie de la couche.
-# "all" reste disponible : le filtre de définition élimine ensuite les générateurs
-# incompatibles. Les clôtures polygonales sont explicitement périmétriques.
+
+
+
 _GEOMETRY_TAXONOMY = {
     "point": {
         "vegetation": {"all","conifers","deciduous","shrubs_groves"},
@@ -230,9 +226,9 @@ def _definition_matches(definition, type_code: str = "", family_code: str = "", 
     if type_code and dt != str(type_code):
         return False
     fam = str(family_code or "")
-    # Une famille précise ne doit jamais hériter d'un générateur "all" : cela
-    # évite notamment qu'un objet générique à dispersion polygonale soit proposé
-    # dans « Clôtures », où le comportement doit rester strictement périmétrique.
+    
+    
+    
     if fam and fam != "all" and df not in (fam, "*"):
         return False
     return True
@@ -306,12 +302,7 @@ def browse_symbol_library(parent, combo, plugin_dir: str, geometry_name: str = "
     return sid
 
 def edit_symbol_params(parent, definition, current_params):
-    """Edit optional per-layer numeric overrides.
-
-    Empty/reset values keep the JSON definition, including its field-driven
-    mapping. This is intentionally small: editing the library JSON remains the
-    advanced path for adding new parameter schemas.
-    """
+    
     if not definition:
         return dict(current_params or {})
     dlg = QDialog(parent)
@@ -327,9 +318,9 @@ def edit_symbol_params(parent, definition, current_params):
         default = raw.get("default") if isinstance(raw, dict) else raw
         source = raw.get("source") if isinstance(raw, dict) else None
         if source == "layer_height" and isinstance(default, (int, float)):
-            # A billboard/object height must remain independently adjustable.
-            # By default QCALVIEW keeps the existing 2.5D layer-height behaviour;
-            # unchecking "Hauteur couche" stores an explicit symbol override.
+            
+            
+            
             row = QHBoxLayout()
             sp = QDoubleSpinBox(); sp.setRange(0.01, 100000.0); sp.setDecimals(3)
             has_override = name in current
@@ -451,7 +442,7 @@ def edit_symbol_params(parent, definition, current_params):
         kind, w, default = item[:3]
         if kind == "number":
             value = float(w.value())
-            # Store only actual overrides so field-driven JSON remains active by default.
+            
             try:
                 if abs(value - float(default)) > 1e-9:
                     out[name] = value
@@ -460,8 +451,8 @@ def edit_symbol_params(parent, definition, current_params):
         elif kind == "layer_height_number":
             cb_layer = item[3]
             if not cb_layer.isChecked():
-                # Manual intent matters even when equal to the library default: it
-                # must override a layer-specific 2.5D height if one exists.
+                
+                
                 out[name] = float(w.value())
         elif kind == "choice":
             value = str(w.currentData() or "")
@@ -561,7 +552,7 @@ def _choose_import_family(parent, type_code: str, family_code: str):
     return str(combo.currentData() or '')
 
 def select_symbol_assets(parent, plugin_dir: str, current_paths=None, type_code: str = '', family_code: str = ''):
-    """Select up to three SVG/PNG models, filtered by motif type/family."""
+    
     current=[os.path.normpath(str(x)) for x in (current_paths or []) if x]
     internal=os.path.join(plugin_dir,'resources','symbols','assets')
     user=user_symbol_dir()

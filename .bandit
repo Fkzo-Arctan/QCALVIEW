@@ -1,0 +1,3 @@
+[bandit]
+skips = B110,B112
+exclude_dirs = vendor

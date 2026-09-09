@@ -1,6 +1,6 @@
-# -*- coding: utf-8 -*-
-# SPDX-FileCopyrightText: 2026 Fabrice Kerzerho — ArcTan°
-# SPDX-License-Identifier: GPL-3.0-or-later
+
+
+
 from ._i18n import tr
 from ._compat import QC, dialog_exec
 import os, json, math, copy
@@ -53,17 +53,12 @@ from ._memory_guard import (
     memory_snapshot,
 )
 
-# === Guides & mapping azimut->x (recti / cylindrique / équirect) ===
 
-# === Courbure terrestre relative au PDV =========================================
+
+
 
 def _effective_curvature_radius(self, curvature_enabled=None, earth_radius_m=None, k_refraction=0.0):
-    """Rayon effectif utilisé pour la correction de courbure relative au point de vue.
-
-    La correction doit être appliquée localement depuis le PDV actif : tout point
-    situé à une distance horizontale d du point de vue est abaissé de d² / (2*R_eff)
-    avant projection.
-    """
+    
     if curvature_enabled is None:
         try:
             curvature_enabled = bool(getattr(self, 'cb_curvature', None).isChecked())
@@ -91,7 +86,7 @@ def _effective_curvature_radius(self, curvature_enabled=None, earth_radius_m=Non
 
 
 def _curvature_drop_from_cam_xy(self, pts_xy, cam_pt, curvature_enabled=None, earth_radius_m=None, k_refraction=0.0):
-    """Renvoie la flèche de courbure relative au PDV pour un lot de points XY."""
+    
     pts = np.asarray(pts_xy, dtype=np.float64)
     if pts.ndim == 1:
         pts = pts.reshape(1, -1)
@@ -112,7 +107,7 @@ def _curvature_drop_from_cam_xy(self, pts_xy, cam_pt, curvature_enabled=None, ea
 
 
 def _apply_pov_curvature_to_z(self, pts_xy, z_values, cam_pt, curvature_enabled=None, earth_radius_m=None, k_refraction=0.0):
-    """Abaisse les Z apparents en fonction de la distance au PDV actif."""
+    
     pts = np.asarray(pts_xy, dtype=np.float64)
     if pts.ndim == 1:
         pts = pts.reshape(1, -1)
@@ -126,11 +121,7 @@ def _apply_pov_curvature_to_z(self, pts_xy, z_values, cam_pt, curvature_enabled=
 
 
 def _make_pov_curved_sampler(self, z_sampler, cam_pt, curvature_enabled=None, earth_radius_m=None, k_refraction=0.0):
-    """Enveloppe un sampler MNT brut pour renvoyer l'altitude apparente depuis le PDV.
-
-    Important : la correction n'est PAS une transformation globale du MNT.
-    Elle est recalculée pour chaque point par rapport au point de vue actif.
-    """
+    
     if z_sampler is None:
         return None
     if curvature_enabled is None:
@@ -206,11 +197,11 @@ def _proj_key(projection: str) -> str:
     pj = (projection or "").strip().lower()
     if "equirect" in pj or "sph" in pj: return "equirect"
     if "cyl"     in pj:                 return "cylindrical"
-    # cas par défaut : pinhole/rectilinéaire
+    
     return "rectilinear"
 
 def _unwrap_az_for_range(az_deg: float, az_min: float, az_max: float) -> float:
-    """Ramène un azimut 0..360 au représentant le plus proche de la plage [az_min, az_max]."""
+    
     az = float(az_deg)
     center = 0.5 * (float(az_min) + float(az_max))
     while az - center > 180.0:
@@ -221,26 +212,24 @@ def _unwrap_az_for_range(az_deg: float, az_min: float, az_max: float) -> float:
 
 def _az_to_x_proj(W: int, yaw_deg: float, az_deg: float,
                   hfov_deg: float, projection: str, full360: bool=False):
-    """Retourne la position x (int) de l'azimut 'az_deg' dans l'image de largeur W.
-       None si l'azimut est hors-champ pour les projections non-360.
-    """
+    
     pj = _proj_key(projection)
     cx = W * 0.5
 
-    # Cas "plein 360°" : la vue est centrée sur yaw_deg.
-    # On doit donc placer l'azimut du centre de l'image à W/2,
-    # et non faire démarrer l'image à yaw_deg sur le bord gauche.
+    
+    
+    
     if (pj == "equirect" and full360) or (pj == "cylindrical" and full360):
         ddeg = _wrap180_deg(float(az_deg) - float(yaw_deg))
         scale = float(W) / 360.0
         return int(round((W * 0.5) + scale * ddeg))
     
-    # Equirectangulaire partiel : linéaire sur la fenêtre HFOV centrée sur yaw
+    
     if pj == "equirect" and not full360:
-        ddeg = _wrap180_deg(float(az_deg) - float(yaw_deg))  # droite si az↑
+        ddeg = _wrap180_deg(float(az_deg) - float(yaw_deg))  
         if abs(ddeg) > 0.5 * float(hfov_deg):
-            return None  # hors-champ
-        scale = float(W) / float(hfov_deg)  # px par degré
+            return None  
+        scale = float(W) / float(hfov_deg)  
         return int(round((W * 0.5) + scale * ddeg))
 
     
@@ -253,8 +242,8 @@ def _az_to_x_proj(W: int, yaw_deg: float, az_deg: float,
         f_cyl = W / hfov_rad
         return int(round(cx + f_cyl * theta_cyl))
 
-    # rectilinéaire (pinhole) : garder un sens de lecture croissant gauche->droite
-    # cohérent avec les vues EQUIRECT/CYLINDRICAL centrées sur le yaw de calage.
+    
+    
     theta_rect = _math.radians(_wrap180_deg(float(az_deg) - float(yaw_deg)))
     if abs(theta_rect) > 0.5 * hfov_rad:
         return None
@@ -466,14 +455,14 @@ def _draw_label(self, painter, text, anchor_uv, sty):
     painter.restore()
 
 def _schedule_deferred_hq_render(self, scheduler):
-    """Start the optional HQ follow-up only when it is safe and still useful."""
+    
     try:
         if scheduler is None or not bool(getattr(self,'cb_lowlat',None) and self.cb_lowlat.isChecked()):
             return
         if _is_panorama_ui(self):
             state=getattr(self,'_memory_guard_last_state',None)
             if isinstance(state,dict) and str(state.get('level','normal')) in ('critical','dangerous'):
-                # Never launch a hidden heavy second panorama after a guarded frame.
+                
                 return
         scheduler.schedule_render(quality='high')
     except Exception:
@@ -481,12 +470,7 @@ def _schedule_deferred_hq_render(self, scheduler):
 
 
 def _render_debounce_timeout(self):
-    """Exécute uniquement la dernière demande de rendu encore pertinente.
-
-    Le timer est unique : toute nouvelle modification remplace la génération
-    planifiée précédente. Si une saisie clavier est en cours, l'exécution est
-    reportée jusqu'à sa validation.
-    """
+    
     try:
         if bool(getattr(self, '_render_edit_widgets', set())):
             self._render_edit_pending = True
@@ -494,7 +478,7 @@ def _render_debounce_timeout(self):
         scheduled = int(getattr(self, '_render_scheduled_generation', 0) or 0)
         current = int(getattr(self, '_render_request_generation', 0) or 0)
         if scheduled != current:
-            # Demande obsolète : une valeur plus récente a déjà été planifiée.
+            
             return
     except Exception:
         pass
@@ -502,7 +486,7 @@ def _render_debounce_timeout(self):
 
 
 def _render_debounce_delay_ms(self, sender=None):
-    """Délai de coalescence selon le type de changement et le mode preview."""
+    
     try:
         override = getattr(self, '_render_delay_override_ms', None)
         if override is not None:
@@ -515,8 +499,8 @@ def _render_debounce_delay_ms(self, sender=None):
     except Exception:
         lowlat = False
 
-    # Paramètres caméra/topographie coûteux : quand la molette ou les flèches
-    # sont maintenues, attendre réellement l'arrêt du geste.
+    
+    
     expensive_names = (
         'd_yaw', 'd_yaw_offset', 'd_pitch', 'd_roll', 'd_camheight',
         'd_hfov', 'd_vfov', 'd_maxdist', 'd_focal', 'd_sensorw',
@@ -532,24 +516,24 @@ def _render_debounce_delay_ms(self, sender=None):
         return 180 if lowlat else 380
     if isinstance(sender, (QSpinBox, QDoubleSpinBox)):
         return 140 if lowlat else 260
-    # Toggles/combos : petite temporisation suffisante pour absorber les
-    # cascades de signaux liées à un même changement d'état.
+    
+    
     return 70 if lowlat else 120
 
 
 def render_preview(self):
-    # 40.17 : aucun rendu ne doit démarrer pendant un outil/modal QCALVIEW qui
-    # lit ou modifie les mêmes couches. Les QDialog imbriqués créent une boucle
-    # d'événements Qt dans laquelle les QTimer de rendu peuvent sinon repartir.
+    
+    
+    
     if int(getattr(self, '_render_suspend_count', 0) or 0) > 0:
         self._render_resume_requested = True
         return
     if getattr(self, '_ui_initializing', False):
         return
 
-    # 40.19.3 — saisie manuelle : l'état intermédiaire n'est jamais rendu.
-    # Les valueChanged peuvent continuer à être émis par Qt pendant que
-    # l'utilisateur tape ; ils ne font qu'indiquer qu'un rendu final sera requis.
+    
+    
+    
     try:
         if bool(getattr(self, '_render_edit_widgets', set())):
             self._render_edit_pending = True
@@ -561,9 +545,9 @@ def render_preview(self):
     except Exception:
         pass
 
-    # Chaque modification crée une génération logique. Le timer unique est
-    # systématiquement redémarré : seules les valeurs finales d'une rafale
-    # (molette, flèches, modifications successives de plusieurs champs) passent.
+    
+    
+    
     try:
         self._render_request_generation = int(getattr(self, '_render_request_generation', 0)) + 1
     except Exception:
@@ -618,21 +602,21 @@ def _draw_fov_frame(self, p, W, H):
 def _draw_axes_debug(self, p, W, H):
     cx, cy = W//2, H//2
     L = max(30, min(W,H)//12)
-    p.setPen(QPen(QColor(220,60,60,200), 2)); p.drawLine(cx, cy, cx + L, cy)   # droite (r)
-    p.setPen(QPen(QColor(60,200,60,200), 2)); p.drawLine(cx, cy, cx, cy - L)   # haut image (u)
-    p.setPen(QPen(QColor(60,120,240,200), 2, QC.Qt_PenStyle_DashLine)); p.drawLine(cx, cy, cx, cy + L)  # avant (f) indicatif
+    p.setPen(QPen(QColor(220,60,60,200), 2)); p.drawLine(cx, cy, cx + L, cy)   
+    p.setPen(QPen(QColor(60,200,60,200), 2)); p.drawLine(cx, cy, cx, cy - L)   
+    p.setPen(QPen(QColor(60,120,240,200), 2, QC.Qt_PenStyle_DashLine)); p.drawLine(cx, cy, cx, cy + L)  
 
 def _draw_center_and_pdv_guides(self, painter, W: int, H: int,
                                 yaw_deg: float, hfov_deg: float,
                                 projection: str, is360: bool):
-    """Trace la barre centrale (blanc) et la barre 'azimut PDV' (rouge) sur l'overlay."""
-    # Les cases UI priment si elles existent ; sinon on retombe sur les attributs ; sinon ON par défaut pour la blanche, OFF pour la rouge.
+    
+    
     painter.setRenderHint(QC.QPainter_RenderHint_Antialiasing, True)
     show_center = (getattr(self, "cb_show_center_axis", None).isChecked() if hasattr(self, "cb_show_center_axis")
                    else bool(getattr(self, "show_center_axis", True)))
     show_pdv    = (getattr(self, "cb_show_pdv_axis", None).isChecked() if hasattr(self, "cb_show_pdv_axis")
                    else bool(getattr(self, "show_pdv_axis", False)))
-    # Azimut PDV (fallback sur yaw si absent)
+    
     az_pdv_deg  = getattr(self, "current_pdv_azimuth", None)
     if az_pdv_deg is None:
         try:
@@ -641,10 +625,10 @@ def _draw_center_and_pdv_guides(self, painter, W: int, H: int,
             az_pdv_deg = None
 
 
-    # Styles
-    # Largeurs (px) — configurables via attributs si présents
-    center_w = int(getattr(self, "center_axis_px", 2))  # défaut 2 px
-    pdv_w    = int(getattr(self, "pdv_axis_px",    2))  # défaut 2 px
+    
+    
+    center_w = int(getattr(self, "center_axis_px", 2))  
+    pdv_w    = int(getattr(self, "pdv_axis_px",    2))  
 
     center_color = QColor(255,255,255,200)
     try:
@@ -669,14 +653,14 @@ def _draw_center_and_pdv_guides(self, painter, W: int, H: int,
     if show_pdv and (az_pdv_deg is not None):
         xpdv = _az_to_x_proj(W, yaw_deg, float(az_pdv_deg), float(hfov_deg), projection, bool(is360))
         if xpdv is None:
-            # En non-360, barre “hors-champ” : on clippe à gauche/droite
+            
             pj = (projection or "").strip().lower()
             full360 = (("equirect" in pj or "cyl" in pj) and bool(is360))
             if not full360:
-                # delta signé (az - yaw), wrap [-180,180]
+                
                 ddeg = ((float(az_pdv_deg) - float(yaw_deg) + 180.0) % 360.0) - 180.0
                 xpdv = 0 if ddeg < 0 else (W - 1)
-        # Dessin si on a une abscisse valide
+        
         if xpdv is not None:
             painter.setPen(pen_pdv)
             painter.drawLine(int(xpdv), 0, int(xpdv), H-1)
@@ -693,7 +677,7 @@ def _is_panorama_ui(self):
 
 
 def _active_panorama_guard(self):
-    """Temporary preview-only guard state; never active during exports."""
+    
     if not bool(getattr(self, '_memory_guard_in_preview', False)):
         return {}
     state = getattr(self, '_memory_guard_runtime', None)
@@ -706,17 +690,17 @@ def _render_preview_now(self):
         return
     requested_generation = int(getattr(self, '_render_request_generation', 0))
     if getattr(self, '_rendering_now', False):
-        # Ne mémoriser que la génération la plus récente ; jamais une file de rendus.
+        
         self._render_pending_generation = max(int(getattr(self, '_render_pending_generation', 0)), requested_generation)
         return
     self._rendering_now = True
     self._render_active_generation = requested_generation
     try:
-        # V39.10g : le moteur de projection ne dépend plus de la présence d'une
-        # photographie. _get_base_scaled() fournit un fond schématique lorsque
-        # self.image est absente ; les overlays, grilles et règles restent identiques.
+        
+        
+        
 
-        # Qualité d’aperçu (dock)
+        
         render_quality = getattr(self, '_current_render_quality', 'high')
         scale = {0:0.25, 1:0.5, 2:1.0}.get(self.cmb_quality.currentIndex(), 0.25)
         W_full, H_full = self.spin_w.value(), self.spin_h.value()
@@ -727,10 +711,10 @@ def _render_preview_now(self):
         W = max(192 if render_quality == 'low' else 256, int(W_full * scale))
         H = max(128 if render_quality == 'low' else 256, int(H_full * scale))
 
-        # 40.18.6 — garde mémoire conservateur pour le moteur PANORAMA commun.
-        # Il intervient AVANT toute nouvelle QImage lourde et ne modifie jamais
-        # les valeurs enregistrées dans le projet. Le moteur PINHOLE conserve
-        # strictement sa politique de cache historique.
+        
+        
+        
+        
         panorama_ui = _is_panorama_ui(self)
         self._memory_guard_in_preview = bool(panorama_ui)
         if panorama_ui:
@@ -748,8 +732,8 @@ def _render_preview_now(self):
                 prune_base_cache_for_size(self, W, H)
             except Exception:
                 pass
-            # Aucun overlay d'une ancienne orientation n'est conservé pour les
-            # panoramas. Cela évite les pics old+new lors des variations de pitch.
+            
+            
             try:
                 self.preview.setPixmap(QPixmap())
             except Exception:
@@ -757,8 +741,8 @@ def _render_preview_now(self):
         else:
             self._memory_guard_runtime = {'active': False, 'safe_mode': False, 'level': 'normal'}
 
-        # Rendu APERÇU (dock) : les panoramas sont rendus sans cache d'image
-        # inter-orientations ; PINHOLE reste inchangé.
+        
+        
         if panorama_ui:
             self._suppress_overlay_viewer_sync = True
             try:
@@ -773,7 +757,7 @@ def _render_preview_now(self):
             if overlay is None or overlay.isNull():
                 overlay = self._render_overlay(width=W, height=H)
                 self._overlay_cache[preview_key] = overlay
-                # Eviction historique PINHOLE : inchangée.
+                
                 if len(self._overlay_cache) > 8:
                     try:
                         oldest_key = next(iter(self._overlay_cache.keys()))
@@ -795,7 +779,7 @@ def _render_preview_now(self):
         except Exception:
             pass
 
-        # --- VIEWER : base stable à pleine taille, overlay seul mis à jour en usage courant ---
+        
         if self.viewer is not None and self.viewer.isVisible():
             prev_pm = self.viewer._pix.pixmap() if hasattr(self.viewer, "_pix") else QPixmap()
             viewer_full_res = bool(getattr(self, '_viewer_full_res', False)) and render_quality == 'high'
@@ -806,8 +790,8 @@ def _render_preview_now(self):
                 base_view = self._get_base_scaled(W_full, H_full)
                 vw, vh = base_view.width(), base_view.height()
                 if panorama_ui:
-                    # À 100 %, réutiliser exactement l'overlay déjà calculé au
-                    # lieu d'allouer une deuxième image identique.
+                    
+                    
                     if vw == W and vh == H:
                         ov_view = overlay
                     else:
@@ -831,10 +815,10 @@ def _render_preview_now(self):
                 vw, vh = max(1, int(target_w)), max(1, int(target_h))
                 base_view = None
                 ov_view = overlay
-                # 40.11 : l'overlay reste à la résolution choisie ; la visionneuse
-                # le mappe directement dans les coordonnées de la photo.
+                
+                
                 if prev_pm.isNull() or prev_pm.width() != vw or prev_pm.height() != vh:
-                    # premier affichage : photo si disponible, sinon fond schématique.
+                    
                     try:
                         if self.image is not None and not self.image.isNull():
                             self.viewer.update_image(self.image)
@@ -858,8 +842,8 @@ def _render_preview_now(self):
         p.drawText(10, 35, f"Erreur rendu: {e}"); p.end()
         self.preview.setPixmap(QPixmap.fromImage(err))
     finally:
-        # Les limitations mémoire ne doivent jamais contaminer un export ou un
-        # rendu hors de cette preview interactive.
+        
+        
         self._memory_guard_in_preview = False
         active_generation = int(getattr(self, '_render_active_generation', requested_generation))
         pending_generation = max(
@@ -868,11 +852,17 @@ def _render_preview_now(self):
         )
         self._rendering_now = False
         self._render_pending_generation = 0
-        # Relancer une seule fois uniquement si l'état a réellement changé depuis
-        # le début du rendu courant.
+        
+        
+        
+        
         if pending_generation > active_generation:
             try:
-                QTimer.singleShot(0, self._render_preview_now)
+                self._render_scheduled_generation = int(getattr(self, '_render_request_generation', pending_generation))
+                delay = 380 if _is_panorama_ui(self) else 120
+                self.debounce.stop()
+                self.debounce.setInterval(int(delay))
+                self.debounce.start()
             except Exception:
                 pass
 
@@ -885,8 +875,9 @@ def _render_overlay(self, width, height):
             self.sync_all_layer_styles_from_qgis()
     except Exception:
         pass
+    _panorama_depth_error = None
     overlay = QImage(width, height, QC.QImage_Format_Format_ARGB32_Premultiplied)
-        # Mémorise la taille courante de l'overlay (utile pour offsets en %)
+        
     try:
         self._overlay_w = int(width)
         self._overlay_h = int(height)
@@ -914,7 +905,7 @@ def _render_overlay(self, width, height):
     try:
         cam_layer = self.cmb_camera.currentLayer()
         if not cam_layer or cam_layer.featureCount() < 1:
-            # tracer quand même les barres (elles ne dépendent pas de la géométrie)
+            
             try:
                 yaw_eff = self.d_yaw.value() + self.d_yaw_offset.value()
                 HFOV    = self.d_hfov.value()
@@ -941,9 +932,9 @@ def _render_overlay(self, width, height):
                 cam_feat = None
         if cam_feat is None or (not cam_feat.isValid()) or cam_feat.geometry() is None or cam_feat.geometry().isEmpty():
             raise RuntimeError("Aucun point caméra valide pour le rendu")
-        # 40.10 : tous les calculs planimétriques utilisent le CRS projet métrique.
-        # Une couche PDV en WGS84 dans un projet Lambert-93 est donc transformée
-        # avant calcul ; on ne mélange plus degrés et mètres.
+        
+        
+        
         try:
             cam_pt, cam_crs = self._camera_point_in_work_crs(cam_feat)
         except Exception:
@@ -958,14 +949,17 @@ def _render_overlay(self, width, height):
         pitch = self.d_pitch.value()
         roll  = self.d_roll.value()
         proj  = self.cmb_proj.currentText()
-        is360_requested = bool(self.cb_360.isChecked())
-        is360 = is360_requested
+        proj_upper = str(proj).strip().upper()
+        full_equirect = bool(
+            proj_upper in ('EQUIRECT', 'EQUIRECTANGULAR')
+            and self.cb_360.isChecked()
+        )
+        is360 = full_equirect
         maxdist = self.d_maxdist.value(); maxdist = None if maxdist <= 0.0 else maxdist
         
         if not hasattr(self, "show_center_axis"): self.show_center_axis = True
         if not hasattr(self, "show_pdv_axis"):    self.show_pdv_axis    = True
 
-        proj_upper = str(proj).strip().upper()
         auto_hfov_allowed = proj_upper in ('PINHOLE', 'RECTILINEAR')
         if self.cb_auto_hfov.isChecked() and auto_hfov_allowed and self.d_focal.value() > 0 and self.d_sensorw.value() > 0:
             hfov = hfov_from_focal_sensor(self.d_focal.value(), self.d_sensorw.value())
@@ -973,16 +967,16 @@ def _render_overlay(self, width, height):
             vfov = vfov_from_hfov_ratio(hfov, width, height)
             self.d_vfov.blockSignals(True); self.d_vfov.setValue(vfov); self.d_vfov.blockSignals(False)
         HFOV = self.d_hfov.value(); VFOV = self.d_vfov.value()
-        # store overlay size for seam logic (must be inside the try: block)
+        
         self._last_overlay_w, self._last_overlay_h = int(width), int(height)
 
-        # 40.18 — 360° est une valeur HFOV réelle et le wrap horizontal est
-        # disponible pour les deux projections panoramiques. Aucun changement
-        # n'est appliqué au moteur PINHOLE. La case historique reste compatible.
+        
+        
+        
         panoramic_proj = proj_upper in ('EQUIRECT', 'EQUIRECTANGULAR', 'CYLINDRICAL')
-        # 40.18.6 — limitation temporaire de portée uniquement pendant une
-        # preview panoramique placée en mode sécurisé. Les exports et PINHOLE
-        # ne voient jamais cette valeur.
+        
+        
+        
         if panoramic_proj:
             _guard = _active_panorama_guard(self)
             try:
@@ -991,28 +985,37 @@ def _render_overlay(self, width, height):
                     maxdist = float(_cap) if maxdist is None else min(float(maxdist), float(_cap))
             except Exception:
                 pass
-        is360 = bool(panoramic_proj and (is360_requested or float(HFOV) >= 359.999))
-        if is360:
+        
+        
+        
+        
+        is360 = bool(
+            full_equirect
+            or (proj_upper == 'CYLINDRICAL' and float(HFOV) >= 359.999)
+        )
+        if full_equirect:
+            HFOV = 360.0
+            VFOV = 180.0
+            try:
+                self.d_hfov.blockSignals(True); self.d_hfov.setValue(HFOV); self.d_hfov.blockSignals(False)
+                self.d_vfov.blockSignals(True); self.d_vfov.setValue(VFOV); self.d_vfov.blockSignals(False)
+            except Exception:
+                pass
+        elif proj_upper == 'CYLINDRICAL' and is360:
             HFOV = 360.0
             try:
                 self.d_hfov.blockSignals(True); self.d_hfov.setValue(HFOV); self.d_hfov.blockSignals(False)
             except Exception:
                 pass
-            if proj_upper in ('EQUIRECT', 'EQUIRECTANGULAR'):
-                VFOV = 180.0
-                try:
-                    self.d_vfov.blockSignals(True); self.d_vfov.setValue(VFOV); self.d_vfov.blockSignals(False)
-                except Exception:
-                    pass
 
-        # DEM sampler + Z caméra
+        
         z_sampler = None; cam_ground_z = 0.0
-        # Considère le groupe "Relief" actif si le GroupBox n'est pas checkable,
-        # sinon exige qu'il soit coché.
+        
+        
         dem_group_ok = True
-        # CollapsibleBox.isChecked() only means expanded/collapsed. It must never
-        # enable/disable rendering features. Functional state comes from the
-        # dedicated checkboxes themselves.
+        
+        
+        
         occ_group_ok = True
         
         relief_mode = self._relief_mode_id() if hasattr(self, '_relief_mode_id') else ('wireframe' if self.cb_show_dem.isChecked() else ('skyline' if self.cb_draw_skyline.isChecked() else 'none'))
@@ -1037,10 +1040,10 @@ def _render_overlay(self, width, height):
         vector_z_sampler_raw = z_sampler if bool(getattr(self, "cb_use_dem_z", None) and self.cb_use_dem_z.isChecked()) else None
         vector_z_sampler = _make_pov_curved_sampler(self, vector_z_sampler_raw, cam_pt, k_refraction=0.0)
 
-        # Dessiner GCPs (croix)
+        
         self._draw_gcps_overlay(p, width, height)
 
-        # Horizon requis ?
+        
         need_horizon_for_anything = bool(relief_active and z_sampler is not None and not cam_crs.isGeographic())
         if need_horizon_for_anything:
             curvature_enabled = bool(getattr(self, 'cb_curvature', None).isChecked()) if hasattr(self, 'cb_curvature') else True
@@ -1071,8 +1074,8 @@ def _render_overlay(self, width, height):
             )
             existing = getattr(self, "_horizon", None) or {}
             if existing.get("view_key") != horizon_view_key or existing.get("occ_key") != horizon_occ_key:
-                # En panorama, libérer l'ancien horizon avant de construire le
-                # nouveau évite le pic mémoire old+new lors d'un changement de pitch.
+                
+                
                 if panoramic_proj:
                     try:
                         self._horizon = None
@@ -1087,26 +1090,28 @@ def _render_overlay(self, width, height):
         else:
             self._horizon = None
 
-        # Occlusion relief (désactivée si Mode debug ON)
+        
+        
+        
         occ_relief = (relief_active
-                      and self.cb_occ_terrain.isChecked()
-                      and self.cb_occ_layers.isChecked()
                       and self._horizon is not None
                       and not (self.cb_debug_no_occ.isChecked()))
         eps = float(self.d_eps.value())
-        # Inter-object depth is independent from whether the UI section is open.
-        occ_objects = bool(self.cb_occ_objects.isChecked())
+        
+        
+        
+        occ_objects = True
         transparent_objects = bool(getattr(self, "cb_transparent_objects", None) and self.cb_transparent_objects.isChecked())
         force_horizontal_25d = bool(getattr(self, 'cb_force_horizontal_25d', None) and self.cb_force_horizontal_25d.isChecked())
 
-        # En pratique le relief doit rester sous les overlays vectoriels.
+        
         topo_draw_before_vectors = True
         panoramic_overlay_mode = str(proj).upper() in ('EQUIRECT', 'EQUIRECTANGULAR', 'CYLINDRICAL')
-        # 40.19 — pipeline PANORAMA en passes : la topographie est peinte dans
-        # une couche dédiée et ne peut plus repasser devant les surfaces physiques.
-        # EQUIRECT/CYLINDRICAL partagent strictement ce chemin ; seul le mapping
-        # angulaire diffère dans _panorama_primitives.py.
-        _pano_zbuffer_enabled = bool(panoramic_overlay_mode and occ_objects)
+        
+        
+        
+        
+        _pano_zbuffer_enabled = bool(panoramic_overlay_mode)
         _pano_deferred_edges = []
         _pano_deferred_labels = []
         _pano_defer_calib_grid = bool(_pano_zbuffer_enabled)
@@ -1135,13 +1140,13 @@ def _render_overlay(self, width, height):
             except Exception:
                 return False
 
-        # 40.18.2: EQUIRECT and CYLINDRICAL share one panorama renderer budget.
-        # Only the camera mapping differs; geometry/tessellation/depth logic is common.
+        
+        
         _pano_frame_budget = {'remaining': (45000 if render_quality == 'low' else 90000 if render_quality == 'normal' else 140000)} if panoramic_overlay_mode else None
-        # 40.18.7 — global preview-only procedural billboard budget.  This is
-        # deliberately generous: dense stands remain visually possible, while a
-        # single style can no longer multiply 400 instances by every BATI feature
-        # without a frame-level ceiling. Exports are not limited here.
+        
+        
+        
+        
         _pano_schematic_budget = None
         if panoramic_overlay_mode and bool(getattr(self, '_memory_guard_in_preview', False)):
             _base_instances = 14000 if render_quality == 'low' else 35000 if render_quality == 'normal' else 60000
@@ -1179,15 +1184,15 @@ def _render_overlay(self, width, height):
         if topo_draw_before_vectors and not _pano_zbuffer_enabled:
             _draw_topography_group()
 
-        # La grille de calibration est un guide, pas une surface physique.
-        # Avec z-buffer PANORAMA elle est différée après les contours afin de
-        # conserver l'ordre : topo -> surfaces -> contours -> annotations.
+        
+        
+        
         if not _pano_defer_calib_grid:
             self._draw_calib_grid(p, cam_pt, cam_z, cam_crs, proj, width, height,
                                   yaw_eff, pitch, roll, HFOV, VFOV, is360, z_sampler)
         
 
-        # Étiquettes visibles ?
+        
         labels_hidden = (not self.cb_show_labels.isChecked()) or (render_quality == 'low')
         budget_notes = []
         height_field = (self.txt_hfield.text().strip() or None)
@@ -1210,59 +1215,19 @@ def _render_overlay(self, width, height):
                 vis = self._is_visible_by_horizon(az, el, eps, r)
             return vis, az, el
 
-        # 40.19.2 — terrain visibility is now evaluated at OBJECT level before
-        # triangulation/projection whenever possible.  40.19.1 built all faces
-        # first and then called horizon tests face by face, which defeated most
-        # of the expected gain and produced native crashes in repeated scalar
-        # np.searchsorted/atan2 hot paths.
+        
+        
         _pano_terrain_cull_stats = {
             'objects_tested': 0, 'objects_culled': 0, 'objects_mixed': 0,
             'objects_visible': 0, 'schematic_preculled': 0, 'edge_segments_culled': 0
         }
-        _camx_terrain=float(cam_pt.x()); _camy_terrain=float(cam_pt.y()); _camz_terrain=float(cam_z)
-
-        def _pano_object_terrain_class(xyz, max_span_m=850.0, max_samples=24):
-            if (not occ_relief) or self._horizon is None or xyz is None:
-                return 2
-            _pano_terrain_cull_stats['objects_tested'] += 1
-            cls=_terrain_object_classify_xyz_40192(
-                self._horizon, xyz, _camx_terrain, _camy_terrain, _camz_terrain,
-                float(eps)+0.08, max_samples=max_samples, max_span_m=max_span_m
-            )
-            if cls == 0:
-                _pano_terrain_cull_stats['objects_culled'] += 1
-            elif cls == 1:
-                _pano_terrain_cull_stats['objects_mixed'] += 1
-            else:
-                _pano_terrain_cull_stats['objects_visible'] += 1
-            return cls
-
-        def _pano_face_keep_against_terrain(face):
-            # Compatibility fallback for a few schematic paths.  It is no longer
-            # used by normal polygon/line meshes.  Only the three face vertices
-            # are tested with the scalar fast LUT; no centroid/midpoint storm.
-            if (not occ_relief) or self._horizon is None or face is None:
-                return True
-            try:
-                xyz=getattr(face,'world_xyz',None)
-                if xyz is None or len(xyz)<3:
-                    return True
-                for ii in range(3):
-                    if _terrain_point_visible_fast_40192(
-                        self._horizon,float(xyz[ii][0]),float(xyz[ii][1]),float(xyz[ii][2]),
-                        _camx_terrain,_camy_terrain,_camz_terrain,float(eps)+0.08
-                    ):
-                        return True
-                return False
-            except Exception:
-                return True
 
         def draw_polyline(points_cam, z_mode, pen, is_top_edge=False, label_text=None, label_sty=None, pre_densified=False):
             if len(points_cam) < 2: return
             p.setPen(pen)
-            # 40.18 : les chemins panoramiques peuvent être pré-densifiés selon
-            # l'erreur de projection écran. Dans ce cas, ne pas re-échantillonner
-            # arbitrairement chaque petit segment six fois.
+            
+            
+            
             base_samples = 1 if pre_densified else (6 if (occ_relief or panoramic_overlay_mode) else 1)
             prev_uv = None; prev_vis = None; prev_az = None; prev_el = None
             label_uv = None
@@ -1297,15 +1262,15 @@ def _render_overlay(self, width, height):
             if (not labels_hidden) and label_text and label_sty and label_uv:
                 _emit_feature_label(label_text, label_uv, label_sty)
 
-        # Deux moteurs seulement : PINHOLE (inchangé) et PANORAMA.
-        # EQUIRECT/CYLINDRICAL partagent scène, clipping angulaire et profondeur;
-        # seule la formule angle->pixel diffère dans _panorama_primitives.py.
+        
+        
+        
         _pano_ctx_common = (build_camera_context(cam_pt, cam_z, proj, width, height, yaw_eff, pitch, roll, HFOV, VFOV, is360)
                             if panoramic_overlay_mode else None)
-        # _pano_zbuffer_enabled est défini plus haut, avant les passes de composition.
+        
         _pano_zfaces = []
-        # Extra subdivisions are globally bounded.  Unlike 40.18.8 there is no
-        # per-triangle micro-tessellation explosion.
+        
+        
         if panoramic_overlay_mode:
             _extra = 3000 if render_quality == 'low' else 8000 if render_quality == 'normal' else 16000
             if not bool(getattr(self,'_memory_guard_in_preview',False)):
@@ -1314,10 +1279,10 @@ def _render_overlay(self, width, height):
         else:
             _pano_surface_extra_budget = None
 
-        # With a software z-buffer, procedural instances are still allowed in
-        # large numbers, but the interactive depth pass gets its own sensible
-        # ceiling.  Turning object occlusion off retains the generous 40.18.7
-        # billboard budget (up to 60k at high quality).
+        
+        
+        
+        
         if _pano_zbuffer_enabled and isinstance(_pano_schematic_budget, dict):
             _zb_cap = 4000 if render_quality == 'low' else 9000 if render_quality == 'normal' else 18000
             try:
@@ -1383,9 +1348,9 @@ def _render_overlay(self, width, height):
                 except Exception:
                     pass
 
-                # 40.18.9: transformed geometry is cached lazily per FID and
-                # deliberately excludes pitch/roll from its key.  No second
-                # layer query is performed: the current candidate list is reused.
+                
+                
+                
                 for feat in _features:
                     geom = feat.geometry()
                     sty_eff = _feature_local_style(self, sty, feat)
@@ -1413,34 +1378,8 @@ def _render_overlay(self, width, height):
 
                     if style_uses_schematic(sty_eff):
                         _schematic_parts = geometry_parts_in_camera_crs(geom, gtype, tr)
-                        # 40.19.2: for procedural styles, reject a whole hidden
-                        # source feature BEFORE generating hundreds of billboards.
-                        # The symbol library provides a conservative top height
-                        # (tree height, turbine tip, PV high edge...). If the
-                        # height cannot be resolved, the pre-cull is skipped.
-                        _schematic_pre_hidden=False
-                        if panoramic_overlay_mode and occ_relief and _schematic_parts:
-                            try:
-                                from ._schematic_tools import _schematic_target_height
-                                _sch_h,_sch_reason=_schematic_target_height(self,lyr,feat)
-                            except Exception:
-                                _sch_h=None
-                            if _sch_h is not None:
-                                try:
-                                    _sch_probe=_terrain_probe_xyz_from_xy_parts_40192(
-                                        _schematic_parts,vector_z_sampler,float(_sch_h),max_samples=20
-                                    )
-                                    if _sch_probe:
-                                        _sch_cls=_pano_object_terrain_class(_sch_probe,max_span_m=1000.0,max_samples=20)
-                                        if _sch_cls==0:
-                                            _schematic_pre_hidden=True
-                                            _pano_terrain_cull_stats['schematic_preculled'] += 1
-                                except Exception:
-                                    _schematic_pre_hidden=False
-                        if _schematic_pre_hidden:
-                            # Hidden by terrain: do not build procedural instances,
-                            # do not queue physical outlines/labels for this object.
-                            continue
+                        
+                        
                         def _schematic_visibility(x, y, z):
                             try:
                                 v, _az, _el = point_visibility(QgsPointXY(float(x), float(y)), float(z))
@@ -1471,14 +1410,15 @@ def _render_overlay(self, width, height):
                                         _pano_zfaces,_primitives,sty_eff,_definition,_pano_ctx_common,
                                         effective_maxdist,camera_xy,width,render_quality=render_quality,
                                         transparent_objects=transparent_objects,extra_budget=_pano_surface_extra_budget,
-                                        visibility_test=(_schematic_visibility if occ_relief else None),painter=p,
-                                        terrain_face_culler=None
+                                        visibility_test=None,painter=p,
+                                        terrain_face_culler=None,
+                                        deferred_edges=_pano_deferred_edges
                                     )
                             except Exception as _exc:
                                 try: qcv_log(f"{lyr.name()} | FID {feat.id()} | PANORAMA z-buffer AVR : {_exc}",'SCHEMATIC/RENDER','WARNING')
                                 except Exception: pass
-                                # Never cascade a valid schematic style into a
-                                # second heavyweight polygon path after failure.
+                                
+                                
                                 handled=True
                         else:
                             handled = render_schematic_feature(
@@ -1506,6 +1446,25 @@ def _render_overlay(self, width, height):
                                 vis_top, azt, elt = point_visibility(pt_cam, zt)
                                 top_uv = self._finite_uv(project_point(cam_pt, cam_z, pt, tr, proj, width, height, yaw_eff, pitch, roll, HFOV, VFOV, is360,
                                                                        dist_max=effective_maxdist, z_tgt=zt, z_sampler=None))
+                            if _pano_zbuffer_enabled:
+                                if draw_2p5d and h > 0:
+                                    xyz = np.asarray(((pt_cam.x(), pt_cam.y(), ground_z),
+                                                      (pt_cam.x(), pt_cam.y(), ground_z + h)))
+                                    path = project_panorama_path_safe(
+                                        _pano_ctx_common, xyz, effective_maxdist,
+                                        render_quality=render_quality,
+                                        wrap_width=(float(width) if is360 else 0.0))
+                                    _queue_physical_edge(pen, path, float(width) if is360 else 0.0)
+                                elif base_uv:
+                                    dep = math.sqrt((pt_cam.x()-cam_pt.x())**2 +
+                                                    (pt_cam.y()-cam_pt.y())**2 + (ground_z-cam_z)**2)
+                                    ring = [(base_uv[0]+2.0*math.cos(t), base_uv[1]+2.0*math.sin(t))
+                                            for t in np.linspace(0.0, 2.0*math.pi, 17)]
+                                    _pano_deferred_edges.append((QPen(pen), ring, [dep]*17, None,
+                                                                 float(width) if is360 else 0.0))
+                                if sty_eff.show_labels and not layer_labels_hidden and (vis_base or vis_top):
+                                    _emit_feature_label(text_global, anchor_uv_global, sty_eff)
+                                continue
                             if base_uv and (vis_base or not occ_relief):
                                 if top_uv and (vis_top or not occ_relief):
                                     self._safe_line(p, base_uv, top_uv)
@@ -1551,12 +1510,6 @@ def _render_overlay(self, width, height):
                             ctx_line=_pano_ctx_common
                             xyz_base=np.column_stack([arr_line,base_z_line])
                             xyz_top=(np.column_stack([arr_line,base_z_line+float(h)]) if (draw_2p5d and h>0) else None)
-                            # 40.19.2: whole line/line-wall visibility is tested
-                            # before path projection and wall-face construction.
-                            _line_probe_xyz = xyz_top if xyz_top is not None else xyz_base
-                            _line_terrain_class = _pano_object_terrain_class(_line_probe_xyz,max_span_m=1400.0,max_samples=28) if occ_relief else 2
-                            if _line_terrain_class==0:
-                                continue
                             wrap_width=float(width) if bool(is360) else 0.0
 
                             base_path=project_panorama_path_safe(
@@ -1571,8 +1524,8 @@ def _render_overlay(self, width, height):
                                     wrap_width=wrap_width,max_points=(1000 if render_quality=='low' else 2200),
                                     budget_state=_pano_frame_budget,pole_guard_px=2.5
                                 )
-                                # Batch wall mesh: one camera-angle transform for
-                                # the complete extruded line, shared by both panorama mappings.
+                                
+                                
                                 n=int(xyz_base.shape[0]); wall_xyz=np.vstack([xyz_base,xyz_top]); wall_tri=[]
                                 for ii in range(n-1):
                                     jj=ii+1; wall_tri.append((ii,jj,n+jj)); wall_tri.append((ii,n+jj,n+ii))
@@ -1587,12 +1540,12 @@ def _render_overlay(self, width, height):
                                     if _pano_zbuffer_enabled:
                                         _append_panorama_faces_for_zbuffer_419(
                                             _pano_zfaces,wall_faces,_wall_spec,
-                                            terrain_culler=(_pano_face_keep_against_terrain if _line_terrain_class==1 else None)
+                                            terrain_culler=None
                                         )
                                     else:
                                         _fill_panorama_wall_faces(p,wall_faces,QColor(_wall_spec['color']))
 
-                            _line_has_depth_surface = bool(_pano_zbuffer_enabled and top_path is not None and wall_faces)
+                            _line_has_depth_surface = bool(_pano_zbuffer_enabled)
                             if transparent_objects or top_path is None:
                                 if _line_has_depth_surface:
                                     _queue_physical_edge(pen, base_path, wrap_width)
@@ -1618,10 +1571,10 @@ def _render_overlay(self, width, height):
                                 _emit_feature_label(text_global,anchor_uv_global,sty_eff)
 
                     elif gtype == QC.QgsWkbTypes_GeometryType_PolygonGeometry:
-                        # 40.18.9 PANORAMA core:
-                        # cached world ring -> cached triangulation -> one batch
-                        # camera-angle transform -> angular clipping -> bounded
-                        # local subdivision -> painter or common radial z-buffer.
+                        
+                        
+                        
+                        
                         _cached_parts=list(_panorama_feature_parts_cached(
                             self,lyr,feat,gtype,tr,fast_preview=(render_quality=='low' or bool(self.cb_lowlat.isChecked())),
                             simplify_geometry=decision.simplify_geometry
@@ -1661,19 +1614,6 @@ def _render_overlay(self, width, height):
                             ctx_poly = _pano_ctx_common
                             xyz_base = np.column_stack([arr_ring, base_z_ring])
                             xyz_top = (np.column_stack([arr_ring, base_z_ring + float(h)]) if pano_is_volume else None)
-                            # 40.19.2: coarse terrain rejection happens before
-                            # triangulation, angular projection and face creation.
-                            # For volumes the top ring is sufficient: if even the
-                            # highest represented ring is hidden, all walls/base are
-                            # hidden too. Very large polygons are returned as MIXED
-                            # by the conservative classifier and are therefore kept.
-                            _poly_probe_xyz = xyz_top if xyz_top is not None else xyz_base
-                            _poly_terrain_class = _pano_object_terrain_class(
-                                _poly_probe_xyz,max_span_m=850.0,max_samples=24
-                            ) if occ_relief else 2
-                            if _poly_terrain_class == 0:
-                                continue
-
                             tri_indices = _panorama_tri_indices_cached(self,lyr,feat,_part_idx,arr_ring)
                             if not tri_indices:
                                 continue
@@ -1707,7 +1647,7 @@ def _render_overlay(self, width, height):
                             if _pano_zbuffer_enabled:
                                 if bool(getattr(sty_eff,'fill_polygons',True)):
                                     _top_fill=_normalized_fill_spec_for_sty(sty_eff,transparent_objects=transparent_objects)
-                                    _mix_culler = (_pano_face_keep_against_terrain if _poly_terrain_class==1 else None)
+                                    _mix_culler = None
                                     _append_panorama_faces_for_zbuffer_419(_pano_zfaces,surface_faces,_top_fill, terrain_culler=_mix_culler)
                                     if wall_faces and bool(getattr(sty_eff,'fill_walls',True)):
                                         _append_panorama_faces_for_zbuffer_419(
@@ -1718,9 +1658,9 @@ def _render_overlay(self, width, height):
                             else:
                                 _draw_panorama_polygon_faces(self,p,sty_eff,surface_faces,wall_faces,transparent_objects=transparent_objects)
 
-                            # Safe outlines are clipped before pixel mapping.  This
-                            # is the visible fix for long polygon edges pulled into
-                            # panorama-wide bands when pitch approaches a pole.
+                            
+                            
+                            
                             _outline_base=project_panorama_path_safe(
                                 ctx_poly,xyz_base,effective_maxdist,closed=True,render_quality=render_quality,
                                 wrap_width=(wrap_width or 0.0),max_points=(1200 if render_quality=='low' else 2400),
@@ -1733,10 +1673,7 @@ def _render_overlay(self, width, height):
                                     wrap_width=(wrap_width or 0.0),max_points=(1200 if render_quality=='low' else 2400),
                                     budget_state=_pano_frame_budget,pole_guard_px=2.5
                                 )
-                            _poly_has_depth_surface = bool(
-                                _pano_zbuffer_enabled and poly_visible and bool(getattr(sty_eff,'fill_polygons',True))
-                                and (surface_faces or wall_faces)
-                            )
+                            _poly_has_depth_surface = bool(_pano_zbuffer_enabled)
                             if transparent_objects or _outline_top is None:
                                 if _poly_has_depth_surface:
                                     _queue_physical_edge(pen, _outline_base, (wrap_width or 0.0))
@@ -1747,7 +1684,7 @@ def _render_overlay(self, width, height):
                                     _queue_physical_edge(pen, _outline_top, (wrap_width or 0.0))
                                 else:
                                     p.setPen(pen); _draw_uv_segments(self,p,_outline_top.uv)
-                                # A bounded sample of vertical silhouette edges.
+                                
                                 edge_step=1 if transparent_objects else max(1,int(len(arr_ring)/32))
                                 for i in range(0,len(arr_ring),edge_step):
                                     try:
@@ -1759,7 +1696,7 @@ def _render_overlay(self, width, height):
                                             _queue_physical_edge(pen, _ve, (wrap_width or 0.0))
                                         else:
                                             p.setPen(pen); _draw_uv_segments(self,p,_ve.uv)
-                                        if occ_objects:
+                                        if occ_objects and not _pano_zbuffer_enabled:
                                             zt=float(base_z_ring[i])+float(h); vis,az,el=point_visibility(pts_cam_ring[i],zt)
                                             if vis or not occ_relief: self._update_horizon_by_segment(az,az,el)
                                     except Exception:
@@ -1768,21 +1705,27 @@ def _render_overlay(self, width, height):
                                 _emit_feature_label(text_global,anchor_uv_global,sty_eff)
 
 
-        # 40.19 — résolution en passes du moteur PANORAMA :
-        #   1) surfaces physiques (z-buffer radial),
-        #   2) topographie derrière les surfaces,
-        #   3) contours physiques antialiasés ET testés en profondeur,
-        #   4) labels / grille / guides.
-        # Cela évite à la fois le wireframe devant les objets et les arêtes de
-        # bâtiments lointains traversant des volumes proches.
-        _pano_depth_buf = None
-        _pano_depth_scale = 1.0
-        if _pano_zbuffer_enabled and _pano_zfaces:
+        
+        
+        
+        
+        
+        
+        
+        if _pano_zbuffer_enabled and (_pano_zfaces or _pano_deferred_edges):
             try:
                 _has_tex=any(bool((f.get('fill_spec') or {}).get('schematic_billboard_texture',False)) for f in _pano_zfaces)
                 _zscale=_panorama_zbuffer_scale_for_preview_419(self,width,height,has_texture=_has_tex)
                 _rgba,_depth,_zscale=_compose_panorama_faces_zbuffer_40191(width,height,_pano_zfaces,scale=_zscale,owner=self)
+                _compose_panorama_strokes_zbuffer(
+                    _rgba, _depth, _zscale, _pano_deferred_edges)
+                if occ_relief and self._horizon is not None:
+                    _rgba=_mask_panorama_zbuffer_by_horizon(
+                        _rgba,_depth,_zscale,_pano_ctx_common,self._horizon,eps
+                    )
                 _zimg=_rgba_owned_array_to_qimage(_rgba)
+                if _zimg is None or _zimg.isNull():
+                    raise MemoryError("Cannot allocate panorama depth image")
                 if _zimg is not None and not _zimg.isNull():
                     p.save()
                     try:
@@ -1791,8 +1734,6 @@ def _render_overlay(self, width, height):
                         p.drawImage(QRect(0,0,int(width),int(height)),_zimg)
                     finally:
                         p.restore()
-                    _pano_depth_buf = _depth
-                    _pano_depth_scale = float(_zscale)
                 try:
                     self._panorama_last_zbuffer_faces=int(len(_pano_zfaces))
                     self._panorama_last_zbuffer_scale=float(_zscale)
@@ -1802,15 +1743,16 @@ def _render_overlay(self, width, height):
             except Exception as _exc:
                 try: qcv_log(f"PANORAMA z-buffer 40.19.2 : {_exc}",'PANORAMA/ZBUFFER','WARNING')
                 except Exception: pass
-                try: _draw_panorama_zfaces_fallback_419(p,_pano_zfaces)
-                except Exception: pass
+                
+                _panorama_depth_error = _exc
+                raise RuntimeError("PANORAMA depth composition failed") from _exc
             finally:
                 try: _pano_zfaces.clear()
                 except Exception: pass
 
-        # La topographie est volontairement dessinée seulement maintenant,
-        # directement dans le même overlay avec DestinationOver. On obtient ainsi
-        # topo < surfaces sans allouer une seconde QImage pleine résolution.
+        
+        
+        
         if topo_draw_before_vectors and _pano_zbuffer_enabled:
             p.save()
             try:
@@ -1819,34 +1761,11 @@ def _render_overlay(self, width, height):
             finally:
                 p.restore()
 
-        # Contours physiques : vectoriels/antialiasés mais masqués par le même
-        # depth-buffer radial que les faces. En cas de fallback z-buffer, on les
-        # dessine normalement plutôt que de les perdre.
-        if _pano_deferred_edges:
-            p.save()
-            try:
-                p.setCompositionMode(QC.QPainter_CompositionMode_CompositionMode_SourceOver)
-                p.setRenderHint(QC.QPainter_RenderHint_Antialiasing, True)
-                try: self._panorama_last_edge_terrain_culled=0
-                except Exception: pass
-                for _epen,_euv,_edep,_exyz,_ewrap in _pano_deferred_edges:
-                    try:
-                        p.setPen(_epen)
-                        if _pano_depth_buf is not None:
-                            _draw_panorama_uv_segments_ztested_4019(
-                                self,p,_euv,_edep,_pano_depth_buf,_pano_depth_scale,
-                                wrap_width=_ewrap,world_xyz=_exyz,
-                                terrain_horizon=(self._horizon if occ_relief else None),
-                                terrain_cam=(_camx_terrain,_camy_terrain,_camz_terrain),terrain_eps=eps
-                            )
-                        else:
-                            _draw_uv_segments(self,p,_euv)
-                    except Exception:
-                        continue
-            finally:
-                p.restore()
+        
+        
+        _pano_deferred_edges.clear()
 
-        # Les labels sont volontairement postérieurs aux contours physiques.
+        
         for _ltxt,_luv,_lsty in _pano_deferred_labels:
             try: self._draw_label(p,_ltxt,_luv,_lsty)
             except Exception: pass
@@ -1934,12 +1853,12 @@ def _render_overlay(self, width, height):
         if not topo_draw_before_vectors:
             _draw_topography_group()
 
-        # Repères
+        
         if self.cb_show_guides.isChecked():
             self._draw_fov_frame(p, width, height)
             self._draw_axes_debug(p, width, height)
 
-        # === GUIDES : barre centrale + barre azimut PDV ===
+        
         try:
             p.setCompositionMode(QC.QPainter_CompositionMode_CompositionMode_SourceOver)
             self._draw_center_and_pdv_guides(
@@ -1973,11 +1892,14 @@ def _render_overlay(self, width, height):
             pass
 
     p.end()
+    if _panorama_depth_error is not None:
+        
+        raise RuntimeError("PANORAMA depth composition failed; render cancelled") from _panorama_depth_error
     overlay = _shift_overlay_image(self, overlay)
     self.overlay_image = overlay
-    # En preview panoramique, la synchronisation est différée jusqu'à la fin de
-    # _render_preview_now afin de ne pas conserver simultanément l'ancien et le
-    # nouveau QPixmap pendant les grosses allocations. PINHOLE/export inchangés.
+    
+    
+    
     if getattr(self, "viewer", None) and not bool(getattr(self, '_suppress_overlay_viewer_sync', False)):
         try:
             if (self.overlay_image is not None) and (not self.overlay_image.isNull()):
@@ -1990,7 +1912,7 @@ def _render_overlay(self, width, height):
     return overlay
 
 def _overlay_params_key(self, width: int, height: int):
-    """Clé de cache stable pour l’overlay (taille + paramètres influents)."""
+    
     yaw_eff = self.d_yaw.value() + self.d_yaw_offset.value()
     cam_fid = None
     cam_xy = (None, None)
@@ -2042,7 +1964,7 @@ def _overlay_params_key(self, width: int, height: int):
         round(float(self.d_rad_step.value()), 3) if hasattr(self, 'd_rad_step') else 50.0,
         round(float(self.d_eps.value()), 3) if hasattr(self, 'd_eps') else 0.2,
         bool(self.cb_occ_terrain.isChecked()),
-        bool(self.cb_occ_objects.isChecked()),
+        True,  
         bool(getattr(self, 'cb_transparent_objects', None) and self.cb_transparent_objects.isChecked()),
         bool(self.cb_lowlat.isChecked()),
         bool(self.cb_draw_2p5d.isChecked()),
@@ -2072,11 +1994,11 @@ def _overlay_params_key(self, width: int, height: int):
         round(float(getattr(self, 'd_az_rule_band_pct', None).value()) if hasattr(self, 'd_az_rule_band_pct') else 4.0, 3),
         round(float(getattr(self, 'd_az_rule_text_pct', None).value()) if hasattr(self, 'd_az_rule_text_pct') else 38.0, 3),
         str(getattr(self, '_current_render_quality', 'high')),
-        # Offsets (mode + valeurs) — IMPORTANT
+        
         (int(self.cmb_off_mode.currentIndex()) if hasattr(self, 'cmb_off_mode') else 0),
         round(float(self.spin_off_h.value()), 6) if hasattr(self, 'spin_off_h') else 0.0,
         round(float(self.spin_off_v.value()), 6) if hasattr(self, 'spin_off_v') else 0.0,
-        # Styles (empreinte compacte)
+        
         tuple(
             (
                 getattr(sty.layer, 'id', lambda: None)() if sty.layer else None,
@@ -2147,14 +2069,14 @@ def _requested_maxdist_for_layer(self, sty, gtype):
     except Exception:
         requested = 0.0
     draw_25d = bool(getattr(self, 'cb_draw_2p5d', None) and self.cb_draw_2p5d.isChecked())
-    # Generic extrusion is irrelevant to schematic/procedural styles: their
-    # dimensions are carried by their own primitives.  Toggling 2.5D must not
-    # silently change their default visibility distance.
+    
+    
+    
     extruded = bool((not style_uses_schematic(sty)) and draw_25d and getattr(sty, 'enable_25d', True))
     if requested <= 0.0:
         requested = default_interactive_distance(gtype, draw_25d=extruded)
-    # Preview-only panorama cap from the memory guard.  This happens before the
-    # layer budget probes, so a safe preview never scans a needlessly deep zone.
+    
+    
     try:
         _cap = _active_panorama_guard(self).get('maxdist_cap')
         if _cap is not None and float(_cap) > 0.0:
@@ -2342,8 +2264,8 @@ def _estimate_layer_cost(self, layer, sty, cam_pt, cam_crs, maxdist, yaw_deg, hf
     draw_25d = bool(getattr(self, 'cb_draw_2p5d', None) and self.cb_draw_2p5d.isChecked())
     is_schematic = style_uses_schematic(sty)
     extrusion_factor = extrusion_factor_for_style(sty, gtype, draw_25d=(draw_25d and not is_schematic))
-    # Transparency changes compositing only; it must not lower the rendering
-    # budget or distance of SVG/procedural motifs.
+    
+    
     transparency_factor = 1.0 if is_schematic else (1.15 if bool(getattr(self, 'cb_transparent_objects', None) and self.cb_transparent_objects.isChecked()) else 1.0)
 
     hard_probe = max(120, int(profile.hard_features * 1.6))
@@ -2639,9 +2561,9 @@ def _geometry_depth_key(geom, tr, cam_pt):
         if arr.shape[0] == 0:
             return (0.0, 0.0)
         cx, cy = float(cam_pt.x()), float(cam_pt.y())
-        # Panorama slow path: scalar min/mean avoids one native NumPy reduction
-        # pair per feature in dense BATI scenes. PINHOLE uses the fast renderer
-        # and does not pass through this helper.
+        
+        
+        
         _min_d2 = math.inf; _sum_d2 = 0.0; _n_d2 = 0
         for _q in range(int(arr.shape[0])):
             try:
@@ -2688,22 +2610,17 @@ def _uv_runs_array(uvs, min_len=2):
 
 
 def _unwrap_x_for_wrap(pts, wrap_width):
-    # 40.18.1: shared seam logic, also reused by future panorama primitives.
+    
     return unwrap_x_continuous(pts, wrap_width)
 
 
 def _iter_wrap_shifted_pts(pts, wrap_width, margin_px=2.0):
-    # Open-path periodic copies. Closed rings use _polygon_paths_from_uvs below.
+    
     yield from iter_viewport_copies(pts, wrap_width, margin_px=margin_px, closed=False)
 
 
 def _polygon_paths_from_uvs(uvs, wrap_width=None):
-    """Yield painter polygons with a seam-safe closure in 360° panoramas.
-
-    40.18.1 PANO-2: a duplicated closing vertex is stripped *before* unwrap.
-    The ring is then closed in the same unwrapped image copy. This prevents the
-    historical artificial edge spanning almost the whole panorama at 0/360°.
-    """
+    
     for pts in _uv_runs_array(uvs, min_len=3):
         if wrap_width and float(wrap_width) > 1.0:
             shifted_runs = iter_viewport_copies(pts, wrap_width, margin_px=2.0, closed=True)
@@ -2713,7 +2630,7 @@ def _polygon_paths_from_uvs(uvs, wrap_width=None):
             run = np.asarray(run, dtype=np.float64)
             if run.ndim != 2 or run.shape[0] < 3:
                 continue
-            # For non-wrapped input, also remove the ordinary duplicated end.
+            
             if not wrap_width and run.shape[0] >= 4:
                 try:
                     if np.linalg.norm(run[0] - run[-1]) <= 1e-6:
@@ -2723,8 +2640,8 @@ def _polygon_paths_from_uvs(uvs, wrap_width=None):
             if run.shape[0] < 3:
                 continue
             poly = QPolygonF([QPointF(float(x), float(y)) for x, y in run])
-            # Close to the *unwrapped* first point, never to a raw point from a
-            # different periodic image copy.
+            
+            
             if poly.first() != poly.last():
                 poly.append(poly.first())
             yield poly
@@ -2759,11 +2676,7 @@ def _wall_quads_from_uvs(base_uv, top_uv, wrap_width=None):
 
 
 def _project_uv_depth_small(ctx, pts_xy, z_tgt, dist_max=None):
-    """Projection scalaire pour les micro-primitives (<=16 points).
-
-    Le résultat reste un ndarray pour préserver l'API interne, mais toutes les
-    opérations de projection sont faites avec ``math`` et des scalaires Python.
-    """
+    
     try:
         n = len(pts_xy)
     except Exception:
@@ -2820,8 +2733,8 @@ def _project_uv_depth_small(ctx, pts_xy, z_tgt, dist_max=None):
         xc = dx * rx + dy * ry + dz * rz
         yc = dx * fxv + dy * fyv + dz * fzv
         zc = dx * ux + dy * uy + dz * uz
-        # 40.18.1 PANO-4 — PINHOLE keeps optical-axis depth exactly as
-        # before; panoramas store radial camera distance for the future z-buffer.
+        
+        
         depth_rows.append(yc if proj == 'PINHOLE' else math.sqrt(dx * dx + dy * dy + dz * dz))
         if not all(math.isfinite(v) for v in (dx, dy, dz, xc, yc, zc)):
             uv_rows.append((float('nan'), float('nan')))
@@ -2865,12 +2778,7 @@ def _project_uv_depth_small(ctx, pts_xy, z_tgt, dist_max=None):
     return np.asarray(uv_rows, dtype=np.float64), np.asarray(depth_rows, dtype=np.float64)
 
 def _project_uv_depth_batch(ctx, pts_xy, z_tgt, dist_max=None):
-    """Projette un lot de points et renvoie UV + profondeur.
-
-    PINHOLE conserve la profondeur optique historique ``yc``. EQUIRECT/CYLINDRICAL
-    renvoient depuis 40.18.1 la distance radiale caméra, directement exploitable
-    par un z-buffer panoramique.
-    """
+    
     try:
         _n_hint = len(pts_xy)
     except Exception:
@@ -2906,8 +2814,8 @@ def _project_uv_depth_batch(ctx, pts_xy, z_tgt, dist_max=None):
     xc = dx * r[0] + dy * r[1] + dz * r[2]
     yc = dx * f[0] + dy * f[1] + dz * f[2]
     zc = dx * u[0] + dy * u[1] + dz * u[2]
-    # Preserve the historical PINHOLE depth contract. Panoramic projections
-    # require radial range because yc becomes zero/negative at +/-90°/180°.
+    
+    
     if str(ctx.get('proj', '') or '').upper() == 'PINHOLE':
         depths[:] = yc
     else:
@@ -3005,11 +2913,7 @@ def _point_line_distance_px(p, a, b):
     return math.hypot(px - qx, py - qy)
 
 def _project_panorama_scalar_with_depth(ctx, x, y, z, dist_max=None):
-    """Scalar panorama projection used by the iterative tessellator.
-
-    No temporary NumPy arrays are allocated here.  The returned depth is radial
-    camera distance, which is the metric required by the future 360° z-buffer.
-    """
+    
     try:
         x = float(x); y = float(y); z = float(z)
         dx = x - float(ctx['cx']); dy = y - float(ctx['cy']); dz = z - float(ctx['cam_z'])
@@ -3056,12 +2960,7 @@ def _project_panorama_scalar_with_depth(ctx, x, y, z, dist_max=None):
 def _densify_projected_segment(ctx, p0, z0, p1, z1, dist_max=None, wrap_width=None,
                                max_seg_px=40.0, curve_tol_px=0.75, max_depth=6,
                                max_output_points=96):
-    """Iteratively tessellate one world segment for a panoramic projection.
-
-    40.18.1 PANO-3 removes the recursive NumPy micro-allocation path which could
-    trigger native access violations in dense QGIS scenes.  Work is explicitly
-    bounded per source segment.
-    """
+    
     try:
         x0, y0 = float(p0[0]), float(p0[1]); x1, y1 = float(p1[0]), float(p1[1])
         z0 = float(z0); z1 = float(z1)
@@ -3069,7 +2968,7 @@ def _densify_projected_segment(ctx, p0, z0, p1, z1, dist_max=None, wrap_width=No
         return []
     max_depth = max(0, min(10, int(max_depth)))
     max_output_points = max(2, min(512, int(max_output_points)))
-    # DFS, right first then left so accepted leaves are emitted in source order.
+    
     stack = [(x0, y0, z0, x1, y1, z1, 0)]
     _global_end = (x1, y1, z1)
     out = []
@@ -3080,8 +2979,8 @@ def _densify_projected_segment(ctx, p0, z0, p1, z1, dist_max=None, wrap_width=No
         ax, ay, az, bx, by, bz, depth = stack.pop()
         nodes += 1
         if nodes > max_nodes or len(out) >= max_output_points - 1:
-            # Budget exhausted: preserve topology by ending the current source
-            # segment at its real endpoint rather than continuing subdivision.
+            
+            
             gx, gy, gz = _global_end
             out.append((np.asarray([gx, gy], dtype=np.float64), float(gz)))
             stack.clear()
@@ -3099,8 +2998,8 @@ def _densify_projected_segment(ctx, p0, z0, p1, z1, dist_max=None, wrap_width=No
             dev = _point_line_distance_px((um, vm), (ua, va), (ub, vb))
             split = (seg_len > float(max_seg_px)) or (dev > float(curve_tol_px))
         else:
-            # Near a FOV boundary, subdivision allows valid visible subsegments
-            # to survive instead of dropping the complete source edge.
+            
+            
             split = True
         if split and depth < max_depth and (len(out) + len(stack) + 2) < max_output_points:
             nd = depth + 1
@@ -3120,8 +3019,8 @@ def _densify_path_for_projection(ctx, arr_xy, z_vals, dist_max=None, closed=Fals
     if proj not in ('EQUIRECT', 'EQUIRECTANGULAR', 'CYLINDRICAL'):
         return arr, z
 
-    # 40.18.2: one tessellator policy for the two panoramic projections.
-    # The only EQUIRECT/CYLINDRICAL difference now lives in the projection map.
+    
+    
     q = str(render_quality or 'high').lower()
     if q == 'low':
         max_seg_px, curve_tol_px, max_depth, path_budget = 92.0, 1.55, 4, 2400
@@ -3130,9 +3029,9 @@ def _densify_path_for_projection(ctx, arr_xy, z_vals, dist_max=None, closed=Fals
     else:
         max_seg_px, curve_tol_px, max_depth, path_budget = 54.0, 0.88, 5, 7200
 
-    # Global per-frame guard. A dense BATI/parcel scene must never give every
-    # feature an independent 7200-point allowance. Once exhausted we keep the
-    # source geometry instead of increasing Python work indefinitely.
+    
+    
+    
     if isinstance(budget_state, dict):
         try:
             global_remaining = max(0, int(budget_state.get('remaining', 0)))
@@ -3172,8 +3071,8 @@ def _densify_path_for_projection(ctx, arr_xy, z_vals, dist_max=None, closed=Fals
                     budget_hit = True
                     break
         if budget_hit:
-            # Preserve the rest of the source topology at a bounded coarse LOD
-            # rather than closing a partially rendered polygon across the scene.
+            
+            
             if not closed:
                 source_ids = list(range(i + 1, n))
             else:
@@ -3218,7 +3117,7 @@ def _uv_runs_with_depth(uvs, depths, min_len=2):
 
 
 def _uv_runs_with_depth_xyz_40192(uvs, depths, xyzs, min_len=2):
-    """Finite runs preserving world XYZ for terrain-aware physical edges."""
+    
     cur_uv=[]; cur_d=[]; cur_xyz=[]
     try:
         n=min(len(uvs),len(depths),len(xyzs))
@@ -3252,7 +3151,7 @@ def _iter_wrapped_runs_with_depth_xyz_40192(uvs, depths, xyzs, wrap_width=None, 
 
 
 def _terrain_segment_any_visible_40192(horizon, xyz0, xyz1, cam_xyz, eps_deg):
-    """Conservative 3-sample visibility for already densified physical edges."""
+    
     if not horizon or xyz0 is None or xyz1 is None:
         return True
     try:
@@ -3268,12 +3167,7 @@ def _terrain_segment_any_visible_40192(horizon, xyz0, xyz1, cam_xyz, eps_deg):
 
 
 def _zbuffer_scale_for_preview(self, width, height):
-    """Résolution interne du z-buffer relativement à l'overlay déjà réduit.
-
-    40.11 évite la double dégradation : le passage différé ``high`` travaille à
-    100 % de la résolution d'overlay choisie (25/50/100 %), même si Faible
-    latence reste coché. Le premier passage ``low`` demeure volontairement léger.
-    """
+    
     q = str(getattr(self, '_current_render_quality', 'high')).lower()
     lowlat = bool(getattr(self, 'cb_lowlat', None) and self.cb_lowlat.isChecked())
     maxdim = max(int(width), int(height))
@@ -3286,13 +3180,7 @@ def _zbuffer_scale_for_preview(self, width, height):
     return 1.0
 
 def _qimage_rgba_owned_array(img):
-    """Retourne une COPIE RGBA détenue par Python/NumPy d'un QImage.
-
-    Compatibilité QGIS 3.44/Qt5 et QGIS 4/Qt6 : on ne construit jamais de vue
-    NumPy directement sur ``QImage.bits()``/``constBits()``.  SIP peut exposer
-    ces pointeurs différemment entre Qt5 et Qt6 ; les octets sont donc copiés
-    dans un objet ``bytes`` Python avant toute création de ndarray.
-    """
+    
     try:
         if img is None or img.isNull():
             return None
@@ -3305,7 +3193,7 @@ def _qimage_rgba_owned_array(img):
         if hasattr(ptr, 'asstring'):
             raw = ptr.asstring(nbytes)
         else:
-            # Qt5 fallback : setsize ne modifie pas le QImage, seulement la vue SIP.
+            
             if hasattr(ptr, 'setsize'):
                 ptr.setsize(nbytes)
             raw = bytes(ptr)
@@ -3316,11 +3204,7 @@ def _qimage_rgba_owned_array(img):
         return None
 
 def _rgba_owned_array_to_qimage(rgba):
-    """Copie un framebuffer Python/NumPy vers un QImage autonome.
-
-    La construction se fait depuis un ``bytes`` Python et non depuis ``arr.data`` :
-    aucun QImage ne conserve donc de pointeur vers un ndarray après le retour.
-    """
+    
     try:
         arr = np.ascontiguousarray(rgba, dtype=np.uint8)
         if arr.ndim != 3 or arr.shape[2] != 4:
@@ -3334,12 +3218,7 @@ def _rgba_owned_array_to_qimage(rgba):
         return QImage()
 
 def _finite_bbox_xy_scalar(pts):
-    """BBox XY sans réduction NumPy, pour les petits anneaux projetés.
-
-    Les runs fournis au z-buffer ne contiennent normalement que des points finis.
-    Cette version tolère néanmoins les valeurs invalides et évite des appels
-    ``nanmin/nanmax`` répétés des dizaines de milliers de fois sur les scènes PV.
-    """
+    
     try:
         n = len(pts)
     except Exception:
@@ -3383,16 +3262,16 @@ def _overlay_offset_pixels(self, width=None, height=None):
         H = int(height or 0)
 
     if mode == 1:
-        # Mode relatif : valeurs exprimées en fraction de la taille rendue.
+        
         dx *= max(1, W)
         dy *= max(1, H)
     else:
-        # 40.17.5 : en mode Pixels, les valeurs UI sont des pixels de l'image
-        # pleine résolution (spin_w/spin_h), et non des pixels de la texture
-        # d'aperçu. Sans cette conversion, un offset de -88 px rendu à 25 %
-        # devenait visuellement -352 px après remise à l'échelle dans la
-        # visionneuse, alors que l'export pleine résolution restait à -88 px.
-        # L'aperçu et l'export doivent donc utiliser exactement le même calage.
+        
+        
+        
+        
+        
+        
         try:
             full_w = max(1.0, float(getattr(self, 'spin_w', None).value())) if getattr(self, 'spin_w', None) else float(max(1, W))
         except Exception:
@@ -3727,13 +3606,7 @@ def _qt_brush_from_fill_spec(fill_spec, poly=None):
 
 
 def _sample_rgba_from_fill_spec(fill_spec, xs, ys, bbox, texture_uv=None):
-    """Sample a procedural fill or texture for a raster tile.
-
-    ``texture_uv`` is an optional pair of normalized U/V arrays.  It is used by
-    projected schematic billboards so the SVG/PNG follows the actual projected
-    quad instead of its axis-aligned screen bounding box.  Other QGIS pattern
-    fills deliberately keep the historical bbox-based mapping.
-    """
+    
     kind = str((fill_spec or {}).get('kind', 'simple')).lower()
     h, w = xs.shape
     rgba = np.zeros((h, w, 4), dtype=np.uint8)
@@ -3780,9 +3653,9 @@ def _sample_rgba_from_fill_spec(fill_spec, xs, ys, bbox, texture_uv=None):
             tx = np.mod(np.floor(xs - float(bx0)).astype(np.int64), tw)
             ty = np.mod(np.floor(ys - float(by0)).astype(np.int64), th)
         sampled = tex_rgba[ty, tx].copy()
-        # Normal QGIS textures historically get flattened against their background.
-        # Schematic SVG billboards must keep their true alpha so transparent pixels
-        # around a tree/animal never become false depth occluders.
+        
+        
+        
         preserve_alpha = bool((fill_spec or {}).get('preserve_texture_alpha', False))
         if (not preserve_alpha) and sampled[:, :, 3].min() < 250:
             bg = _color_to_rgba_arr(_background_fill_color_from_spec(fill_spec or {}, fallback=QColor(225,225,225,255))).astype(np.float32)
@@ -3855,7 +3728,7 @@ def _sample_rgba_from_fill_spec(fill_spec, xs, ys, bbox, texture_uv=None):
 
 
 def _signed_area_2d(pts):
-    """Aire signée scalaire, sans temporaires NumPy."""
+    
     try:
         n = len(pts)
     except Exception:
@@ -3876,7 +3749,7 @@ def _signed_area_2d(pts):
     return 0.5 * area2
 
 def _point_in_triangle_2d(p, a, b, c, eps=1e-9):
-    """Test point/triangle scalaire, sans allocations NumPy."""
+    
     try:
         px, py = float(p[0]), float(p[1])
         ax, ay = float(a[0]), float(a[1])
@@ -3893,7 +3766,7 @@ def _point_in_triangle_2d(p, a, b, c, eps=1e-9):
     return (u >= -eps) and (v >= -eps) and (w >= -eps)
 
 def _clean_polygon_ring_pts_dep(pts, dep, eps=1e-6):
-    """Nettoie un anneau projeté avec des allocations bornées."""
+    
     keep_pts = []
     keep_dep = []
     try:
@@ -3917,7 +3790,7 @@ def _clean_polygon_ring_pts_dep(pts, dep, eps=1e-6):
     return np.asarray(keep_pts, dtype=np.float64), np.asarray(keep_dep, dtype=np.float64)
 
 def _earclip_triangulation_indices(pts, eps=1e-9):
-    """Ear clipping scalaire ; les indices restent ceux de l'anneau nettoyé."""
+    
     try:
         seq = [(float(p[0]), float(p[1])) for p in pts]
     except Exception:
@@ -3948,12 +3821,7 @@ def _earclip_triangulation_indices(pts, eps=1e-9):
     return tris
 
 def _triangulate_polygon_run(pts, dep, fill_spec, pattern_bbox=None):
-    """Triangule un anneau projeté avec stockage scalaire borné.
-
-    40.12 évite de créer deux petits ndarray pour chaque triangle (plusieurs
-    dizaines de milliers sur une centrale PV). Les tableaux NumPy ne sont créés
-    qu'au moment où une face est effectivement rasterisée.
-    """
+    
     pts, dep = _clean_polygon_ring_pts_dep(pts, dep)
     if pts.ndim != 2 or pts.shape[0] < 3 or pts.shape[1] != 2 or dep.ndim != 1:
         return []
@@ -3972,7 +3840,7 @@ def _triangulate_polygon_run(pts, dep, fill_spec, pattern_bbox=None):
     return tris
 
 def _clip_triangle_to_viewport(pts, dep, sw, sh):
-    """Découpe un triangle projeté et retourne uniquement des tuples Python."""
+    
     try:
         poly = [(float(pts[k][0]), float(pts[k][1]), float(dep[k])) for k in range(3)]
     except Exception:
@@ -4012,16 +3880,76 @@ def _clip_triangle_to_viewport(pts, dep, sw, sh):
                     (b[2], poly[k][2], poly[k+1][2])))
     return out
 
-def _compose_panorama_faces_zbuffer_40191(width, height, faces, scale=1.0, owner=None):
-    """40.19.1 PANORAMA-only software z-buffer with bounded transient memory.
+def _merge_panorama_stroke_tile(rgba, depth, cols, xx, yy, p0, p1, d0, d1):
+    
+    vx = float(p1[0]) - float(p0[0]); vy = float(p1[1]) - float(p0[1])
+    length2 = vx*vx + vy*vy
+    t = np.clip(((xx-p0[0])*vx + (yy-p0[1])*vy) / max(length2, 1e-20), 0.0, 1.0)
+    z = (float(d0) + t*(float(d1)-float(d0))).astype(np.float32)
+    visible = (cols[:, :, 3] > 0) & np.isfinite(z) & (z > 0.0) & (z <= depth)
+    depth[visible] = z[visible]
+    rgba[visible] = cols[visible]
 
-    Unlike the historical PINHOLE rasterizer below, this path is used only by
-    EQUIRECT/CYLINDRICAL.  It avoids ``np.meshgrid`` in the per-tile hot path,
-    keeps barycentric work buffers in float32, reuses scratch arrays, processes
-    faces front-to-back and can stop the frame cleanly if native memory becomes
-    dangerously low.  The PINHOLE renderer therefore remains byte-for-byte on
-    its historical ``_compose_faces_zbuffer`` implementation.
-    """
+
+def _compose_panorama_strokes_zbuffer(rgba, depth, scale, edges):
+    
+    sh, sw = depth.shape
+    sc = max(1e-9, float(scale))
+    tile = 160
+    for pen, uvs, depths, _xyz, wrap in edges:
+        if pen.color().alpha() <= 0:
+            continue
+        radius = max(1.0, float(pen.widthF())*sc)*0.5 + 2.0
+        for pts, dep in _iter_wrapped_runs_with_depth(
+                uvs, depths, wrap_width=(float(wrap) if wrap else None), min_len=2):
+            for i in range(min(len(pts), len(dep))-1):
+                p0 = (float(pts[i][0])*sc, float(pts[i][1])*sc)
+                p1 = (float(pts[i+1][0])*sc, float(pts[i+1][1])*sc)
+                d0, d1 = float(dep[i]), float(dep[i+1])
+                if not all(math.isfinite(v) for v in (*p0, *p1, d0, d1)) or min(d0,d1) <= 0:
+                    continue
+                
+                
+                clipped = _clip_zsegment_to_viewport(
+                    p0[0]+radius, p0[1]+radius, d0,
+                    p1[0]+radius, p1[1]+radius, d1,
+                    sw+2*radius, sh+2*radius)
+                if clipped is None:
+                    continue
+                ax,ay,_,bx,by,_ = clipped
+                ax-=radius; ay-=radius; bx-=radius; by-=radius
+                xmin=max(0,int(math.floor(min(ax,bx)-radius)))
+                xmax=min(sw-1,int(math.ceil(max(ax,bx)+radius)))
+                ymin=max(0,int(math.floor(min(ay,by)-radius)))
+                ymax=min(sh-1,int(math.ceil(max(ay,by)+radius)))
+                for y0 in range(ymin,ymax+1,tile):
+                    y1=min(ymax+1,y0+tile)
+                    for x0 in range(xmin,xmax+1,tile):
+                        x1=min(xmax+1,x0+tile)
+                        img=QImage(x1-x0,y1-y0,QC.QImage_Format_Format_ARGB32_Premultiplied)
+                        if img.isNull():
+                            raise MemoryError("Cannot allocate panorama stroke tile")
+                        img.fill(QColor(0,0,0,0))
+                        painter=QPainter(img)
+                        try:
+                            painter.setRenderHint(QC.QPainter_RenderHint_Antialiasing,True)
+                            painter.translate(-float(x0),-float(y0))
+                            painter.scale(sc,sc)
+                            painter.setPen(pen)
+                            painter.drawLine(QPointF(p0[0]/sc,p0[1]/sc),QPointF(p1[0]/sc,p1[1]/sc))
+                        finally:
+                            painter.end()
+                        cols=_qimage_rgba_owned_array(img)
+                        if cols is None:
+                            raise RuntimeError("Cannot read panorama stroke coverage")
+                        xx=np.arange(x0,x1,dtype=np.float64)[None,:]+0.5
+                        yy=np.arange(y0,y1,dtype=np.float64)[:,None]+0.5
+                        _merge_panorama_stroke_tile(
+                            rgba[y0:y1,x0:x1],depth[y0:y1,x0:x1],cols,xx,yy,p0,p1,d0,d1)
+
+
+def _compose_panorama_faces_zbuffer_40191(width, height, faces, scale=1.0, owner=None):
+    
     sw = max(1, int(round(float(width) * float(scale))))
     sh = max(1, int(round(float(height) * float(scale))))
     depth = np.full((sh, sw), np.inf, dtype=np.float32)
@@ -4029,20 +3957,26 @@ def _compose_panorama_faces_zbuffer_40191(width, height, faces, scale=1.0, owner
     sc = float(scale)
     tile_px = 160
 
-    # Reusable scratch buffers.  A 160² tile keeps the working set compact while
-    # remaining large enough for NumPy to be worthwhile.
+    
+    
     A = np.empty((tile_px, tile_px), dtype=np.float32)
     B = np.empty((tile_px, tile_px), dtype=np.float32)
     C = np.empty((tile_px, tile_px), dtype=np.float32)
     Z = np.empty((tile_px, tile_px), dtype=np.float32)
     T = np.empty((tile_px, tile_px), dtype=np.float32)
+    
+    
+    U = np.empty((tile_px, tile_px), dtype=np.float32)
+    V = np.empty((tile_px, tile_px), dtype=np.float32)
+    N = np.empty((tile_px, tile_px), dtype=np.float32)
     M = np.empty((tile_px, tile_px), dtype=np.bool_)
     M2 = np.empty((tile_px, tile_px), dtype=np.bool_)
+    M3 = np.empty((tile_px, tile_px), dtype=np.bool_)
     xbase = np.arange(tile_px, dtype=np.float32) + np.float32(0.5)
     ybase = np.arange(tile_px, dtype=np.float32) + np.float32(0.5)
 
-    # Z-buffer order is mathematically independent, but front-to-back ordering
-    # allows many rear tiles to be rejected before barycentric/color work.
+    
+    
     try:
         work_faces = sorted(
             list(faces or ()),
@@ -4057,10 +3991,10 @@ def _compose_panorama_faces_zbuffer_40191(width, height, faces, scale=1.0, owner
     _MIB_local = 1024 * 1024
 
     for face_index, face in enumerate(work_faces):
-        # Runtime guard complements the preflight Memory Guard.  We only stop at
-        # a genuinely dangerous native-memory floor, so "Continuer quand même"
-        # remains useful without letting the process run all the way to an AV.
-        if owner is not None and face_index and (face_index % 2048) == 0:
+        
+        
+        
+        if owner is not None and face_index and (face_index % 512) == 0:
             try:
                 snap = memory_snapshot()
                 if snap.total_bytes > 0 and snap.available_bytes > 0:
@@ -4096,26 +4030,36 @@ def _compose_panorama_faces_zbuffer_40191(width, height, faces, scale=1.0, owner
             pb_scaled = None
 
         tex_denom = None
+        tex_coeff = None
         if texture_uv_vertices is not None:
             try:
                 (tx0s, ty0s), (tx1s, ty1s), (tx2s, ty2s) = pts_s
                 td = ((ty1s-ty2s)*(tx0s-tx2s)+(tx2s-tx1s)*(ty0s-ty2s))
                 if math.isfinite(td) and abs(td) >= 1e-12:
                     tex_denom = float(td)
+                    tinv = np.float32(1.0 / tex_denom)
+                    tax = np.float32(ty1s - ty2s) * tinv
+                    tay = np.float32(tx2s - tx1s) * tinv
+                    tac = np.float32((-(ty1s-ty2s)*tx2s-(tx2s-tx1s)*ty2s) / tex_denom)
+                    tbx = np.float32(ty2s - ty0s) * tinv
+                    tby = np.float32(tx0s - tx2s) * tinv
+                    tbc = np.float32((-(ty2s-ty0s)*tx2s-(tx0s-tx2s)*ty2s) / tex_denom)
+                    tex_coeff = (tax, tay, tac, tbx, tby, tbc)
                 else:
                     texture_uv_vertices = None
             except Exception:
                 texture_uv_vertices = None
                 tex_denom = None
+                tex_coeff = None
 
-        # Constant simple fills avoid allocating a full RGBA tile altogether.
+        
         kind = str(fill_spec.get('kind', 'simple') or 'simple').lower()
         fast_simple = (kind == 'simple' and fill_spec.get('texture_img', None) is None)
         simple_rgba = None
         if fast_simple:
             try:
                 simple_rgba = _color_to_rgba_arr(fill_spec.get('color', QColor(0,255,0,255))).copy()
-                ta = int(fill_spec.get('target_alpha', 255) or 255)
+                ta = int(fill_spec.get('target_alpha', 255))
                 if ta < 255:
                     simple_rgba[3] = np.uint8(max(0, min(255, int(round(float(simple_rgba[3]) * (float(ta)/255.0))))))
             except Exception:
@@ -4147,10 +4091,10 @@ def _compose_panorama_faces_zbuffer_40191(width, height, faces, scale=1.0, owner
                 for tx0 in range(minx,maxx+1,tile_px):
                     tx1=min(maxx,tx0+tile_px-1); nx=tx1-tx0+1
                     sl_depth=depth[ty0:ty1+1,tx0:tx1+1]
-                    # With front-to-back faces, a tile already completely closer
-                    # than the nearest point of this triangle cannot change.
+                    
+                    
                     try:
-                        if np.all(sl_depth <= min_face_depth):
+                        if np.all(sl_depth < min_face_depth):
                             skipped_depth_tiles += 1
                             continue
                     except Exception:
@@ -4160,11 +4104,12 @@ def _compose_panorama_faces_zbuffer_40191(width, height, faces, scale=1.0, owner
                     XX=np.broadcast_to(xs[None,:],(ny,nx))
                     YY=np.broadcast_to(ys[:,None],(ny,nx))
                     av=A[:ny,:nx]; bv=B[:ny,:nx]; cv=C[:ny,:nx]; zv=Z[:ny,:nx]; tv=T[:ny,:nx]
-                    mv=M[:ny,:nx]; m2=M2[:ny,:nx]
+                    uv_u=U[:ny,:nx]; uv_v=V[:ny,:nx]; nv=N[:ny,:nx]
+                    mv=M[:ny,:nx]; m2=M2[:ny,:nx]; m3=M3[:ny,:nx]
 
-                    # a = ax*x + ay*y + ac ; b likewise.  All arithmetic is
-                    # float32 and scratch-backed, so no meshgrid or large float64
-                    # coordinate matrices are created per tile.
+                    
+                    
+                    
                     np.multiply(XX,a_x,out=av); np.multiply(YY,a_y,out=tv); np.add(av,tv,out=av); av += a_c
                     np.multiply(XX,b_x,out=bv); np.multiply(YY,b_y,out=tv); np.add(bv,tv,out=bv); bv += b_c
                     np.add(av,bv,out=cv); np.subtract(np.float32(1.0),cv,out=cv)
@@ -4173,9 +4118,9 @@ def _compose_panorama_faces_zbuffer_40191(width, height, faces, scale=1.0, owner
                     np.greater_equal(av,-epsb,out=mv)
                     np.greater_equal(bv,-epsb,out=m2); np.logical_and(mv,m2,out=mv)
                     np.greater_equal(cv,-epsb,out=m2); np.logical_and(mv,m2,out=mv)
-                    # Preserve historical tolerance for the opposite orientation.
-                    # Standard barycentric coordinates are positive inside after
-                    # division by denom, so the positive branch above is enough.
+                    
+                    
+                    
                     if not np.any(mv): continue
 
                     np.multiply(av,np.float32(dep_s[0]-dep_s[2]),out=zv)
@@ -4184,24 +4129,50 @@ def _compose_panorama_faces_zbuffer_40191(width, height, faces, scale=1.0, owner
                     zv += tv
 
                     mapped_texture_uv=None
-                    if texture_uv_vertices is not None and tex_denom is not None:
-                        # Textured billboards are a bounded subset.  Keep their
-                        # precise original-triangle UV interpolation, but use the
-                        # broadcast coordinate views rather than meshgrid copies.
-                        ta=((ty1s-ty2s)*(XX-tx2s)+(tx2s-tx1s)*(YY-ty2s))/tex_denom
-                        tb=((ty2s-ty0s)*(XX-tx2s)+(tx0s-tx2s)*(YY-ty2s))/tex_denom
-                        tc=1.0-ta-tb
+                    if texture_uv_vertices is not None and tex_denom is not None and tex_coeff is not None:
+                        
+                        
+                        
+                        
+                        
+                        
+                        tax,tay,tac,tbx,tby,tbc = tex_coeff
+                        np.multiply(XX,tax,out=av); np.multiply(YY,tay,out=tv); np.add(av,tv,out=av); av += tac
+                        np.multiply(XX,tbx,out=bv); np.multiply(YY,tby,out=tv); np.add(bv,tv,out=bv); bv += tbc
+                        np.add(av,bv,out=cv); np.subtract(np.float32(1.0),cv,out=cv)
                         (u0,v0),(u1,v1),(u2,v2)=texture_uv_vertices
                         if dep[0]>1e-9 and dep[1]>1e-9 and dep[2]>1e-9:
-                            iz0=1.0/dep[0]; iz1=1.0/dep[1]; iz2=1.0/dep[2]
-                            iq=ta*iz0+tb*iz1+tc*iz2
-                            good_q=np.isfinite(iq)&(np.abs(iq)>1e-15)
-                            uu=np.zeros(iq.shape,dtype=np.float64); vv=np.zeros(iq.shape,dtype=np.float64)
-                            np.divide(ta*(u0*iz0)+tb*(u1*iz1)+tc*(u2*iz2),iq,out=uu,where=good_q)
-                            np.divide(ta*(v0*iz0)+tb*(v1*iz1)+tc*(v2*iz2),iq,out=vv,where=good_q)
+                            iz0=np.float32(1.0/dep[0]); iz1=np.float32(1.0/dep[1]); iz2=np.float32(1.0/dep[2])
+                            
+                            np.multiply(av,iz0,out=tv)
+                            np.multiply(bv,iz1,out=nv); np.add(tv,nv,out=tv)
+                            np.multiply(cv,iz2,out=nv); np.add(tv,nv,out=tv)
+                            np.isfinite(tv,out=m2)
+                            np.absolute(tv,out=nv)
+                            np.greater(nv,np.float32(1.0e-15),out=m3); np.logical_and(m2,m3,out=m2)
+                            
+                            np.multiply(av,np.float32(u0)*iz0,out=uv_u)
+                            np.multiply(bv,np.float32(u1)*iz1,out=nv); np.add(uv_u,nv,out=uv_u)
+                            np.multiply(cv,np.float32(u2)*iz2,out=nv); np.add(uv_u,nv,out=uv_u)
+                            np.divide(uv_u,tv,out=uv_u,where=m2)
+                            
+                            np.multiply(av,np.float32(v0)*iz0,out=uv_v)
+                            np.multiply(bv,np.float32(v1)*iz1,out=nv); np.add(uv_v,nv,out=uv_v)
+                            np.multiply(cv,np.float32(v2)*iz2,out=nv); np.add(uv_v,nv,out=uv_v)
+                            np.divide(uv_v,tv,out=uv_v,where=m2)
+                            
+                            
+                            np.logical_not(m2,out=m3)
+                            np.copyto(uv_u,np.float32(0.0),where=m3)
+                            np.copyto(uv_v,np.float32(0.0),where=m3)
                         else:
-                            uu=ta*u0+tb*u1+tc*u2; vv=ta*v0+tb*v1+tc*v2
-                        mapped_texture_uv=(uu,vv)
+                            np.multiply(av,np.float32(u0),out=uv_u)
+                            np.multiply(bv,np.float32(u1),out=nv); np.add(uv_u,nv,out=uv_u)
+                            np.multiply(cv,np.float32(u2),out=nv); np.add(uv_u,nv,out=uv_u)
+                            np.multiply(av,np.float32(v0),out=uv_v)
+                            np.multiply(bv,np.float32(v1),out=nv); np.add(uv_v,nv,out=uv_v)
+                            np.multiply(cv,np.float32(v2),out=nv); np.add(uv_v,nv,out=uv_v)
+                        mapped_texture_uv=(uv_u,uv_v)
 
                     np.isfinite(zv,out=m2); np.logical_and(mv,m2,out=mv)
                     np.greater(zv,np.float32(0.0),out=m2); np.logical_and(mv,m2,out=mv)
@@ -4242,11 +4213,13 @@ def _compose_panorama_faces_zbuffer_40191(width, height, faces, scale=1.0, owner
                 'width':int(sw),'height':int(sh),'scale':float(scale),
             }
         except Exception: pass
+    if aborted_memory and bool(getattr(owner, '_qcv_export_in_progress', False)):
+        raise MemoryError("PANORAMA export cancelled before memory limit; incomplete depth scene")
     return rgba, depth, float(scale)
 
 
 def _compose_faces_zbuffer(width, height, faces, scale=1.0):
-    """Z-buffer PINHOLE tuilé ; NumPy réservé aux tuiles raster réellement utiles."""
+    
     sw = max(1, int(round(float(width) * float(scale))))
     sh = max(1, int(round(float(height) * float(scale))))
     depth = np.full((sh, sw), np.inf, dtype=np.float32)
@@ -4281,13 +4254,13 @@ def _compose_faces_zbuffer(width, height, faces, scale=1.0):
         else:
             pb_scaled = None
 
-        # 40.17.4: textured schematic billboards carry real UV coordinates for
-        # each projected vertex.  The previous bbox mapping painted the entire
-        # SVG into an axis-aligned rectangle and then clipped it with the two
-        # projected triangles; pitch/roll therefore chopped animals/vehicles
-        # along a moving diagonal.  Keep the original projected triangle here so
-        # each raster tile can recover barycentric texture coordinates even when
-        # the geometry triangle itself had to be clipped to the viewport.
+        
+        
+        
+        
+        
+        
+        
         tex_denom = None
         if texture_uv_vertices is not None:
             try:
@@ -4331,10 +4304,10 @@ def _compose_faces_zbuffer(width, height, faces, scale=1.0):
 
                     mapped_texture_uv = None
                     if texture_uv_vertices is not None and tex_denom is not None:
-                        # Barycentrics are evaluated against the ORIGINAL
-                        # projected triangle, not the viewport-clipped fan.
-                        # Perspective correction uses camera-axis depth (yc),
-                        # which is exactly the depth returned by the projector.
+                        
+                        
+                        
+                        
                         ta=((ty1s-ty2s)*(XX-tx2s)+(tx2s-tx1s)*(YY-ty2s))/tex_denom
                         tb=((ty2s-ty0s)*(XX-tx2s)+(tx0s-tx2s)*(YY-ty2s))/tex_denom
                         tc=1.0-ta-tb
@@ -4465,7 +4438,7 @@ def _append_line_walls_for_zbuffer(faces, sty, uv_base, depth_base, uv_top, dept
 
 
 def _xy_points_scalar(arr_xy):
-    """Convertit un petit anneau XY en tuples Python finis, sans ufunc NumPy."""
+    
     try:
         n = len(arr_xy)
     except Exception:
@@ -4490,11 +4463,7 @@ def _xy_points_close(a, b):
         return False
 
 def _significant_ring_vertex_indices(arr_xy, closed=True, angle_tol_deg=2.0, min_seg_len=0.05):
-    """Indices des vrais changements de plan, calculés en Python scalaire.
-
-    NumPy est volontairement exclu de cette micro-géométrie : sous QGIS 4/Qt6,
-    ce chemin est appelé des milliers de fois et n'a aucun intérêt vectoriel.
-    """
+    
     pts = _xy_points_scalar(arr_xy)
     if not pts:
         return []
@@ -4527,7 +4496,7 @@ def _significant_ring_vertex_indices(arr_xy, closed=True, angle_tol_deg=2.0, min
     return keep if keep else list(range(n))
 
 def _wall_visibility_flags_xy(arr_xy, cam_pt_xy, closed=True, min_seg_len=0.05):
-    """Visibilité des pans verticaux, en calcul scalaire sans petits ndarrays."""
+    
     pts = _xy_points_scalar(arr_xy)
     if len(pts) < 2:
         return []
@@ -4555,7 +4524,7 @@ def _wall_visibility_flags_xy(arr_xy, cam_pt_xy, closed=True, min_seg_len=0.05):
     return flags
 
 def _opaque_vertical_corner_indices(arr_xy, cam_pt_xy, angle_tol_deg=2.0, min_seg_len=0.05):
-    """Coins visibles d'un anneau opaque, sans normalisation NumPy imbriquée."""
+    
     ring = _xy_points_scalar(arr_xy)
     if not ring:
         return []
@@ -4606,7 +4575,7 @@ def _select_uv_depth_by_indices(uvs, depths, indices, closed=True):
 
 
 def _prepare_pinhole_screen_metrics(ctx):
-    """Pré-calcule les constantes caméra utilisées par les tests d'horizon."""
+    
     cached=ctx.get('_qcal_pinhole_metrics') if isinstance(ctx,dict) else None
     if cached is not None: return cached
     try:
@@ -4621,7 +4590,7 @@ def _prepare_pinhole_screen_metrics(ctx):
 
 
 def _pinhole_screen_depth_metrics(ctx, x, y, depth_yc):
-    """Azimut, élévation et distance horizontale d'un fragment PINHOLE."""
+    
     try:
         d=float(depth_yc)
         if not math.isfinite(d) or d<=1e-9: return None
@@ -4636,7 +4605,7 @@ def _pinhole_screen_depth_metrics(ctx, x, y, depth_yc):
     except Exception: return None
 
 def _horizon_distance_index_python(d_values, dist_m):
-    """Largest horizon sample strictly before dist_m, matching searchsorted(..., left)-1."""
+    
     try:
         n = int(getattr(d_values, 'size', 0) or len(d_values))
         if n <= 0:
@@ -4655,15 +4624,7 @@ def _horizon_distance_index_python(d_values, dist_m):
 
 
 def _prepare_horizon_fast_distance_lut_40192(horizon):
-    """Prepare a conservative uniform distance->radial-index LUT once per horizon.
-
-    40.19.2 removes scalar ``np.searchsorted`` calls from the render hot path.
-    The LUT is intentionally conservative: a bucket points to the last terrain
-    sample strictly before the *lower* bucket bound.  A coarse object pre-test
-    can therefore keep a few extra objects, but cannot hide a visible one merely
-    because of the lookup approximation. Exact scalar callers refine at most a
-    few indices with Python comparisons, without entering NumPy reductions.
-    """
+    
     if not isinstance(horizon, dict):
         return None
     cached = horizon.get('_qcv_dist_lut_40192')
@@ -4675,8 +4636,8 @@ def _prepare_horizon_fast_distance_lut_40192(horizon):
         if dv is None or nd <= 0:
             return None
         maxd = max(1.0, float(dv[nd-1]))
-        # Keep the table compact (usually < 3000 integers) while much finer than
-        # the distant adaptive radial spacing.  No large NumPy allocation here.
+        
+        
         step = max(2.0, min(20.0, maxd / 2048.0))
         count = max(2, int(math.ceil(maxd / step)) + 2)
         lut = [-1] * count
@@ -4694,7 +4655,7 @@ def _prepare_horizon_fast_distance_lut_40192(horizon):
 
 
 def _horizon_distance_index_fast_40192(horizon, dist_m, *, exact=True):
-    """Hot-path horizon distance index without ``np.searchsorted``."""
+    
     try:
         dv = horizon.get('d_values') if isinstance(horizon, dict) else None
         nd = int(getattr(dv, 'size', 0) or len(dv))
@@ -4715,7 +4676,7 @@ def _horizon_distance_index_fast_40192(horizon, dist_m, *, exact=True):
         j = int(vals[k])
         if not exact:
             return min(j, nd - 1)
-        # Refine using only scalar Python comparisons. Usually 0–2 iterations.
+        
         while (j + 1) < nd and float(dv[j + 1]) < d:
             j += 1
         while j >= 0 and float(dv[j]) >= d:
@@ -4746,7 +4707,7 @@ def _horizon_azimuth_index_fast_40192(horizon, az_deg):
 
 
 def _terrain_point_visible_fast_40192(horizon, x, y, z, cam_x, cam_y, cam_z, eps_deg):
-    """Distance-aware horizon test using scalar math + prebuilt distance LUT."""
+    
     if not horizon:
         return True
     try:
@@ -4779,13 +4740,7 @@ def _terrain_point_visible_fast_40192(horizon, x, y, z, cam_x, cam_y, cam_z, eps
 
 
 def _terrain_object_classify_xyz_40192(horizon, xyz, cam_x, cam_y, cam_z, eps_deg, *, max_samples=24, max_span_m=850.0):
-    """Classify world XYZ before triangulation: 0 hidden, 1 mixed, 2 visible.
-
-    The whole-object reject happens *before* face construction and z-buffer input.
-    Large/elongated objects are deliberately returned as mixed rather than being
-    aggressively rejected, because a small visible section may lie between sparse
-    samples.  This makes the pre-pass safe for BATI while retaining long polygons.
-    """
+    
     if not horizon or xyz is None:
         return 2
     try:
@@ -4807,7 +4762,7 @@ def _terrain_object_classify_xyz_40192(horizon, xyz, cam_x, cam_y, cam_z, eps_de
         if n <= 0:
             return 2
         span = math.hypot(maxx-minx, maxy-miny)
-        # Long land parcels / corridors are kept for the finer downstream path.
+        
         if math.isfinite(span) and span > float(max_span_m):
             return 1
         want = min(max(4, int(max_samples)), n)
@@ -4826,7 +4781,7 @@ def _terrain_object_classify_xyz_40192(horizon, xyz, cam_x, cam_y, cam_z, eps_de
             x,y,z = valid_rows[ii]; sx+=x; sy+=y; sz+=z; sc+=1
             if _terrain_point_visible_fast_40192(horizon,x,y,z,cam_x,cam_y,cam_z,eps_deg): visible += 1
             else: hidden += 1
-        # Centroid catches a roof/surface that rises into a gap between ring samples.
+        
         if sc > 1:
             cx=sx/sc; cy=sy/sc; cz=sz/sc
             if _terrain_point_visible_fast_40192(horizon,cx,cy,cz,cam_x,cam_y,cam_z,eps_deg): visible += 1
@@ -4841,7 +4796,7 @@ def _terrain_object_classify_xyz_40192(horizon, xyz, cam_x, cam_y, cam_z, eps_de
 
 
 def _terrain_probe_xyz_from_xy_parts_40192(parts, z_sampler, top_height_m, *, max_samples=24):
-    """Cheap schematic feature probe before procedural instance generation."""
+    
     if not parts or z_sampler is None:
         return None
     try:
@@ -4869,7 +4824,7 @@ def _terrain_probe_xyz_from_xy_parts_40192(parts, z_sampler, top_height_m, *, ma
 
 
 def _pinhole_fragment_visible_by_horizon(ctx, horizon, eps_deg, x, y, depth_yc):
-    """Distance-aware terrain visibility for a fragment already present in the PINHOLE z-buffer."""
+    
     if not horizon:
         return True
     metrics = _pinhole_screen_depth_metrics(ctx, x, y, depth_yc)
@@ -4884,7 +4839,7 @@ def _pinhole_fragment_visible_by_horizon(ctx, horizon, eps_deg, x, y, depth_yc):
         az_min = float(horizon.get('az_min', 0.0))
         az_max = float(horizon.get('az_max', az_min))
         center = 0.5 * (az_min + az_max)
-        # Put the wrapped azimuth into the same continuous range as the horizon cache.
+        
         az_val = center + (((float(az_deg) - center + 180.0) % 360.0) - 180.0)
         if az_max <= az_min or n_bins == 1:
             idx = 0
@@ -4913,11 +4868,7 @@ def _pinhole_fragment_visible_by_horizon(ctx, horizon, eps_deg, x, y, depth_yc):
 
 
 def _mask_pinhole_zbuffer_by_horizon(rgba, depth_buf, depth_scale, ctx, horizon, eps_deg):
-    """Masque MNT tuilé directement sur le framebuffer RGBA NumPy détenu par QCALVIEW.
-
-    Aucun QImage n'existe encore à ce stade : le passage NumPy -> QImage n'a lieu
-    qu'une seule fois, après z-buffer ET occultation MNT.
-    """
+    
     if rgba is None or depth_buf is None or not horizon or str(ctx.get('proj','')).upper()!='PINHOLE':
         return rgba
     try:
@@ -4967,8 +4918,175 @@ def _mask_pinhole_zbuffer_by_horizon(rgba, depth_buf, depth_scale, ctx, horizon,
     except Exception:
         return rgba
 
+def _panorama_fragment_visible_by_horizon(ctx, horizon, eps_deg, x, y, radial_depth):
+    
+    if not horizon or ctx is None:
+        return True
+    try:
+        proj=str(ctx.get('proj','') or '').upper()
+        if proj not in ('EQUIRECT','EQUIRECTANGULAR','CYLINDRICAL'):
+            return True
+        W=max(1,int(ctx.get('width',1))); H=max(1,int(ctx.get('height',1)))
+        xx=float(x); yy=float(y); dep=float(radial_depth)
+        if not all(math.isfinite(v) for v in (xx,yy,dep)) or dep<=0.0:
+            return True
+        hf=math.radians(max(1e-6,float(ctx.get('HFOV',360.0))))
+        vf=math.radians(max(1e-6,float(ctx.get('VFOV',180.0))))
+        full360=bool(ctx.get('is360',False))
+        if proj in ('EQUIRECT','EQUIRECTANGULAR'):
+            if full360:
+                alpha=(xx/float(W))*(2.0*math.pi)-math.pi
+                beta=math.pi*0.5-(yy/float(H))*math.pi
+            else:
+                alpha=(xx-float(W)*0.5)*(hf/float(W))
+                beta=(float(H)*0.5-yy)*(vf/float(H))
+        else:
+            if full360:
+                alpha=(xx/float(W))*(2.0*math.pi)-math.pi
+            else:
+                alpha=(xx-float(W)*0.5)*(hf/float(W))
+            vf=_validated_vfov_for_cylindrical(float(ctx.get('VFOV',90.0)),float(ctx.get('HFOV',360.0)),W,H)
+            fy=(H*0.5)/max(1e-9,math.tan(vf*0.5))
+            beta=math.atan((float(H)*0.5-yy)/float(fy))
+        cb=math.cos(beta)
+        xc=cb*math.sin(alpha); yc=cb*math.cos(alpha); zc=math.sin(beta)
+        rt=ctx.get('r'); ut=ctx.get('u'); ft=ctx.get('f')
+        if rt is None or ut is None or ft is None:
+            return True
+        dx=xc*float(rt[0])+yc*float(ft[0])+zc*float(ut[0])
+        dy=xc*float(rt[1])+yc*float(ft[1])+zc*float(ut[1])
+        dz=xc*float(rt[2])+yc*float(ft[2])+zc*float(ut[2])
+        rh=math.hypot(dx,dy)
+        if not math.isfinite(rh) or rh<=1e-12:
+            return True
+        dist=dep*rh
+        az=(math.degrees(math.atan2(dx,dy))+360.0)%360.0
+        el=math.degrees(math.atan2(dz,rh))
+        ai=_horizon_azimuth_index_fast_40192(horizon,az)
+        if ai is None:
+            return True
+        env=None
+        ec=horizon.get('el_cummax'); eb=horizon.get('el_bins')
+        j=_horizon_distance_index_fast_40192(horizon,dist,exact=True)
+        if j>=0 and ec is not None:
+            try: env=float(ec[ai,j])
+            except Exception: env=None
+        elif j<0:
+            return True
+        if env is None and eb is not None:
+            try: env=float(eb[ai])
+            except Exception: env=None
+        if env is None or not math.isfinite(env):
+            return True
+        return float(el)>=(float(env)-float(eps_deg))
+    except Exception:
+        return True
+
+
+def _mask_panorama_zbuffer_by_horizon(rgba, depth_buf, depth_scale, ctx, horizon, eps_deg):
+    
+    if rgba is None or depth_buf is None or not horizon or ctx is None:
+        return rgba
+    try:
+        proj=str(ctx.get('proj','') or '').upper()
+        if proj not in ('EQUIRECT','EQUIRECTANGULAR','CYLINDRICAL'):
+            return rgba
+        depth=np.asarray(depth_buf)
+        if depth.ndim!=2 or getattr(rgba,'ndim',0)!=3:
+            return rgba
+        W=max(1,int(ctx.get('width',rgba.shape[1]))); H=max(1,int(ctx.get('height',rgba.shape[0])))
+        scale=max(1e-9,float(depth_scale))
+        hf=math.radians(max(1e-6,float(ctx.get('HFOV',360.0))))
+        vf=math.radians(max(1e-6,float(ctx.get('VFOV',180.0))))
+        full360=bool(ctx.get('is360',False))
+        if proj=='CYLINDRICAL':
+            vf=_validated_vfov_for_cylindrical(float(ctx.get('VFOV',90.0)),float(ctx.get('HFOV',360.0)),W,H)
+            fy=(H*0.5)/max(1e-9,math.tan(vf*0.5))
+        else:
+            fy=None
+        rt=ctx.get('r'); ut=ctx.get('u'); ft=ctx.get('f')
+        if rt is None or ut is None or ft is None:
+            return rgba
+        rx,ry,rz=(float(rt[0]),float(rt[1]),float(rt[2]))
+        ux,uy,uz=(float(ut[0]),float(ut[1]),float(ut[2]))
+        fxw,fyw,fzw=(float(ft[0]),float(ft[1]),float(ft[2]))
+        el_bins=horizon.get('el_bins')
+        n_bins=int(horizon.get('n_bins') or getattr(el_bins,'size',0) or len(el_bins))
+        if el_bins is None or n_bins<=0:
+            return rgba
+        eb=np.asarray(el_bins,dtype=np.float64)
+        az_min=float(horizon.get('az_min',0.0)); az_max=float(horizon.get('az_max',az_min)); center=0.5*(az_min+az_max)
+        dv0=horizon.get('d_values'); ec0=horizon.get('el_cummax')
+        dv=np.asarray(dv0,dtype=np.float64) if dv0 is not None else None
+        ec=np.asarray(ec0) if ec0 is not None else None
+        nd=int(dv.size) if dv is not None else 0
+        hh,ww=depth.shape; tile=256
+        for y0 in range(0,hh,tile):
+            y1=min(hh,y0+tile)
+            for x0 in range(0,ww,tile):
+                x1=min(ww,x0+tile); ds=depth[y0:y1,x0:x1]
+                finite=np.isfinite(ds)&(ds>1e-9)
+                if not np.any(finite):
+                    continue
+                yy,xx=np.nonzero(finite); dep=ds[yy,xx].astype(np.float64,copy=False)
+                x=((xx.astype(np.float64)+x0)+0.5)/scale
+                y=((yy.astype(np.float64)+y0)+0.5)/scale
+                if proj in ('EQUIRECT','EQUIRECTANGULAR'):
+                    if full360:
+                        alpha=(x/float(W))*(2.0*math.pi)-math.pi
+                        beta=math.pi*0.5-(y/float(H))*math.pi
+                    else:
+                        alpha=(x-float(W)*0.5)*(hf/float(W))
+                        beta=(float(H)*0.5-y)*(vf/float(H))
+                else:
+                    if full360:
+                        alpha=(x/float(W))*(2.0*math.pi)-math.pi
+                    else:
+                        alpha=(x-float(W)*0.5)*(hf/float(W))
+                    beta=np.arctan((float(H)*0.5-y)/float(fy))
+                cb=np.cos(beta)
+                xc=cb*np.sin(alpha); yc=cb*np.cos(alpha); zc=np.sin(beta)
+                dx=xc*rx+yc*fxw+zc*ux
+                dy=xc*ry+yc*fyw+zc*uy
+                dz=xc*rz+yc*fzw+zc*uz
+                rh=np.hypot(dx,dy)
+                valid=np.isfinite(rh)&(rh>1e-12)
+                dist=dep*rh
+                az=(np.degrees(np.arctan2(dx,dy))+360.0)%360.0
+                el=np.degrees(np.arctan2(dz,rh))
+                av=center+(((az-center+180.0)%360.0)-180.0)
+                if az_max<=az_min or n_bins==1:
+                    ai=np.zeros_like(xx,dtype=np.int32)
+                else:
+                    ai=np.rint(np.clip((av-az_min)/(az_max-az_min),0.0,1.0)*(n_bins-1)).astype(np.int32)
+                env=eb[ai]
+                if dv is not None and ec is not None and nd>0 and ec.ndim>=2:
+                    lo=np.full(dist.shape,-1,dtype=np.int32); hi=np.full(dist.shape,nd,dtype=np.int32)
+                    iterations=max(1,int(math.ceil(math.log(max(2,nd+1),2)))+1)
+                    for _ in range(iterations):
+                        active=(hi-lo)>1
+                        if not np.any(active):
+                            break
+                        mid=((lo+hi)//2).astype(np.int32); mc=np.clip(mid,0,nd-1)
+                        go=active&(dv[mc]<dist)
+                        lo=np.where(go,mid,lo); hi=np.where(active&(~go),mid,hi)
+                    hp=lo>=0
+                    if np.any(hp):
+                        e2=env.copy(); e2[hp]=ec[ai[hp],lo[hp]]; env=e2
+                    env=np.where(hp,env,-np.inf)
+                hidden=valid&np.isfinite(env)&(el<(env-float(eps_deg)))
+                if not np.any(hidden):
+                    continue
+                hy=yy[hidden]; hx=xx[hidden]
+                rgba[y0+hy,x0+hx,:]=0
+                ds[hy,hx]=np.inf
+        return rgba
+    except Exception as exc:
+        raise RuntimeError("PANORAMA terrain fragment mask failed") from exc
+
+
 def _clip_zsegment_to_viewport(x0,y0,d0,x1,y1,d1,xmax,ymax):
-    """Clipping Liang-Barsky d'un segment projeté avec interpolation de profondeur."""
+    
     dx=x1-x0; dy=y1-y0; t0=0.0; t1=1.0
     for p,q in ((-dx,x0),(dx,xmax-x0),(-dy,y0),(dy,ymax-y0)):
         if abs(p)<=1e-15:
@@ -4987,13 +5105,8 @@ def _clip_zsegment_to_viewport(x0,y0,d0,x1,y1,d1,xmax,ymax):
 
 
 
-def _draw_panorama_ztested_segment_4019(self, painter, uv0, uv1, d0, d1, depth_buf, scale):
-    """Trace un segment PANORAMA contre le z-buffer radial, sans toucher PINHOLE.
-
-    Une fenêtre 3x3 est utilisée autour de l'échantillon de profondeur : cela
-    supprime les arêtes arrière qui réapparaissaient dans les trous d'aliasing du
-    framebuffer réduit, tout en conservant la silhouette propre de la face proche.
-    """
+def _draw_panorama_ztested_segment_4019(self, painter, uv0, uv1, d0, d1, depth_buf, scale, terrain_test=None):
+    
     try:
         x0,y0=float(uv0[0]),float(uv0[1]); x1,y1=float(uv1[0]),float(uv1[1])
         d0=float(d0); d1=float(d1)
@@ -5010,35 +5123,45 @@ def _draw_panorama_ztested_segment_4019(self, painter, uv0, uv1, d0, d1, depth_b
     if clipped is None:
         return
     x0,y0,d0,x1,y1,d1=clipped
-    # ~4 pixels z-buffer par échantillon : assez fin pour une arête propre sans
-    # recréer le coût d'un rasteriseur de ligne pleine résolution.
-    steps=max(2,int(math.ceil(max(abs(x1-x0),abs(y1-y0))*sc/4.0)))
+    
+    
+    steps=max(2,int(math.ceil(max(abs(x1-x0),abs(y1-y0))*sc/1.0)))
     prev_pt=None; prev_vis=False
     for i in range(steps+1):
         t=float(i)/float(steps)
         x=x0+(x1-x0)*t; y=y0+(y1-y0)*t; d=d0+(d1-d0)*t
         sx=int(round(x*sc)); sy=int(round(y*sc)); vis=False
         if 0<=sx<w and 0<=sy<h:
-            xa=max(0,sx-1); xb=min(w,sx+2); ya=max(0,sy-1); yb=min(h,sy+2)
-            zmin=math.inf
+            
+            
+            
+            eps=max(0.75,min(4.0,0.75+abs(d)*0.00035))
             try:
-                win=depth_buf[ya:yb,xa:xb]
-                # La fenêtre est minuscule (<=9 valeurs) : boucle scalaire pour
-                # éviter une nouvelle réduction NumPy dans un hot-path PANORAMA.
-                for yy in range(win.shape[0]):
-                    for xx in range(win.shape[1]):
-                        zv=float(win[yy,xx])
-                        if math.isfinite(zv) and zv>0.0 and zv<zmin:
-                            zmin=zv
+                zc=float(depth_buf[sy,sx])
             except Exception:
-                zmin=math.inf
-            if not math.isfinite(zmin):
-                vis=True
+                zc=math.inf
+            if math.isfinite(zc) and zc>0.0:
+                vis=(d<=zc+eps)
             else:
-                # Tolérance métrique faible, croissant très légèrement avec la
-                # distance afin d'absorber interpolation + z-buffer sous-échantillonné.
-                eps=max(0.35,min(1.75,0.35+abs(d)*0.00012))
-                vis=(d<=zmin+eps)
+                
+                
+                
+                
+                xa=max(0,sx-1); xb=min(w,sx+2); ya=max(0,sy-1); yb=min(h,sy+2)
+                zmin=math.inf
+                try:
+                    win=depth_buf[ya:yb,xa:xb]
+                    for yy in range(win.shape[0]):
+                        for xx in range(win.shape[1]):
+                            zv=float(win[yy,xx])
+                            if math.isfinite(zv) and zv>0.0 and zv<zmin:
+                                zmin=zv
+                except Exception:
+                    zmin=math.inf
+                vis=(not math.isfinite(zmin)) or (d<=zmin+eps)
+        if vis and terrain_test is not None:
+            try: vis=bool(terrain_test(x,y,d))
+            except Exception: vis=True
         cur=(x,y)
         if vis and prev_vis and prev_pt is not None:
             self._safe_line(painter,prev_pt,cur)
@@ -5046,33 +5169,26 @@ def _draw_panorama_ztested_segment_4019(self, painter, uv0, uv1, d0, d1, depth_b
 
 
 def _draw_panorama_uv_segments_ztested_4019(self, painter, uvs, depths, depth_buf, scale, wrap_width=0.0,
-                                               world_xyz=None, terrain_horizon=None, terrain_cam=None, terrain_eps=0.0):
-    """Draw seam-safe PANORAMA contours against object depth and terrain.
-
-    40.19.2 keeps physical edge XYZ so a segment fully hidden by the MNT is
-    rejected as well as its fill.  Because ``project_panorama_path_safe`` has
-    already densified long/non-linear edges, the conservative endpoint+midpoint
-    terrain test is an efficient approximation of partial ridge clipping.
-    """
+                                               world_xyz=None, terrain_horizon=None, terrain_cam=None, terrain_eps=0.0,
+                                               terrain_ctx=None):
+    
     try:
         W=float(wrap_width or 0.0)
     except Exception:
         W=0.0
-    if world_xyz is not None and terrain_horizon is not None and terrain_cam is not None:
-        runs=_iter_wrapped_runs_with_depth_xyz_40192(uvs,depths,world_xyz,wrap_width=(W if W>1.0 else None),min_len=2)
-        for pts,dep,xyz in runs:
-            n=min(len(pts),len(dep),len(xyz))
-            for i in range(max(0,n-1)):
-                if not _terrain_segment_any_visible_40192(terrain_horizon,xyz[i],xyz[i+1],terrain_cam,float(terrain_eps)+0.06):
-                    try: self._panorama_last_edge_terrain_culled=int(getattr(self,'_panorama_last_edge_terrain_culled',0))+1
-                    except Exception: pass
-                    continue
-                _draw_panorama_ztested_segment_4019(self,painter,pts[i],pts[i+1],dep[i],dep[i+1],depth_buf,scale)
-        return
+    terrain_test=None
+    if terrain_horizon is not None and terrain_ctx is not None:
+        terrain_test=lambda x,y,d: _panorama_fragment_visible_by_horizon(
+            terrain_ctx,terrain_horizon,float(terrain_eps),x,y,d
+        )
     for pts,dep in _iter_wrapped_runs_with_depth(uvs,depths,wrap_width=(W if W>1.0 else None),min_len=2):
         n=min(len(pts),len(dep))
         for i in range(max(0,n-1)):
-            _draw_panorama_ztested_segment_4019(self,painter,pts[i],pts[i+1],dep[i],dep[i+1],depth_buf,scale)
+            _draw_panorama_ztested_segment_4019(
+                self,painter,pts[i],pts[i+1],dep[i],dep[i+1],depth_buf,scale,
+                terrain_test=terrain_test
+            )
+
 
 def _draw_ztested_segment(self, painter, uv0, uv1, d0, d1, depth_buf, scale, eps_depth=1.0, terrain_test=None):
     try:
@@ -5181,7 +5297,7 @@ def _draw_filled_projected_polygon(self, painter, sty, uv_base, uv_top=None, tra
     pen = _make_pen_for_style(edge_col, getattr(sty, 'width', 0.0), 1.0, getattr(sty, 'pen_style', QC.Qt_PenStyle_SolidLine), _style_opacity_factor(sty))
     wrap_width = _wrap_width_from_painter(self, painter)
     painter.save()
-    # Parois d'abord, puis toiture/plafond, puis contours: évite les toits "mangés"
+    
     if uv_top is not None and bool(getattr(sty, 'fill_walls', True)):
         wall_col = _wall_color_from_fill_spec(top_fill, fallback=getattr(sty, 'fill_color', getattr(sty, 'color', QColor(180,180,180,255))), transparent_objects=transparent_objects)
         painter.setPen(QC.Qt_PenStyle_NoPen)
@@ -5200,7 +5316,7 @@ def _draw_filled_projected_polygon(self, painter, sty, uv_base, uv_top=None, tra
 
 
 def _pano_face_uv3_scalar(face):
-    """Return three finite (u,v) tuples without NumPy reductions."""
+    
     try:
         uv = face.uv if hasattr(face, 'uv') else face.get('uv')
         if uv is None or len(uv) != 3:
@@ -5244,12 +5360,7 @@ def _pano_qpolygon_from_uv3(uv3):
 
 
 def _paint_fill_spec_on_panorama_faces(painter, faces, fill_spec):
-    """Paint depth-ready panorama triangles without a giant seam-spanning bbox.
-
-    Simple fills are painted as one path. Patterned fills are sampled per local
-    triangle using a common viewport-space pattern origin, so a building cut by
-    the 0/360 seam never allocates an image almost as wide as the panorama.
-    """
+    
     polys = []
     path = QPainterPath()
     for face in faces or ():
@@ -5308,14 +5419,7 @@ def _paint_fill_spec_on_panorama_faces(painter, faces, fill_spec):
 
 
 def _fill_panorama_wall_faces(painter, faces, color):
-    """Paint wall triangles independently.
-
-    A single QPainterPath uses the odd-even fill rule by default. Projected
-    front/back wall triangles can overlap, especially in panoramas; batching all
-    triangles in one path can therefore cancel pixels and make walls appear to
-    vanish. Independent triangles avoid that cancellation and are also the same
-    atomic unit used by the upcoming panorama z-buffer.
-    """
+    
     brush = QBrush(QColor(color))
     painter.setBrush(brush)
     for face in faces or ():
@@ -5327,15 +5431,7 @@ def _fill_panorama_wall_faces(painter, faces, color):
             painter.drawPolygon(poly)
 
 def _draw_panorama_polygon_faces(self, painter, sty, surface_faces, wall_faces=None, transparent_objects=False):
-    """Common EQUIRECT/CYLINDRICAL face compositor.
-
-    40.18.4 PANO-FACE-ORDER removes the historical "all walls, then roof"
-    painter order. That order inevitably hid front walls under the roof and,
-    with dense BATI layers, amplified feature-level painter ordering errors.
-    Faces are now sorted far-to-near by the radial depth already carried by the
-    common panorama primitive. This is a painter-stage precursor to the global
-    panorama z-buffer and is identical for EQUIRECT and CYLINDRICAL.
-    """
+    
     if not bool(getattr(sty, 'fill_polygons', True)):
         return
     top_fill = _normalized_fill_spec_for_sty(sty, transparent_objects=transparent_objects)
@@ -5352,16 +5448,16 @@ def _draw_panorama_polygon_faces(self, painter, sty, surface_faces, wall_faces=N
     for face in surface_faces or ():
         d = _pano_face_mean_depth_scalar(face)
         if math.isfinite(d):
-            queue.append((d, 1, face))  # surface
+            queue.append((d, 1, face))  
     if wall_enabled:
         for face in wall_faces or ():
             d = _pano_face_mean_depth_scalar(face)
             if math.isfinite(d):
-                queue.append((d, 0, face))  # wall
+                queue.append((d, 0, face))  
     if not queue:
         return
-    # Painter's algorithm: far -> near. Radial distance is the correct common
-    # panorama depth metric and remains projection-family independent.
+    
+    
     queue.sort(key=lambda item: item[0], reverse=True)
 
     kind = str((top_fill or {}).get('kind', 'simple') or 'simple').lower()
@@ -5396,19 +5492,15 @@ def _draw_panorama_polygon_faces(self, painter, sty, surface_faces, wall_faces=N
             painter.setBrush(QBrush(QColor(top_col)))
             painter.drawPolygon(poly)
         else:
-            # Patterned roof: retain the existing pattern sampler, but feed one
-            # depth-sorted triangle at a time so wall/surface ordering stays valid.
+            
+            
             _paint_fill_spec_on_panorama_faces(painter, (face,), top_fill)
     painter.restore()
 
 
 
 def _panorama_feature_parts_cached(self, layer, feat, gtype, tr, fast_preview=False, simplify_geometry=False):
-    """Camera-CRS XY parts cached independently from pitch/roll.
-
-    Unlike the generic layer cache this is lazy over the already-selected
-    feature list, so the first panorama frame does not query the provider twice.
-    """
+    
     try:
         cache=getattr(self,'_panorama_feature_parts_cache',None)
         if not isinstance(cache,dict): cache={}; self._panorama_feature_parts_cache=cache
@@ -5451,13 +5543,7 @@ def _panorama_feature_parts_cached(self, layer, feat, gtype, tr, fast_preview=Fa
         return ()
 
 def _panorama_tri_indices_cached(self, layer, feat, part_index, arr_ring):
-    """Cache world-XY triangulation independently from camera pitch/roll.
-
-    Geometry extraction/triangulation is invariant while the user tests pitch.
-    Keeping this tiny mesh cache avoids rebuilding BATI topology on every frame;
-    Z sampling and camera projection remain live.  The vector-layer revision is
-    part of the key so edits naturally invalidate the cache.
-    """
+    
     try:
         cache=getattr(self,'_panorama_mesh_cache',None)
         if not isinstance(cache,dict):
@@ -5468,8 +5554,8 @@ def _panorama_tri_indices_cached(self, layer, feat, part_index, arr_ring):
         a=np.asarray(arr_ring,dtype=np.float64)
         n=int(a.shape[0])
         if n<3: return []
-        # Layer revision + FID + part index are sufficient for normal QGIS edits;
-        # avoid four NumPy reductions per BATI feature on every pitch frame.
+        
+        
         key=(lid,rev,fid,int(part_index),n)
         hit=cache.get(key)
         if hit is not None: return hit
@@ -5482,7 +5568,7 @@ def _panorama_tri_indices_cached(self, layer, feat, part_index, arr_ring):
         return _earclip_triangulation_indices(arr_ring) or []
 
 def _clean_world_polygon_ring(arr_xy, z_vals, eps=1e-7):
-    """Return unique finite ring vertices without the duplicated QGIS closure."""
+    
     arr = np.asarray(arr_xy, dtype=np.float64)
     z = np.asarray(z_vals, dtype=np.float64)
     if arr.ndim != 2 or arr.shape[1] != 2 or z.ndim != 1 or len(arr) != len(z):
@@ -5527,12 +5613,7 @@ def _draw_line_walls(self, painter, sty, uv_base, uv_top, transparent_objects=Fa
 
 
 def _draw_uv_segments(self, painter, uvs):
-    """Trace une polyligne projetée, avec couture horizontale périodique en 360°.
-
-    40.18 : EQUIRECT/CYLINDRICAL 360 ne doivent jamais relier directement un
-    point proche de W à un point proche de 0 à travers toute l'image. PINHOLE
-    conserve exactement le chemin historique ci-dessous.
-    """
+    
     wrap_width = _wrap_width_from_painter(self, painter)
     if not wrap_width:
         for a, b in _iter_uv_segments(uvs):
@@ -5564,15 +5645,7 @@ def _sample_z_array(z_sampler, arr_xy):
 
 
 def _effective_base_z_array(self, arr_xy, z_sampler, geometry_kind='polygon', force_horizontal=False):
-    """Determine the base altitude used by vector geometry.
-
-    40.18.2 fixes the 40.18.1 PANO-1 regression: ``force_horizontal`` is now
-    actually honoured.  A simple polygon follows the DEM vertex-by-vertex;
-    only an explicitly horizontal 2.5D volume is flattened to the mean base Z.
-
-    PINHOLE keeps its historical behaviour because its call sites already pass
-    ``force_horizontal=True`` for polygonal 2.5D objects.
-    """
+    
     arr_xy = np.asarray(arr_xy, dtype=np.float64)
     raw = _sample_z_array(z_sampler, arr_xy)
     if raw.ndim == 0:
@@ -5594,8 +5667,8 @@ def _effective_base_z_array(self, arr_xy, z_sampler, geometry_kind='polygon', fo
     kind = str(geometry_kind or '').lower()
     if kind == 'polygon' and bool(force_horizontal):
         return np.full(arr_xy.shape[0], mean_z, dtype=np.float64), mean_z, raw
-    # Lines and non-horizontal polygons remain terrain-following. Nodata DEM
-    # vertices fall back to the local mean instead of poisoning a whole face.
+    
+    
     return safe_raw, mean_z, raw
 
 
@@ -5604,16 +5677,7 @@ _SCHEMATIC_SVG_TEXTURE_CACHE = {}
 
 
 def _schematic_svg_texture(primitive, target_w_px=256, target_h_px=None):
-    """Rasterize one SVG/PNG billboard to a transparent Qt image.
-
-    PINHOLE deliberately uses the same Qt SVG renderer as the historical
-    painter path, but renders into an off-screen ARGB32 surface consumed by the
-    common software z-buffer.  QRectF is important here: it is the bounds type
-    used by QSvgRenderer's reliable render overload on both Qt5/PyQt5 and
-    Qt6/PyQt6.  Earlier 40.9 builds passed QRect, swallowed the resulting
-    binding error on some QGIS builds, and silently displayed the procedural
-    fallback instead of the selected SVG.
-    """
+    
     target_w_px = max(16, min(1536, int(round(target_w_px))))
     if target_h_px is None:
         target_h_px = target_w_px
@@ -5629,7 +5693,7 @@ def _schematic_svg_texture(primitive, target_w_px=256, target_h_px=None):
     if cached is not None and not cached.isNull():
         return cached
 
-    # QSvgRenderer is designed to paint into an ARGB premultiplied QImage.
+    
     img = QImage(target_w_px, target_h_px, QC.QImage_Format_Format_ARGB32_Premultiplied)
     img.fill(QColor(0, 0, 0, 0))
     ok = False
@@ -5660,9 +5724,9 @@ def _schematic_svg_texture(primitive, target_w_px=256, target_h_px=None):
                     try:
                         qp.setRenderHint(QC.QPainter_RenderHint_Antialiasing, True)
                         qp.setRenderHint(QC.QPainter_RenderHint_SmoothPixmapTransform, True)
-                        # 40.17.3: the root viewBox is padded before Qt parses the SVG.
-                        # Keep a tiny raster guard too, so the final antialiased edge
-                        # cannot land exactly on the texture boundary at low LOD.
+                        
+                        
+                        
                         guard = max(1.0, min(3.0, 0.015 * float(min(target_w_px, target_h_px))))
                         bounds = QRectF(
                             guard, guard,
@@ -5677,9 +5741,9 @@ def _schematic_svg_texture(primitive, target_w_px=256, target_h_px=None):
             ok = False
 
     if not ok:
-        # Last-resort semantic fallback.  It must only be reached when the asset
-        # is actually unavailable/invalid or Qt cannot render it; a valid SVG
-        # must never be replaced merely because of PINHOLE.
+        
+        
+        
         qp = QPainter(img)
         try:
             qp.setRenderHint(QC.QPainter_RenderHint_Antialiasing, True)
@@ -5709,7 +5773,7 @@ def _schematic_svg_texture(primitive, target_w_px=256, target_h_px=None):
             qp.end()
 
     _SCHEMATIC_SVG_TEXTURE_CACHE[key] = img
-    # Keep cache bounded while allowing several sizes for near/far instances.
+    
     if len(_SCHEMATIC_SVG_TEXTURE_CACHE) > 128:
         for k in list(_SCHEMATIC_SVG_TEXTURE_CACHE.keys())[:40]:
             _SCHEMATIC_SVG_TEXTURE_CACHE.pop(k, None)
@@ -5735,12 +5799,7 @@ def _panorama_face_fill_dict_419(face, fill_spec, pattern_bbox=None):
 
 
 def _append_panorama_faces_for_zbuffer_419(dst, faces, fill_spec, terrain_culler=None):
-    """Append panorama faces after optional conservative terrain culling.
-
-    The culler returns True when a face must be kept.  It is shared by
-    EQUIRECT/CYLINDRICAL and runs before dictionary conversion/rasterization, so
-    fully terrain-hidden faces never enter the expensive depth pass.
-    """
+    
     added=0
     for face in faces or ():
         if terrain_culler is not None:
@@ -5767,7 +5826,7 @@ def _panorama_wall_fill_spec_419(sty, top_fill, transparent_objects=False):
 
 
 def _draw_panorama_zfaces_fallback_419(painter, faces):
-    """Cheap far->near painter fallback if depth raster allocation is rejected."""
+    
     queue=[]
     for f in faces or ():
         try:
@@ -5790,25 +5849,24 @@ def _draw_panorama_zfaces_fallback_419(painter, faces):
         painter.restore()
 
 def _panorama_zbuffer_scale_for_preview_419(self,width,height,has_texture=False):
-    """Conservative interactive depth resolution.
-
-    40.18.8 used up to ~22–26 Mpx, which was visibly too slow in Python.  The
-    40.19 keeps the 40.18.9 conservative depth map: the photo/overlay stays at full
-    requested resolution while depth visibility is solved on 2.5/5/8 Mpx.
-    """
+    
     pixels=max(1,int(width))*max(1,int(height))
     q=str(getattr(self,'_current_render_quality','high') or 'high').lower()
     preview=bool(getattr(self,'_memory_guard_in_preview',False))
     if preview:
-        target=2_500_000 if q=='low' else 5_000_000 if q=='normal' else 8_000_000
-        if has_texture and q=='high': target=9_000_000
+        target=3_000_000 if q=='low' else 7_000_000 if q=='normal' else 24_000_000
+        if has_texture and q=='high': target=26_000_000
     else:
-        target=18_000_000 if has_texture else 15_000_000
+        
+        
+        
+        target=56_000_000 if has_texture else 72_000_000
     try:
         st=getattr(self,'_memory_guard_runtime',None)
-        if isinstance(st,dict) and bool(st.get('safe_mode',False)):
-            target=min(target,3_000_000 if str(st.get('level'))=='dangerous' else 5_000_000)
-    except Exception: pass
+        if preview and isinstance(st,dict) and bool(st.get('safe_mode',False)):
+            target=min(target,4_000_000 if str(st.get('level'))=='dangerous' else 8_000_000)
+    except Exception:
+        pass
     if pixels<=target: return 1.0
     return max(0.20,min(1.0,math.sqrt(float(target)/float(pixels))))
 
@@ -5836,13 +5894,9 @@ def _append_schematic_primitives_for_panorama_zbuffer_419(faces, primitives, sty
                                                             ctx, maxdist, camera_xy, width,
                                                             render_quality='high', transparent_objects=False,
                                                             extra_budget=None, visibility_test=None,
-                                                            painter=None, terrain_face_culler=None):
-    """Submit AVR primitives to the common radial PANORAMA depth scene.
-
-    Billboards and filled schematic polygons share the same z-buffer as BATI.
-    Pure lines/outlines remain lightweight painter strokes over the resolved
-    fills.  The geometry/clipping path is identical for EQUIRECT/CYLINDRICAL.
-    """
+                                                            painter=None, terrain_face_culler=None,
+                                                            deferred_edges=None):
+    
     if not primitives: return False
     handled=False; W=float(width) if bool(ctx.get('is360',False)) else 0.0
     appearance=(definition or {}).get('appearance',{}) or {}; lod=(definition or {}).get('lod',{}) or {}
@@ -5855,7 +5909,7 @@ def _append_schematic_primitives_for_panorama_zbuffer_419(faces, primitives, sty
                 try:
                     if not any(bool(visibility_test(float(r[0]),float(r[1]),float(r[2]))) for r in xyz): handled=True; continue
                 except Exception: pass
-            # Early projected-size LOD without creating a QImage.
+            
             try:
                 dx=float(pr.x)-float(camera_xy[0]); dy=float(pr.y)-float(camera_xy[1]); dz=float(pr.z)-float(ctx['cam_z'])
                 dd=max(0.5,math.sqrt(dx*dx+dy*dy+dz*dz)); vf=math.radians(max(1e-6,float(ctx.get('VFOV',180.0))))
@@ -5901,24 +5955,38 @@ def _append_schematic_primitives_for_panorama_zbuffer_419(faces, primitives, sty
             do_fill=bool(pr.fill and getattr(style,'fill_polygons',True))
             if pr.role=='wall' and not bool(getattr(style,'fill_walls',True)): do_fill=False
             if do_fill: _append_panorama_faces_for_zbuffer_419(faces,pf,{'kind':'simple','color':fill,'target_alpha':fill.alpha(),'depth_alpha_threshold':1},terrain_culler=terrain_face_culler)
-            if painter is not None and bool(getattr(pr,'outline',False)):
+            if bool(getattr(pr,'outline',False)):
                 path=project_panorama_path_safe(ctx,xyz,maxdist,closed=True,render_quality=render_quality,wrap_width=W,max_points=900,pole_guard_px=2.5)
-                pen=QPen(line); pen.setWidthF(max(0.6,float(getattr(style,'width',1.0) or 1.0))); painter.setPen(pen)
-                # Direct draw without owner helper; runs are already clipped and seam handling is done below.
-                for run in _uv_runs_array(path.uv,min_len=2):
-                    for rr in (_iter_wrap_shifted_pts(run,W) if W>1.0 else (run,)):
-                        for ii in range(len(rr)-1):
-                            try: painter.drawLine(QPointF(float(rr[ii,0]),float(rr[ii,1])),QPointF(float(rr[ii+1,0]),float(rr[ii+1,1])))
-                            except Exception: pass
+                pen=QPen(line); pen.setWidthF(max(0.6,float(getattr(style,'width',1.0) or 1.0)))
+                if deferred_edges is not None and path is not None:
+                    try:
+                        if len(path.uv)>=2 and len(path.radial_depth)>=2:
+                            deferred_edges.append((QPen(pen),path.uv,path.radial_depth,getattr(path,'world_xyz',None),float(W or 0.0)))
+                    except Exception:
+                        pass
+                elif painter is not None:
+                    painter.setPen(pen)
+                    for run in _uv_runs_array(path.uv,min_len=2):
+                        for rr in (_iter_wrap_shifted_pts(run,W) if W>1.0 else (run,)):
+                            for ii in range(len(rr)-1):
+                                try: painter.drawLine(QPointF(float(rr[ii,0]),float(rr[ii,1])),QPointF(float(rr[ii+1,0]),float(rr[ii+1,1])))
+                                except Exception: pass
             handled=True; continue
 
         if isinstance(pr,Polyline3D):
             try: xyz=np.asarray(pr.xyz,dtype=np.float64)
             except Exception: continue
             if xyz.ndim!=2 or xyz.shape[0]<2: continue
-            if painter is not None:
-                path=project_panorama_path_safe(ctx,xyz,maxdist,closed=False,render_quality=render_quality,wrap_width=W,max_points=1200,pole_guard_px=2.5)
-                _fill,line=schematic_role_colors(style,definition,pr.role); pen=QPen(line); pen.setWidthF(max(0.7,float(getattr(style,'width',1.0) or 1.0))); painter.setPen(pen)
+            path=project_panorama_path_safe(ctx,xyz,maxdist,closed=False,render_quality=render_quality,wrap_width=W,max_points=1200,pole_guard_px=2.5)
+            _fill,line=schematic_role_colors(style,definition,pr.role); pen=QPen(line); pen.setWidthF(max(0.7,float(getattr(style,'width',1.0) or 1.0)))
+            if deferred_edges is not None and path is not None:
+                try:
+                    if len(path.uv)>=2 and len(path.radial_depth)>=2:
+                        deferred_edges.append((QPen(pen),path.uv,path.radial_depth,getattr(path,'world_xyz',None),float(W or 0.0)))
+                except Exception:
+                    pass
+            elif painter is not None:
+                painter.setPen(pen)
                 for run in _uv_runs_array(path.uv,min_len=2):
                     for rr in (_iter_wrap_shifted_pts(run,W) if W>1.0 else (run,)):
                         for ii in range(len(rr)-1):
@@ -5930,11 +5998,11 @@ def _append_schematic_primitives_for_panorama_zbuffer_419(faces, primitives, sty
 def _append_schematic_primitives_for_zbuffer(faces, deferred_edges, primitives, style, definition,
                                               ctx, maxdist, camera_xy, width, fast_preview=False,
                                               transparent_objects=False):
-    """Append AVR primitives into the SAME z-buffer scene as ordinary 2.5D objects."""
+    
     if not primitives:
         return False
     handled = False
-    wrap_width = None  # common z-buffer path is intentionally disabled for panoramas
+    wrap_width = None  
     appearance = (definition or {}).get('appearance', {}) or {}
     lod = (definition or {}).get('lod', {}) or {}
     simple_min = float(lod.get('simple_min_px', 2.0) or 2.0)
@@ -5970,17 +6038,17 @@ def _append_schematic_primitives_for_zbuffer(faces, deferred_edges, primitives, 
             top, bottom = min(p[1] for p in uv_vals), max(p[1] for p in uv_vals)
             if right <= left or bottom <= top:
                 continue
-            # Rasterize at the projected billboard aspect ratio, not into a
-            # small square later stretched over the quad.  This keeps SVG edges
-            # and narrow trunks readable in PINHOLE.
+            
+            
+            
             bw = max(1.0, float(right - left))
             bh = max(1.0, float(bottom - top))
             tex_quality = 1.35 if fast_preview else 1.75
 
             def _texture_bucket(px):
-                # Quantized sizes make neighbouring tree instances reuse the
-                # same rasterized SVG instead of invoking QSvgRenderer for every
-                # tiny projected-size variation.
+                
+                
+                
                 need = max(24.0, min(1536.0, float(px)))
                 for bucket in (32, 48, 64, 96, 128, 192, 256, 384, 512, 768, 1024, 1536):
                     if need <= bucket:
@@ -5991,13 +6059,13 @@ def _append_schematic_primitives_for_zbuffer(faces, deferred_edges, primitives, 
             tex_h = _texture_bucket(bh * tex_quality)
             tex = _schematic_svg_texture(pr, tex_w, tex_h)
             fill, _line = schematic_role_colors(style, definition, pr.role)
-            # Reproduce the effective SVG opacity of the visually proven 40.7
-            # direct renderer WITHOUT depending on the QGIS polygon fill alpha.
-            # This matters for point/line layers whose QGIS fill can legitimately
-            # be transparent: it must never make an SVG billboard disappear.
-            # When the symbol definition explicitly provides fill_alpha (all
-            # built-in SVG definitions do), it is the nominal billboard opacity;
-            # layer/style opacity remains a cosmetic multiplier only.
+            
+            
+            
+            
+            
+            
+            
             try:
                 if 'fill_alpha' in appearance:
                     nominal_alpha = int(appearance.get('fill_alpha', 255))
@@ -6017,22 +6085,22 @@ def _append_schematic_primitives_for_zbuffer(faces, deferred_edges, primitives, 
                     'texture_mode': 'stretch',
                     'preserve_texture_alpha': True,
                     'target_alpha': int(target_alpha),
-                    # Transparent holes and anti-aliased fringe must not claim depth.
+                    
                     'depth_alpha_threshold': 10,
                     'depth_uses_intrinsic_alpha': True,
-                    # Quality hint only: still the exact same PINHOLE z-buffer
-                    # engine, never a second renderer.
+                    
+                    
                     'schematic_billboard_texture': True,
                 }
                 billboard_specs[spec_key] = spec
             bbox = (left, right, top, bottom)
-            # World quad order is bottom-left, bottom-right, top-right,
-            # top-left.  QImage texture coordinates use a top-left origin.
+            
+            
             quad_texture_uv = ((0.0, 1.0), (1.0, 1.0), (1.0, 0.0), (0.0, 0.0))
-            # Same diagonal as the original camera-facing quad.  Explicit UVs
-            # are essential: an axis-aligned bbox is NOT a valid texture map
-            # once camera pitch/roll turns the projected billboard into a
-            # trapezoid/parallelogram.
+            
+            
+            
+            
             for tri_idx in ((0,1,2),(0,2,3)):
                 tri = np.asarray([uv[i] for i in tri_idx], dtype=np.float64)
                 dtri = np.asarray([dep[i] for i in tri_idx], dtype=np.float64)
@@ -6063,8 +6131,8 @@ def _append_schematic_primitives_for_zbuffer(faces, deferred_edges, primitives, 
             if pr.role == 'wall' and not bool(getattr(style, 'fill_walls', True)):
                 do_fill = False
             if do_fill:
-                # 'color' already contains the exact layer opacity; target_alpha
-                # stays 255 to avoid applying opacity a second time.
+                
+                
                 spec = {'kind': 'simple', 'color': fill, 'target_alpha': 255, 'depth_alpha_threshold': 1}
                 for pts, dps in _iter_wrapped_runs_with_depth(uv, dep, wrap_width=wrap_width, min_len=3):
                     bbox = _finite_bbox_xy_scalar(pts)
@@ -6110,9 +6178,9 @@ def _render_vector_layers_fast(self, painter, cam_pt, cam_z, cam_crs, proj, widt
     global_draw_2p5d = bool(self.cb_draw_2p5d.isChecked())
     panoramic_overlay_mode = str(proj).upper() in ('EQUIRECT', 'EQUIRECTANGULAR', 'CYLINDRICAL')
     force_horizontal_25d = bool(getattr(self, 'cb_force_horizontal_25d', None) and self.cb_force_horizontal_25d.isChecked())
-    # 40.9 invariant: this function is the sole PINHOLE object renderer.
-    # Depth is part of the projection engine and is never enabled/disabled by
-    # opacity, extrusion, schematic mode or the legacy inter-object checkbox.
+    
+    
+    
     use_object_zbuffer = (str(proj).upper() == 'PINHOLE') and (not panoramic_overlay_mode)
 
     face_primitives = []
@@ -6195,29 +6263,29 @@ def _render_vector_layers_fast(self, painter, cam_pt, cam_z, cam_crs, proj, widt
                     anchor_uv_global, text_global = None, None
 
             if style_uses_schematic(sty_eff):
-                # PINHOLE a un seul canal de représentation. Un style AVR valide
-                # ne retombe jamais sur le renderer classique. En revanche un ancien
-                # état incomplet (id absent de la bibliothèque) est neutralisé et
-                # retombe proprement sur la géométrie classique au lieu de masquer
-                # toute la couche.
+                
+                
+                
+                
+                
                 _plugin_dir = os.path.dirname(os.path.dirname(__file__))
                 handled = False
                 definition = None
                 try:
                     camera_xy = (float(cam_pt.x()), float(cam_pt.y()))
-                    # 40.13 — contrat de positionnement unique. On calcule ici
-                    # exactement le même profil de base que celui qu'utiliserait
-                    # le renderer géométrique classique, puis on le transmet aux
-                    # générateurs AVR. Ainsi, changer de symbole ne peut jamais
-                    # déplacer le pied de la géométrie.
+                    
+                    
+                    
+                    
+                    
                     _ground_contract = []
                     for _arr_src in parts:
                         _arr_contract = np.asarray(_arr_src, dtype=np.float64)
                         if _arr_contract.ndim != 2 or _arr_contract.shape[0] <= 0:
                             continue
-                        # Les objets linéaires (haies, clôtures, lignes extrudées)
-                        # suivent toujours le profil du MNT. L'horizontalisation reste
-                        # réservée aux volumes polygonaux.
+                        
+                        
+                        
                         _force_horizontal_obj = bool(
                             global_draw_2p5d and bool(getattr(sty_eff, 'enable_25d', True))
                             and force_horizontal_25d
@@ -6396,17 +6464,17 @@ def _render_vector_layers_fast(self, painter, cam_pt, cam_z, cam_crs, proj, widt
     depth_buf = None
     depth_scale = 1.0
     if use_object_zbuffer and face_primitives:
-        # One framebuffer policy for all PINHOLE primitives.  Textures use the
-        # same scaled coordinate system as geometry (pattern_bbox is scaled in
-        # _compose_faces_zbuffer), so SVG/PNG no longer need a special renderer
-        # or a forced full-resolution branch.
+        
+        
+        
+        
         depth_scale = _zbuffer_scale_for_preview(self, width, height)
-        # Textured billboards expose low-resolution framebuffer scaling much more
-        # visibly than flat procedural faces.  Keep ONE z-buffer engine, but use
-        # a higher framebuffer resolution whenever that scene contains SVG/PNG
-        # billboards.  At ordinary viewer sizes this is full-resolution; for very
-        # large previews we retain a bounded 0.75 minimum to avoid pathological
-        # memory/CPU cost.
+        
+        
+        
+        
+        
+        
         has_schematic_texture = any(
             bool((face.get('fill_spec') or {}).get('schematic_billboard_texture', False))
             for face in face_primitives
@@ -6465,7 +6533,7 @@ def _render_vector_layers_fast(self, painter, cam_pt, cam_z, cam_crs, proj, widt
         self._draw_label(painter, text, anchor_uv, sty)
 
 def export_overlay(self):
-    # L'overlay est intrinsèquement transparent et ne dépend pas d'une photo.
+    
     try:
         from ._export_ops import _default_export_dir
         _d = _default_export_dir(self)
@@ -6486,7 +6554,7 @@ def export_overlay(self):
         pass
 
 
-# === Added: Topography wrappers (wireframe, skyline, ridgelines) ===
+
 def _pick_dem_color(self):
     base = QColor(getattr(self, "_dem_color", QColor(255,255,0,160)))
     dlg = QColorDialog(base, self)
@@ -6499,8 +6567,8 @@ def _pick_dem_color(self):
         c = dlg.selectedColor()
         if c.isValid():
             self._dem_color = QColor(c)
-            # Style topographique unique : conserve aussi l'ancien attribut
-            # skyline synchronisé pour les chemins/cache hérités.
+            
+            
             self._sky_color = QColor(c)
             try:
                 if hasattr(self, 'spin_dem_alpha'):
@@ -6514,27 +6582,15 @@ def _pick_dem_color(self):
             except Exception:
                 pass
 
-# ----------------------------------------------------------------------
-# HORIZON CACHE
-#  - _build_horizon_cache : calcule et mémorise la skyline écran
-#  - _is_visible_by_horizon : dit si un point écran (u,v) est au-dessus de l’horizon
-#  - _update_horizon_by_segment : legacy no-op (on reconstruit proprement la skyline)
-# ----------------------------------------------------------------------
+
+
+
+
+
+
 
 def _build_horizon_cache(self, *args, **kwargs):
-    """
-    Shim rétro-compatible.
-
-    Variantes acceptées :
-      A) (cam_pt, cam_z, proj, width, height, yaw, pitch, roll, HFOV, VFOV, is360, maxdist)
-      A2) (cam_pt, cam_z, cam_crs, proj, width, height, yaw, pitch, roll, HFOV, VFOV, is360, maxdist)
-      B) (z_sampler, cam_pt, cam_z, cam_crs, maxdist, az_step, rad_step)
-      C) (z_sampler, cam_pt, cam_z, cam_crs, proj, width, height, yaw, pitch, roll, HFOV, VFOV, is360, maxdist[, az_step, rad_step])
-
-    Optimisation clé :
-    - calcul de la skyline écran ET de l'enveloppe azimut→élévation en une seule passe,
-      pour éviter un second balayage radial complet à chaque refresh.
-    """
+    
     try:
         proj  = self.cmb_proj.currentText()
     except Exception:
@@ -6654,47 +6710,120 @@ def _build_horizon_cache(self, *args, **kwargs):
     d_values = topo_build_radial_distances(rad_step, maxdist)
     if d_values.size == 0:
         d_values = np.asarray([maxdist], dtype=np.float64)
-    el_profile = np.full((n_bins, d_values.size), -1e9, dtype=np.float32)
-    el_cummax = np.full((n_bins, d_values.size), -1e9, dtype=np.float32)
+    d_values = np.asarray(d_values, dtype=np.float64)
+    n_dist = int(d_values.size)
 
-    for idx, az in enumerate(az_bins):
-        th = math.radians(float(az))
-        el_max = -1e9
-        best_xyz = None
-
-        running = -1e9
-        for j, d in enumerate(d_values):
-            x = cx + float(d) * math.sin(th)
-            y = cy + float(d) * math.cos(th)
-            z = float(z_sampler(QgsPointXY(x, y)))
-            if math.isfinite(R_eff):
-                z -= (float(d) * float(d)) / (2.0 * R_eff)
-
-            elev = math.degrees(math.atan2(z - float(cam_z), float(d)))
-            el_profile[idx, j] = float(elev)
-            if elev > running:
-                running = float(elev)
-            el_cummax[idx, j] = float(running)
-            if elev >= el_max:
-                el_max = elev
-                best_xyz = (x, y, z)
-
-        el_bins[idx] = el_max
-        if best_xyz is None:
-            continue
-
-        uv = project_point(
-            QgsPointXY(cx, cy), float(cam_z),
-            QgsPointXY(best_xyz[0], best_xyz[1]), None,
-            str(proj), int(width), int(height),
-            float(yaw), float(pitch), float(roll),
-            float(HFOV), float(VFOV), bool(is360),
-            dist_max=maxdist, z_tgt=float(best_xyz[2]), z_sampler=None
+    
+    
+    
+    
+    
+    
+    try:
+        _dem = self.cmb_dem.currentLayer() if hasattr(self, 'cmb_dem') else None
+        _dem_token = (
+            str(_dem.id()) if _dem is not None else '',
+            str(_dem.source()) if _dem is not None else '',
+            str(_dem.crs().authid()) if _dem is not None and _dem.crs().isValid() else '',
         )
-        if uv is not None and math.isfinite(float(uv[0])) and math.isfinite(float(uv[1])):
-            uv_bins[idx, 0] = float(uv[0])
-            uv_bins[idx, 1] = float(uv[1])
-            poly.append((float(uv[0]), float(uv[1])))
+    except Exception:
+        _dem_token = ('', '', '')
+    try:
+        _cam_crs_token = str(cam_crs.authid()) if cam_crs is not None and cam_crs.isValid() else ''
+    except Exception:
+        _cam_crs_token = ''
+    _terrain_sample_key = (
+        _dem_token, _cam_crs_token,
+        round(cx, 3), round(cy, 3),
+        round(float(az0), 5), round(float(az1), 5), int(n_bins),
+        round(float(maxdist), 3), round(float(az_step), 5), round(float(rad_step), 5), int(n_dist),
+    )
+
+    _sample_cache = getattr(self, '_horizon_dem_sample_cache', None)
+    z_raw = None
+    if isinstance(_sample_cache, dict) and _sample_cache.get('key') == _terrain_sample_key:
+        try:
+            _cached = np.asarray(_sample_cache.get('z_raw'), dtype=np.float32)
+            if _cached.shape == (n_bins, n_dist):
+                z_raw = _cached
+        except Exception:
+            z_raw = None
+
+    if z_raw is None:
+        z_raw = np.zeros((n_bins, n_dist), dtype=np.float32)
+        _batch_uncached = getattr(z_sampler, 'batch_uncached', None)
+        _xy_uncached = getattr(z_sampler, 'xy_uncached', None)
+        _chunk = 16
+        _drow = d_values.reshape(1, -1)
+        for _i0 in range(0, n_bins, _chunk):
+            _i1 = min(n_bins, _i0 + _chunk)
+            _az = np.radians(np.asarray(az_bins[_i0:_i1], dtype=np.float64)).reshape(-1, 1)
+            _xs = cx + np.sin(_az) * _drow
+            _ys = cy + np.cos(_az) * _drow
+            _pts = np.empty(((_i1 - _i0) * n_dist, 2), dtype=np.float64)
+            _pts[:, 0] = _xs.reshape(-1)
+            _pts[:, 1] = _ys.reshape(-1)
+            try:
+                if callable(_batch_uncached):
+                    _zs = np.asarray(_batch_uncached(_pts), dtype=np.float64).reshape(_i1 - _i0, n_dist)
+                elif callable(_xy_uncached):
+                    _zs = np.empty((_i1 - _i0, n_dist), dtype=np.float64)
+                    for _rr in range(_i1 - _i0):
+                        for _cc in range(n_dist):
+                            _zs[_rr, _cc] = float(_xy_uncached(_xs[_rr, _cc], _ys[_rr, _cc]))
+                else:
+                    _zs = np.empty((_i1 - _i0, n_dist), dtype=np.float64)
+                    _pt = QgsPointXY(0.0, 0.0)
+                    for _rr in range(_i1 - _i0):
+                        for _cc in range(n_dist):
+                            _pt.setX(float(_xs[_rr, _cc])); _pt.setY(float(_ys[_rr, _cc]))
+                            _zs[_rr, _cc] = float(z_sampler(_pt))
+                _zs[~np.isfinite(_zs)] = 0.0
+                z_raw[_i0:_i1, :] = _zs.astype(np.float32, copy=False)
+            except Exception:
+                
+                
+                z_raw[_i0:_i1, :] = 0.0
+        self._horizon_dem_sample_cache = {'key': _terrain_sample_key, 'z_raw': z_raw}
+
+    
+    
+    if math.isfinite(R_eff):
+        _drop = (d_values * d_values) / (2.0 * float(R_eff))
+        z_corr = z_raw.astype(np.float64) - _drop.reshape(1, -1)
+    else:
+        z_corr = z_raw.astype(np.float64)
+    _elev = np.degrees(np.arctan2(z_corr - float(cam_z), d_values.reshape(1, -1)))
+    _elev[~np.isfinite(_elev)] = -1e9
+    el_profile = _elev.astype(np.float32, copy=False)
+    el_cummax = np.maximum.accumulate(el_profile, axis=1).astype(np.float32, copy=False)
+    
+    
+    _best_j = (n_dist - 1 - np.argmax(el_profile[:, ::-1], axis=1)).astype(np.int64, copy=False)
+    _rows = np.arange(n_bins, dtype=np.int64)
+    el_bins[:] = el_profile[_rows, _best_j]
+
+    
+    
+    _best_d = d_values[_best_j]
+    _azr = np.radians(np.asarray(az_bins, dtype=np.float64))
+    _best_xy = np.column_stack((
+        cx + _best_d * np.sin(_azr),
+        cy + _best_d * np.cos(_azr),
+    ))
+    _best_z = z_corr[_rows, _best_j]
+    try:
+        _ctx_h = build_camera_context((cx, cy), float(cam_z), str(proj), int(width), int(height),
+                                      float(yaw), float(pitch), float(roll),
+                                      float(HFOV), float(VFOV), bool(is360))
+        _uv_all = project_points_batch(_ctx_h, _best_xy, _best_z, dist_max=float(maxdist))
+    except Exception:
+        _uv_all = np.full((n_bins, 2), np.nan, dtype=np.float64)
+    if _uv_all.shape[0] == n_bins:
+        _good_uv = np.isfinite(_uv_all[:, 0]) & np.isfinite(_uv_all[:, 1])
+        uv_bins[_good_uv, 0] = _uv_all[_good_uv, 0].astype(np.float32, copy=False)
+        uv_bins[_good_uv, 1] = _uv_all[_good_uv, 1].astype(np.float32, copy=False)
+        poly = [(float(u), float(v)) for u, v in _uv_all[_good_uv]]
 
     earth_radius_m = float(getattr(self, 'd_earth_radius_km', None).value() * 1000.0) if hasattr(self, 'd_earth_radius_km') else 6370000.0
     view_key = (
@@ -6725,21 +6854,19 @@ def _build_horizon_cache(self, *args, **kwargs):
         "el_profile": el_profile,
         "el_cummax": el_cummax,
     }
-    # 40.19.2: build the tiny conservative distance LUT once, outside the
-    # PANORAMA feature/face render loops; shared/PINHOLE behaviour is unchanged.
+    
+    
     if str(proj).upper() in ('EQUIRECT','EQUIRECTANGULAR','CYLINDRICAL'):
         try:
             _prepare_horizon_fast_distance_lut_40192(self._horizon)
         except Exception:
             pass
-    # Compat legacy : conserver un tuple simple utilisé ailleurs
+    
     self._horizon_params = occ_key
 
 
 def _is_visible_by_horizon(self, az_deg, el_deg, eps_deg, dist_m=None):
-    """Retourne True si el_deg est au-dessus de l'enveloppe terrain avant dist_m.
-    Si dist_m n'est pas fourni, on retombe sur l'horizon global (skyline).
-    """
+    
     H = getattr(self, "_horizon", None)
     if not H or ("el_bins" not in H):
         return True
@@ -6790,9 +6917,7 @@ def _is_visible_by_horizon(self, az_deg, el_deg, eps_deg, dist_m=None):
 
 
 def _update_horizon_by_segment(self, az1_deg, az2_deg, el_deg):
-    """Rehausse localement l'enveloppe (el_bins) entre az1 et az2.
-    Version sûre : indexation scalaire, compatible avec passage par 0/360.
-    """
+    
     H = getattr(self, "_horizon", None)
     if not H or ("el_bins" not in H):
         return
@@ -6824,14 +6949,7 @@ def _update_horizon_by_segment(self, az1_deg, az2_deg, el_deg):
     except Exception:
         return
 def _terrain_visibility_test(self, cam_pt, cam_z, eps_deg):
-    """Construit un test scalaire de visibilité terrain robuste.
-
-    V39.10a : aucune dépendance aux méthodes utilitaires du dock dans la boucle
-    chaude. Les conversions et tests de finitude sont faits ici afin qu'une valeur
-    DEM invalide ne puisse pas se propager jusqu'aux fonctions trigonométriques.
-    Le filaire DEM n'utilise plus ce callback (voir _draw_dem_wireframe) ; il reste
-    disponible pour d'éventuels usages ponctuels.
-    """
+    
     try:
         cx = float(cam_pt.x()); cy = float(cam_pt.y()); cz = float(cam_z)
         eps = float(eps_deg)
@@ -6855,7 +6973,7 @@ def _terrain_visibility_test(self, cam_pt, cam_z, eps_deg):
                 return False
             return bool(self._is_visible_by_horizon(az, el, eps, r))
         except Exception:
-            # En cas de donnée ponctuelle problématique, ne jamais interrompre le rendu.
+            
             return True
     return _tester
 
@@ -6885,8 +7003,8 @@ def _draw_dem_opaque(self, painter, cam_pt, cam_z, cam_crs, proj, width, height,
     if width <= 1 or height <= 1:
         return
 
-    # Rasterisation d'un masque écran de visibilité terrain, indépendante de l'orientation
-    # de la skyline à l'écran. Cela reste robuste même pour forts roulis/tangages.
+    
+    
     down = max(1, int(math.ceil(max(width, height) / 1600.0)))
     Wm = max(1, int(math.ceil(width / float(down))))
     Hm = max(1, int(math.ceil(height / float(down))))
@@ -6916,7 +7034,7 @@ def _draw_dem_opaque(self, painter, cam_pt, cam_z, cam_crs, proj, width, height,
         xc = np.sin(alpha_img)
         yc = np.cos(alpha_img)
         zc = np.tan(beta_img)
-    else:  # EQUIRECT / fallback
+    else:  
         if bool(is360):
             alpha_img = (U / float(width)) * (2.0 * math.pi) - math.pi
             beta_img = (0.5 * math.pi) - (V / float(height)) * math.pi
@@ -6990,9 +7108,9 @@ def _draw_dem_opaque(self, painter, cam_pt, cam_z, cam_crs, proj, width, height,
         for (a, b) in zip(run[:-1], run[1:]):
             self._safe_line(painter, (float(a[0]), float(a[1])), (float(b[0]), float(b[1])))
 
-# ----------------------------------------------------------------------
-# Wrappers de dessin (déjà fournis auparavant — rappel/complément)
-# ----------------------------------------------------------------------
+
+
+
 def _draw_dem_wireframe(self, painter, cam_pt, cam_z, cam_crs, proj, width, height, yaw, pitch, roll, HFOV, VFOV, is360, maxdist, z_sampler, eps=0.2):
     base_spacing = float(self.spin_dem_step.value()) if hasattr(self, 'spin_dem_step') else 50.0
     if str(proj or '').strip().upper() in ('EQUIRECT', 'EQUIRECTANGULAR', 'CYLINDRICAL'):
@@ -7002,7 +7120,7 @@ def _draw_dem_wireframe(self, painter, cam_pt, cam_z, cam_crs, proj, width, heig
                 base_spacing = max(base_spacing, float(_guard_step))
         except Exception:
             pass
-    # Décimation plus agressive au loin pour garder un rendu fluide sur grandes profondeurs
+    
     if float(maxdist or 0.0) > 10000.0:
         far_factor = min(3.0, 1.0 + ((float(maxdist) - 10000.0) / 15000.0))
         base_spacing *= far_factor
@@ -7013,15 +7131,16 @@ def _draw_dem_wireframe(self, painter, cam_pt, cam_z, cam_crs, proj, width, heig
     curvature_enabled = bool(getattr(self, 'cb_curvature', None).isChecked()) if hasattr(self, 'cb_curvature') else True
     k_ref = 0.0
 
-    # 40.18 — le moteur PINHOLE reste strictement inchangé. Pour les projections
-    # panoramiques uniquement, « Arêtes supérieures » s'appuie sur l'enveloppe
-    # radiale NumPy déjà présente dans _horizon. Aucun callback Python/QGIS n'est
-    # réactivé dans la boucle chaude (stabilité QGIS 3.44 conservée).
+    
+    
+    
+    
+    
     vis_test = None
-    proj_upper = str(proj or '').strip().upper()
-    panoramic_wire = proj_upper in ('EQUIRECT', 'EQUIRECTANGULAR', 'CYLINDRICAL')
     wire_mode = int(self.combo_wire_mode.currentData()) if hasattr(self, 'combo_wire_mode') and self.combo_wire_mode.currentData() is not None else (int(self.combo_wire_mode.currentIndex()) if hasattr(self, 'combo_wire_mode') else 2)
-    horizon_data = (getattr(self, '_horizon', None) if (panoramic_wire and wire_mode != 0) else None)
+    horizon_data = (getattr(self, '_horizon', None) if wire_mode != 0 else None)
+    if wire_mode == 2 and not horizon_data:
+        return
     segs = topo_draw_dem_wireframe(
         cam_xy=(cam_pt.x(), cam_pt.y()), cam_z=float(cam_z),
         projector=project_point,
@@ -7037,7 +7156,7 @@ def _draw_dem_wireframe(self, painter, cam_pt, cam_z, cam_crs, proj, width, heig
         curvature_enabled=curvature_enabled, R_earth=float(getattr(self, 'd_earth_radius_km', None).value() * 1000.0) if hasattr(self, 'd_earth_radius_km') else 6370000.0, k_refraction=k_ref
     )
 
-    # Style (couleur/épaisseur depuis le dock)
+    
     color = QColor(getattr(self, "_dem_color", QColor(255,255,0,160)))
     pen = QPen(color)
     pen.setWidth(int(self.spin_dem_width.value()) if hasattr(self, 'spin_dem_width') else 1)
@@ -7098,12 +7217,7 @@ def _draw_skyline(self, painter, cam_pt, cam_z, cam_crs, proj, width, height, ya
             self._safe_line(painter, (float(a[0]), float(a[1])), (float(b[0]), float(b[1])))
 
 def _draw_dem_ridgelines(self, painter, cam_pt, cam_z, cam_crs, proj, width, height, yaw, pitch, roll, HFOV, VFOV, is360, maxdist, z_sampler, eps=0.2):
-    """
-    Ridgelines de type Windfarm : familles de profils visibles à distance quasi-constante,
-    filtrées par écart radial minimal et par différence d'élévation apparente.
-    L'objectif n'est pas de dessiner un bloc-diagramme, mais de souligner les
-    mouvements de terrain réellement visibles depuis le point de vue.
-    """
+    
     H = getattr(self, "_horizon", None)
     if not H:
         return
@@ -7246,12 +7360,12 @@ def _draw_dem_ridgelines(self, painter, cam_pt, cam_z, cam_crs, proj, width, hei
 
 
 def set_pdv_azimuth(self, az_deg: float):
-    """Setter appelé par votre map tool 'pick center'. Provoque un re-rendu."""
+    
     try:
         self.current_pdv_azimuth = float(az_deg) % 360.0
     except Exception:
         self.current_pdv_azimuth = None
-    # rafraîchir preview & viewer
+    
     try:
         self.render_preview()
     except Exception:

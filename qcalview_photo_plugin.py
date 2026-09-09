@@ -1,6 +1,6 @@
-# -*- coding: utf-8 -*-
-# SPDX-FileCopyrightText: 2026 Fabrice Kerzerho — ArcTan°
-# SPDX-License-Identifier: GPL-3.0-or-later
+
+
+
 from .core._i18n import tr, install_qcalview_translator, remove_qcalview_translator
 from .core._compat import QC, dialog_exec, QAction
 import os
@@ -20,6 +20,11 @@ class QCalViewPlugin:
         self.settings_action = None
         self.layer_context_action = None
         self.dock = None
+        
+        
+        
+        
+        self._canvas_preview_jobs_previous = None
         self.plugin_dir = os.path.dirname(__file__)
         self.icon_path = os.path.join(
             self.plugin_dir, "resources", "icons", "qcalview_icon.png"
@@ -33,9 +38,9 @@ class QCalViewPlugin:
         self.iface.addPluginToMenu("&QCALVIEW", self.action)
         self.iface.addToolBarIcon(self.action)
 
-        # QGIS crée un sous-menu « QCALVIEW » dans le menu Extensions.
-        # Appliquer aussi l'icône au sous-menu lui-même afin qu'elle soit
-        # visible à gauche du nom du plugin, pas seulement sur son action.
+        
+        
+        
         try:
             plugins_menu = self.iface.pluginMenu()
             for menu_action in plugins_menu.actions():
@@ -54,8 +59,8 @@ class QCalViewPlugin:
         self.settings_action.triggered.connect(self.open_settings)
         self.iface.addPluginToMenu("&QCALVIEW", self.settings_action)
 
-        # Raccourci ergonomique dans l'arborescence QGIS : une seule action,
-        # uniquement pour les couches vectorielles compatibles avec les overlays.
+        
+        
         self.layer_context_action = QAction(plugin_icon, tr("Ajouter à QCALVIEW"), self.iface.mainWindow())
         self.layer_context_action.triggered.connect(self.add_active_layer_to_qcalview)
         try:
@@ -67,6 +72,7 @@ class QCalViewPlugin:
 
     def unload(self):
         qcv_log("Déchargement du plugin", "PLUGIN", "INFO")
+        self._restore_canvas_preview_jobs()
         if self.action:
             self.iface.removePluginMenu("&QCALVIEW", self.action)
             self.iface.removeToolBarIcon(self.action)
@@ -85,11 +91,60 @@ class QCalViewPlugin:
         remove_qcalview_translator()
         self._qcv_translator = None
 
+    def _disable_canvas_preview_jobs(self):
+        
+        if self._canvas_preview_jobs_previous is not None:
+            return
+        try:
+            canvas = self.iface.mapCanvas()
+            previous = bool(canvas.previewJobsEnabled())
+            self._canvas_preview_jobs_previous = previous
+            if previous:
+                canvas.setPreviewJobsEnabled(False)
+            qcv_log(
+                f"Preview jobs canevas suspendus pendant QCALVIEW (état initial={previous})",
+                "PLUGIN",
+                "INFO",
+            )
+        except Exception as exc:
+            self._canvas_preview_jobs_previous = None
+            qcv_log(f"Impossible de suspendre les preview jobs : {exc}", "PLUGIN", "WARNING")
+
+    def _restore_canvas_preview_jobs(self):
+        
+        previous = self._canvas_preview_jobs_previous
+        if previous is None:
+            return
+        self._canvas_preview_jobs_previous = None
+        try:
+            self.iface.mapCanvas().setPreviewJobsEnabled(bool(previous))
+            qcv_log(
+                f"Preview jobs canevas restaurés (état={bool(previous)})",
+                "PLUGIN",
+                "INFO",
+            )
+        except Exception as exc:
+            qcv_log(f"Impossible de restaurer les preview jobs : {exc}", "PLUGIN", "WARNING")
+
+    def _on_dock_visibility_changed(self, visible):
+        if bool(visible):
+            self._disable_canvas_preview_jobs()
+        else:
+            self._restore_canvas_preview_jobs()
+
     def _ensure_dock(self, show=True):
+        
+        
+        
+        self._disable_canvas_preview_jobs()
         if self.dock is None:
             self.dock = QCalViewDock(self.iface)
             self.iface.addDockWidget(QC.Qt_DockWidgetArea_RightDockWidgetArea, self.dock)
             self.dock.setFloating(True)
+            try:
+                self.dock.visibilityChanged.connect(self._on_dock_visibility_changed)
+            except Exception:
+                pass
         if show:
             self.dock.show()
             self.dock.raise_()
@@ -136,6 +191,7 @@ class QCalViewPlugin:
         if self.dock.isVisible():
             self.dock.hide()
         else:
+            self._disable_canvas_preview_jobs()
             self.dock.setFloating(True)
             self.dock.show()
             self.dock.raise_()

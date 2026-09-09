@@ -9,6 +9,14 @@ Type : %2 · Famille : %3 · Géométrie : %4 · Générateur : %5</source>
 Type: %2 · Family: %3 · Geometry: %4 · Generator: %5</translation>
     </message>
     <message>
+      <source>%1 NON appliqué — consulter les messages loadNamedStyle précédents</source>
+      <translation>%1 NON appliqué — consulter les messages loadNamedStyle précédents</translation>
+    </message>
+    <message>
+      <source>%1 appliqué avec succès</source>
+      <translation>%1 appliqué avec succès</translation>
+    </message>
+    <message>
       <source>%1 objets AVR non générés</source>
       <translation>%1 AVR objects not generated</translation>
     </message>
@@ -137,8 +145,8 @@ Save “parameters + state” now before starting the export?</translation>
       <translation>&lt;b&gt;Informations&lt;/b&gt;&lt;br&gt;%1&lt;br&gt;Height camera : %2 m&lt;br&gt;Azimuth : %3°&lt;br&gt;Pitch : %4°&lt;br&gt;Roll : %5°&lt;br&gt;HFOV : %6°&lt;br&gt;VFOV : %7°&lt;br&gt;Projection : %8&lt;br&gt;Image : %9&lt;br&gt;PDV : %10</translation>
     </message>
     <message>
-      <source>&lt;b&gt;QCALVIEW&lt;/b&gt;&lt;br&gt;Version ALPHA-40.20 — expérimental&lt;br&gt;Simulation visuelle &amp;amp; géomatique pour QGIS&lt;br&gt;Développé par Fabrice Kerzerho — ArcTan°&lt;br&gt;© 2026 Fabrice Kerzerho — ArcTan°&lt;br&gt;GNU GPL v3 ou ultérieure&lt;br&gt;&lt;br&gt;&lt;a href='https://www.qcalview.com'&gt;qcalview.com&lt;/a&gt; · &lt;a href='https://www.arctan.fr'&gt;arctan.fr&lt;/a&gt; · contact@arctan.fr</source>
-      <translation>&lt;b&gt;QCALVIEW&lt;/b&gt;&lt;br&gt;Version ALPHA-40.20 — experimental&lt;br&gt;Visual Simulation &amp;amp; Geomatics for QGIS&lt;br&gt;Developed by Fabrice Kerzerho — ArcTan°&lt;br&gt;© 2026 Fabrice Kerzerho — ArcTan°&lt;br&gt;GNU GPL v3 or later&lt;br&gt;&lt;br&gt;&lt;a href='https://www.qcalview.com'&gt;qcalview.com&lt;/a&gt; · &lt;a href='https://www.arctan.fr'&gt;arctan.fr&lt;/a&gt; · contact@arctan.fr</translation>
+      <source>&lt;b&gt;QCALVIEW&lt;/b&gt;&lt;br&gt;Version ALPHA-40.20.3 — expérimental&lt;br&gt;Simulation visuelle &amp;amp; géomatique pour QGIS&lt;br&gt;Développé par Fabrice Kerzerho — ArcTan°&lt;br&gt;© 2026 Fabrice Kerzerho — ArcTan°&lt;br&gt;GNU GPL v3 ou ultérieure&lt;br&gt;&lt;br&gt;&lt;a href='https://www.qcalview.com'&gt;qcalview.com&lt;/a&gt;</source>
+      <translation>&lt;b&gt;QCALVIEW&lt;/b&gt;&lt;br&gt;Version ALPHA-40.20.3 — experimental&lt;br&gt;Visual Simulation &amp;amp; Geomatics for QGIS&lt;br&gt;Developed by Fabrice Kerzerho — ArcTan°&lt;br&gt;© 2026 Fabrice Kerzerho — ArcTan°&lt;br&gt;GNU GPL v3 or later&lt;br&gt;&lt;br&gt;&lt;a href='https://www.qcalview.com'&gt;qcalview.com&lt;/a&gt;</translation>
     </message>
     <message>
       <source>&lt;b&gt;X : %1&lt;/b&gt;    &lt;b&gt;Y : %2&lt;/b&gt;%3&lt;br&gt;Z sol : —    Hauteur : %4 m</source>
@@ -165,8 +173,8 @@ Save “parameters + state” now before starting the export?</translation>
       <translation>&lt;unnamed&gt;</translation>
     </message>
     <message>
-      <source>ALPHA-40.20 — Ces outils sont encore en cours de développement. Leur comportement et leur interface peuvent évoluer dans les prochaines versions Alpha.</source>
-      <translation>ALPHA-40.20 — These tools are still under active development. Their behaviour and interface may change in future Alpha releases.</translation>
+      <source>ALPHA-40.20.3 — Ces outils sont encore en cours de développement. Leur comportement et leur interface peuvent évoluer dans les prochaines versions Alpha.</source>
+      <translation>ALPHA-40.20.3 — These tools are still under active development. Their behaviour and interface may change in future Alpha releases.</translation>
     </message>
     <message>
       <source>ATTENTION : le motif de haie n’est pas un ruban continu; l’occultation complète n’est pas garantie.</source>
@@ -345,12 +353,8 @@ Save “parameters + state” now before starting the export?</translation>
       <translation>Safe preview</translation>
     </message>
     <message>
-      <source>Application STYLE-PDV.qml demandée=</source>
-      <translation>STYLE-PDV.qml application requested=</translation>
-    </message>
-    <message>
-      <source>Application STYLE-PDV.qml demandée=%1</source>
-      <translation>STYLE-PDV.qml application requested=%1</translation>
+      <source>Application %1 demandée=%2</source>
+      <translation>Application %1 demandée=%2</translation>
     </message>
     <message>
       <source>Appliquer le mode sécurisé</source>
@@ -613,14 +617,6 @@ Target height source — %5.%6%7</translation>
       <translation>Capture…</translation>
     </message>
     <message>
-      <source>Centre PDV fixé (azimut ≈</source>
-      <translation>Viewpoint centre set (azimuth ≈</translation>
-    </message>
-    <message>
-      <source>Centre PDV fixé (azimut ≈ %1°).</source>
-      <translation>Viewpoint center set (azimuth ≈ %1°).</translation>
-    </message>
-    <message>
       <source>Centre image</source>
       <translation>Image center</translation>
     </message>
@@ -773,6 +769,10 @@ Continue?</translation>
       <translation>Select at least one viewpoint to export.</translation>
     </message>
     <message>
+      <source>Coché : couleurs QCALVIEW automatiques. Décoché : STYLE-MOD.qml et couleurs modifiables dans la symbologie QGIS ; les modifications sont conservées avec le projet pour cette couche.</source>
+      <translation>Checked: automatic QCALVIEW colors. Unchecked: STYLE-MOD.qml and colors editable in QGIS symbology; changes are stored with the project for this layer.</translation>
+    </message>
+    <message>
       <source>Compensation cime : %1; ratio appliqué %2.</source>
       <translation>Canopy-top compensation: %1; applied ratio %2.</translation>
     </message>
@@ -877,6 +877,10 @@ Continue?</translation>
       <translation>Colors / style</translation>
     </message>
     <message>
+      <source>Couleurs automatiques (hauteur / tangage)</source>
+      <translation>Automatic colors (height / pitch)</translation>
+    </message>
+    <message>
       <source>Créer champs QCALVIEW</source>
       <translation>Create QCALVIEW fields</translation>
     </message>
@@ -973,6 +977,14 @@ Continue?</translation>
       <translation>Error adding GCP: %1</translation>
     </message>
     <message>
+      <source>Erreur centre image :</source>
+      <translation>Error centre image :</translation>
+    </message>
+    <message>
+      <source>Erreur centre image : %1</source>
+      <translation>Error centre image : %1</translation>
+    </message>
+    <message>
       <source>Erreur image → carte :</source>
       <translation>Error image → carte :</translation>
     </message>
@@ -991,14 +1003,6 @@ Continue?</translation>
     <message>
       <source>Erreur lors de la mise à jour du style/variables PDV — voir Messages &gt; QCALVIEW</source>
       <translation>Error updating viewpoint style/variables — see Messages &gt; QCALVIEW</translation>
-    </message>
-    <message>
-      <source>Erreur pick centre PDV:</source>
-      <translation>Error pick centre PDV:</translation>
-    </message>
-    <message>
-      <source>Erreur pick centre PDV: %1</source>
-      <translation>Error picking viewpoint center: %1</translation>
     </message>
     <message>
       <source>Erreur rendu:</source>
@@ -1211,6 +1215,14 @@ Reduces unnecessary recalculation and improves UI responsiveness.</translation>
       <translation>Default height</translation>
     </message>
     <message>
+      <source>Icône du menu QCALVIEW non appliquée :</source>
+      <translation>Icône du menu QCALVIEW non appliquée :</translation>
+    </message>
+    <message>
+      <source>Icône du menu QCALVIEW non appliquée : %1</source>
+      <translation>Icône du menu QCALVIEW non appliquée : %1</translation>
+    </message>
+    <message>
       <source>Identifiant court du point de vue.</source>
       <translation>Short viewpoint identifier.</translation>
     </message>
@@ -1411,6 +1423,10 @@ Batch export reloads each viewpoint from its saved state. Without saving, the th
 Save “parameters + state” now before starting the export?</translation>
     </message>
     <message>
+      <source>Le style PDV demandé n’a pas pu être appliqué.</source>
+      <translation>The requested viewpoint style could not be applied.</translation>
+    </message>
+    <message>
       <source>Les champs QCALVIEW existent déjà pour la couche caméra.</source>
       <translation>QCALVIEW fields already exist in the camera layer.</translation>
     </message>
@@ -1571,6 +1587,10 @@ Export was cancelled to avoid a result differing from the preview.</translation>
     <message>
       <source>Métadonnées écrites : %1</source>
       <translation>Metadata written: %1</translation>
+    </message>
+    <message>
+      <source>NON appliqué — consulter les messages loadNamedStyle précédents</source>
+      <translation>NON appliqué — consulter les messages loadNamedStyle précédents</translation>
     </message>
     <message>
       <source>Navigation PDV impossible :</source>
@@ -1991,14 +2011,6 @@ Background preferences are global (QSettings), never stored per feature.</transl
       <translation>Reuse the photograph referenced by the Image field / historical layer fields.</translation>
     </message>
     <message>
-      <source>STYLE-PDV.qml NON appliqué — consulter les messages loadNamedStyle précédents</source>
-      <translation>STYLE-PDV.qml NOT applied — see previous loadNamedStyle messages</translation>
-    </message>
-    <message>
-      <source>STYLE-PDV.qml appliqué avec succès</source>
-      <translation>STYLE-PDV.qml applied successfully</translation>
-    </message>
-    <message>
       <source>Seuil angulaire ridgelines</source>
       <translation>Ridgeline angular threshold</translation>
     </message>
@@ -2283,6 +2295,14 @@ Automatically adjusts delays and quality according to complexity.</translation>
       <translation>Dashed wireframe</translation>
     </message>
     <message>
+      <source>[QCALVIEW][PDV-QML] Création style nommé impossible:</source>
+      <translation>[QCALVIEW][PDV-QML] Création style nommé impossible:</translation>
+    </message>
+    <message>
+      <source>[QCALVIEW][PDV-QML] Création style nommé impossible: %1</source>
+      <translation>[QCALVIEW][PDV-QML] Création style nommé impossible: %1</translation>
+    </message>
+    <message>
       <source>[QCALVIEW][PDV-QML] Style chargé mais inspection renderer impossible:</source>
       <translation>[QCALVIEW][VIEWPOINT-QML] Style loaded but renderer inspection failed:</translation>
     </message>
@@ -2321,6 +2341,10 @@ Automatically adjusts delays and quality according to complexity.</translation>
     <message>
       <source>appliqué</source>
       <translation>applied</translation>
+    </message>
+    <message>
+      <source>appliqué avec succès</source>
+      <translation>appliqué avec succès</translation>
     </message>
     <message>
       <source>aucun</source>
@@ -2385,6 +2409,10 @@ Automatically adjusts delays and quality according to complexity.</translation>
     <message>
       <source>couches, thème natif=</source>
       <translation>layers, theme natif=</translation>
+    </message>
+    <message>
+      <source>demandée=</source>
+      <translation>demandée=</translation>
     </message>
     <message>
       <source>décodage direct.</source>

@@ -1,13 +1,13 @@
-# -*- coding: utf-8 -*-
-# SPDX-FileCopyrightText: 2026 Fabrice Kerzerho — ArcTan°
-# SPDX-License-Identifier: GPL-3.0-or-later
+
+
+
 
 import os, sys, math, json, re, pathlib, functools, itertools, typing
 from qgis.PyQt import QtCore, QtGui, QtWidgets
 from qgis.core import *
 from qgis.gui import *
 
-# --- Explicit Qt imports ---
+
 try:
     from qgis.PyQt.QtGui import QImage, QPainter, QPen, QColor, QFont, QPixmap, QTransform
 except Exception:
@@ -27,12 +27,12 @@ except Exception:
 try:
     from ._utils_ops import hfov_from_focal_sensor, vfov_from_hfov_ratio
 except Exception:
-    # Fallback sur d'éventuels bindings de méthode attachés à la classe
+    
     def hfov_from_focal_sensor(f, sw):
-        try: return self.hfov_from_focal_sensor(f, sw)  # type: ignore[name-defined]
+        try: return self.hfov_from_focal_sensor(f, sw)  
         except Exception: return 0.0
     def vfov_from_hfov_ratio(h, w, ht):
-        try: return self.vfov_from_hfov_ratio(h, w, ht)  # type: ignore[name-defined]
+        try: return self.vfov_from_hfov_ratio(h, w, ht)  
         except Exception: return 0.0
 
 
@@ -50,7 +50,7 @@ def _toggle_hfov_enable(self, checked):
         self.render_preview()
 
 def _get_projection_mode(self) -> str:
-    """Retourne 'PINHOLE' | 'EQUIRECT' | 'CYLINDRICAL' quelle que soit l'UI."""
+    
     cmb = getattr(self, "cmb_projection", None)
     if cmb is not None:
         try:

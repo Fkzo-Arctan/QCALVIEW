@@ -1,20 +1,7 @@
-# -*- coding: utf-8 -*-
-# SPDX-FileCopyrightText: 2026 Fabrice Kerzerho — ArcTan°
-# SPDX-License-Identifier: GPL-3.0-or-later
-"""Robust photo I/O shared by QGIS 3.44/Qt5 and QGIS 4/Qt6.
 
-Large panoramas must never be decoded at full resolution merely to populate the
-interactive preview. A 57 000 x 5 700 RGB JPEG is only tens of MiB on disk but
-needs roughly 1.2 GiB once represented as a 32-bit QImage. Qt 6 also applies an
-image allocation safety limit by default.
 
-This module therefore:
-- probes dimensions without decoding the full image;
-- loads a bounded working proxy for the dock/viewer;
-- can decode a requested scaled size directly from the source JPEG;
-- only raises Qt's allocation limit temporarily for an explicit large read
-  (typically a full-resolution export), and only when system RAM is sufficient.
-"""
+
+
 from __future__ import annotations
 
 import math
@@ -27,9 +14,9 @@ from qgis.PyQt.QtGui import QImage, QImageReader
 from ._log import qcv_log
 
 _MIB = 1024 * 1024
-_DEFAULT_PROXY_MAX_PIXELS = 16_000_000   # <= ~61 MiB RGBA
-_DEFAULT_PROXY_MAX_DIM = 12_000          # also keeps QPixmap/viewer practical
-_DIRECT_SCALED_MAX_PIXELS = 24_000_000   # <= ~92 MiB RGBA
+_DEFAULT_PROXY_MAX_PIXELS = 16_000_000   
+_DEFAULT_PROXY_MAX_DIM = 12_000          
+_DIRECT_SCALED_MAX_PIXELS = 24_000_000   
 
 
 class PhotoReadError(RuntimeError):
@@ -53,7 +40,7 @@ def _reader_format(reader: QImageReader) -> str:
 
 
 def probe_image(path: str) -> dict:
-    """Read image header only. No full pixel allocation."""
+    
     path = str(path or '')
     if not path or not os.path.exists(path):
         raise FileNotFoundError(path)
@@ -66,8 +53,8 @@ def probe_image(path: str) -> dict:
     w = int(size.width()) if size is not None and size.isValid() else 0
     h = int(size.height()) if size is not None and size.isValid() else 0
     if w <= 0 or h <= 0:
-        # Pillow is already a QCALVIEW dependency for EXIF and reads JPEG size
-        # lazily; use it only as a header fallback.
+        
+        
         try:
             from PIL import Image
             with Image.open(path) as im:
@@ -110,11 +97,7 @@ def bounded_size(width: int, height: int, max_pixels: int = _DEFAULT_PROXY_MAX_P
 
 @contextmanager
 def _temporary_qt_allocation_limit(required_bytes: int, enabled: bool):
-    """Temporarily enlarge Qt's image allocation limit when the API exists.
-
-    QImageReader::setAllocationLimit exists in Qt 5.15 and Qt 6, hence covers
-    QGIS 3.44 and QGIS 4. The setting is global, so it is restored immediately.
-    """
+    
     old = None
     setter = getattr(QImageReader, 'setAllocationLimit', None)
     getter = getattr(QImageReader, 'allocationLimit', None)
@@ -124,7 +107,7 @@ def _temporary_qt_allocation_limit(required_bytes: int, enabled: bool):
             try:
                 old = int(getter())
                 required_mib = max(1, int(math.ceil(float(required_bytes) * 1.20 / _MIB)))
-                # Never lower an existing application-wide limit.
+                
                 if old > 0 and required_mib > old:
                     setter(required_mib)
                     changed = True
@@ -140,14 +123,14 @@ def _temporary_qt_allocation_limit(required_bytes: int, enabled: bool):
 
 
 def _enough_memory_for_large_read(decoded_bytes: int) -> bool:
-    """Conservative check before an explicit full-resolution read."""
+    
     try:
         from ._memory_guard import memory_snapshot
         snap = memory_snapshot()
         avail = int(getattr(snap, 'available_bytes', 0) or 0)
         if avail <= 0:
-            return True  # unknown: let Qt decide, but keep its own safety checks
-        # Source QImage + destination/composition/transients need headroom.
+            return True  
+        
         reserve = max(768 * _MIB, int(decoded_bytes * 1.75))
         return avail > reserve
     except Exception:
@@ -156,7 +139,7 @@ def _enough_memory_for_large_read(decoded_bytes: int) -> bool:
 
 def read_qimage(path: str, width: int | None = None, height: int | None = None,
                 *, allow_large: bool = False) -> QImage:
-    """Decode a QImage, preferably directly at the requested target size."""
+    
     info = probe_image(path)
     tw = int(width) if width is not None else int(info['width'])
     th = int(height) if height is not None else int(info['height'])
@@ -174,8 +157,8 @@ def read_qimage(path: str, width: int | None = None, height: int | None = None,
         reader.setAutoTransform(True)
     except Exception:
         pass
-    # Request scaled decoding before read(). JPEG handlers used by Qt support
-    # this and avoid allocating the 57k-wide source just for a preview.
+    
+    
     if tw != int(info['width']) or th != int(info['height']):
         try:
             reader.setScaledSize(QSize(tw, th))
@@ -195,12 +178,7 @@ def read_qimage(path: str, width: int | None = None, height: int | None = None,
 
 
 def load_working_image(path: str) -> tuple[QImage, dict]:
-    """Return a safe interactive image and source metadata.
-
-    Small photos are loaded unchanged. Very large panoramas are represented by
-    a high-quality bounded proxy while their original dimensions/path remain
-    authoritative for geometry, FOV and exports.
-    """
+    
     info = probe_image(path)
     w, h = int(info['width']), int(info['height'])
     pw, ph = bounded_size(w, h)
@@ -208,8 +186,8 @@ def load_working_image(path: str) -> tuple[QImage, dict]:
     try:
         img = read_qimage(path, pw, ph, allow_large=False)
     except Exception as first_error:
-        # One more conservative attempt. This also helps on Qt builds with a
-        # particularly low allocation limit or limited graphics resources.
+        
+        
         pw2, ph2 = bounded_size(w, h, max_pixels=8_000_000, max_dim=8_000)
         if (pw2, ph2) == (pw, ph):
             raise
@@ -234,7 +212,7 @@ def load_working_image(path: str) -> tuple[QImage, dict]:
 
 
 def read_scaled_for_owner(owner, width: int, height: int, *, for_export: bool = False) -> QImage:
-    """Read/scale the current photo without silently upscaling a proxy on export."""
+    
     path = str(getattr(owner, 'photo_path', '') or '')
     if not path:
         return QImage()
@@ -242,8 +220,8 @@ def read_scaled_for_owner(owner, width: int, height: int, *, for_export: bool = 
     source = getattr(owner, '_photo_source_info', {}) or {}
     proxy = bool(source.get('proxy', False))
     if for_export:
-        # Explicit export: source pixels are authoritative. This may be large,
-        # so memory and Qt allocation limits are checked/managed above.
+        
+        
         return read_qimage(path, w, h, allow_large=True)
     if proxy and (w * h) <= _DIRECT_SCALED_MAX_PIXELS and max(w, h) <= 16_384:
         try:

@@ -1,6 +1,6 @@
-# -*- coding: utf-8 -*-
-# SPDX-FileCopyrightText: 2026 Fabrice Kerzerho — ArcTan°
-# SPDX-License-Identifier: GPL-3.0-or-later
+
+
+
 from ._compat import QC, dialog_exec
 """SPLIT-ONLY extracted implementations from qcalview_window.QCalViewDock.
 Attached to the class via setattr after class definition.
@@ -11,7 +11,7 @@ from qgis.core import *
 from qgis.gui import *
 from ..projector import project_point
 
-# --- Explicit Qt imports ---
+
 try:
     from qgis.PyQt.QtGui import QImage, QPainter, QPen, QColor, QFont, QPixmap, QTransform
 except Exception:
@@ -63,7 +63,7 @@ def _resolve_label_text(self, sty, feat):
                     fld = getattr(sty, 'label_field', None) or expr_txt
                     if fld and (fld in feat.fields().names()):
                         return str(feat[fld])
-            # si la couche QGIS n'a pas d'expression explicite, on retombe sur les champs manuels éventuels
+            
         text = sty.label_text.strip() if getattr(sty, 'label_text', '') else None
         if not text and getattr(sty, 'label_field', None) and (sty.label_field in feat.fields().names()):
             text = str(feat[sty.label_field])

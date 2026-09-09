@@ -1,55 +1,44 @@
-# -*- coding: utf-8 -*-
-# SPDX-FileCopyrightText: 2026 Fabrice Kerzerho — ArcTan°
-# SPDX-License-Identifier: GPL-3.0-or-later
-"""
-_topography_ops.py
-Calculs topographiques pour overlay photo (wireframe, skyline, ridgelines),
-avec grille adaptative "diamond" (norme L1) et courbure terrestre.
-Dépendances minimales : math, numpy, qgis (PointXY), et une fonction project_point fournie par le plugin.
-"""
+
+
+
+
 from typing import List, Tuple, Optional, Dict
 import math
 import numpy as np
 from qgis.core import QgsPointXY
 from ..projector import build_camera_context, project_points_batch
 
-# -----------------------------
-# Types simples
-# -----------------------------
-Segment2D = Tuple[Tuple[float, float], Tuple[float, float]]   # ((u1,v1),(u2,v2))
-Polyline2D = List[Tuple[float, float]]                        # [(u,v), ...]
 
-# -----------------------------
-# Courbure + Réfraction
-# -----------------------------
+
+
+Segment2D = Tuple[Tuple[float, float], Tuple[float, float]]   
+Polyline2D = List[Tuple[float, float]]                        
+
+
+
+
 def effective_radius(R_earth: float = 6370000.0, k: float = 1.0/6.0, enabled: bool = True) -> float:
-    """ Rayon effectif avec éventuelle réfraction. """
+    
     if not enabled:
-        return float('inf')  # aucune correction => pas de chute
-    k = max(-0.5, min(0.49, float(k)))  # bornes prudentes
+        return float('inf')  
+    k = max(-0.5, min(0.49, float(k)))  
     return R_earth / (1.0 - k)
 
 def curvature_drop(d: np.ndarray, R_eff: float) -> np.ndarray:
-    """ h_curv = d^2 / (2*R_eff). """
+    
     if not np.isfinite(R_eff):
         return np.zeros_like(d)
     return (d * d) / (2.0 * R_eff)
 
-# -----------------------------
-# Grille adaptative "diamond" (L1)
-# -----------------------------
+
+
+
 def build_adaptive_grid(
     maxdist: float,
     base_spacing: float,
     D_adapt: float,
 ) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
-    """
-    Construit une grille régulière centrée (X,Y) à pas base_spacing jusqu'à maxdist,
-    puis applique un masque L1 "diamond" tel que l'espacement effectif double
-    tous les D_adapt mètres le long des axes N-S / E-O.
-
-    Retourne (X, Y, mask) où X,Y sont 2D (meshgrid), mask est bool 2D.
-    """
+    
     maxdist = float(maxdist)
     s0 = float(base_spacing)
     D = float(D_adapt if D_adapt > 0 else (100.0 * s0))
@@ -57,39 +46,36 @@ def build_adaptive_grid(
     n = int(math.ceil(maxdist / s0))
     xs = np.linspace(-n * s0, n * s0, 2 * n + 1)
     ys = np.linspace(-n * s0, n * s0, 2 * n + 1)
-    X, Y = np.meshgrid(xs, ys)  # shape (M,N)
+    X, Y = np.meshgrid(xs, ys)  
 
-    # norme L1
+    
     L1 = np.abs(X) + np.abs(Y)
-    rings = np.floor(L1 / D).astype(np.int32)  # 0,1,2,3,...
-    # pas relatif = 2^rings
-    stride = np.left_shift(1, np.clip(rings, 0, 20))  # 2**rings sans pow
+    rings = np.floor(L1 / D).astype(np.int32)  
+    
+    stride = np.left_shift(1, np.clip(rings, 0, 20))  
 
-    # indices de la grille "pleine"
+    
     M, N = X.shape
     I = np.arange(M).reshape(-1, 1).repeat(N, axis=1)
     J = np.arange(N).reshape(1, -1).repeat(M, axis=0)
 
-    # On conserve les noeuds dont i % stride == 0 et j % stride == 0
-    # => sous-échantillonnage exponentiel en anneaux L1
+    
+    
     mask = ((I % stride) == 0) & ((J % stride) == 0)
 
-    # Exclure en dehors du cercle de rayon maxdist (pour limiter visuellement)
+    
     R = np.hypot(X, Y)
     mask &= (R <= maxdist + 1e-6)
 
     return X, Y, mask
 
-# -----------------------------
-# Échantillonnage Z + correction courbure
-# -----------------------------
+
+
+
 
 
 def build_radial_distances(d_step_min: float, maxdist: float) -> np.ndarray:
-    """Construit une suite de distances radiales adaptative.
-    Le pas augmente progressivement avec la distance pour garder un rendu
-    topo lointain fluide sans exploser le nombre d'échantillons.
-    """
+    
     d_step_min = max(1.0, float(d_step_min))
     maxdist = max(d_step_min, float(maxdist))
     vals = []
@@ -97,7 +83,7 @@ def build_radial_distances(d_step_min: float, maxdist: float) -> np.ndarray:
     step = d_step_min
     while d <= maxdist + 1e-9:
         vals.append(d)
-        # croissance douce du pas avec la distance
+        
         if d < 5000.0:
             step = max(d_step_min, step * 1.04)
         elif d < 10000.0:
@@ -115,10 +101,7 @@ def sample_dem_Z(
     cam_xy: tuple,
     R_eff: float
 ):
-    """
-    Alias de compatibilité conservant l'ancien nom public utilisé par le
-    pipeline de rendu. Délègue à l'implémentation optimisée.
-    """
+    
     return sample_dem_Z_optimized(X, Y, mask, sampler_callable, cam_xy, R_eff)
 
 
@@ -128,27 +111,25 @@ def sample_dem_Z_optimized(
     cam_xy: tuple,
     R_eff: float
 ):
-    """
-    Version optimisée utilisant sampler_callable.batch() si disponible.
-    """
+    
     cx, cy = cam_xy
     xs = X[mask].ravel()
     ys = Y[mask].ravel()
     d = np.hypot(xs, ys)
     
-    # Construire array de points
+    
     pts = np.column_stack((xs + cx, ys + cy))
     
-    # Utiliser batch si disponible, sinon fallback
+    
     if hasattr(sampler_callable, 'batch'):
         z = sampler_callable.batch(pts)
     else:
-        # Fallback : boucle Python (ancien comportement)
+        
         z = np.empty(pts.shape[0], dtype=np.float64)
         for i in range(pts.shape[0]):
             z[i] = float(sampler_callable(QgsPointXY(pts[i, 0], pts[i, 1])))
     
-    # Correction courbure
+    
     h = curvature_drop(d, R_eff)
     z_corr = z - h
     
@@ -156,28 +137,26 @@ def sample_dem_Z_optimized(
     Z[mask] = z_corr
     return Z
 
-# -----------------------------
-# Projection utilitaire
-# -----------------------------
+
+
+
 def project_points(
     cam_pt_xy: Tuple[float,float], cam_z: float,
     pts_xy: np.ndarray, z_tgt: np.ndarray,
-    projector,                       # function: project_point(...)
+    projector,                       
     proj_name: str, width: int, height: int,
     yaw: float, pitch: float, roll: float,
     HFOV: float, VFOV: float, is360: bool,
     dist_max: Optional[float]
 ) -> np.ndarray:
-    """
-    Projette une série de points 3D -> écran. Renvoie un tableau Nx2 (u,v) avec NaN si hors frustum.
-    """
+    
     uvs = np.full((pts_xy.shape[0], 2), np.nan, dtype=np.float64)
     cx, cy = cam_pt_xy
     for i in range(pts_xy.shape[0]):
         x, y = pts_xy[i, 0], pts_xy[i, 1]
         uv = projector(
             QgsPointXY(cx, cy), cam_z,
-            QgsPointXY(x, y), None,  # tr = None (on est déjà en CRS caméra)
+            QgsPointXY(x, y), None,  
             proj_name, width, height, yaw, pitch, roll, HFOV, VFOV, is360,
             dist_max=dist_max, z_tgt=float(z_tgt[i]), z_sampler=None
         )
@@ -186,9 +165,9 @@ def project_points(
             uvs[i, 1] = uv[1]
     return uvs
 
-# -----------------------------
-# Wireframe
-# -----------------------------
+
+
+
 
 def _draw_dem_wireframe_sparse_adaptive(
     cam_xy: Tuple[float,float], cam_z: float,
@@ -199,20 +178,7 @@ def _draw_dem_wireframe_sparse_adaptive(
     curvature_enabled: bool = True, R_earth: float = 6370000.0,
     k_refraction: float = 1.0/6.0
 ) -> List[Segment2D]:
-    """Memory-bounded equivalent of the historical adaptive wireframe grid.
-
-    The old implementation built full X/Y/L1/ring/index matrices at the *base*
-    spacing and only applied the adaptive mask afterwards. At 8 km / 5 m that
-    means a 3201 x 3201 dense grid (>10 million cells) and several hundred MB
-    of temporary NumPy arrays, although the adaptive mask retains only ~44k
-    nodes. Under a dense 360° scene this memory pressure can surface later as
-    an access violation in an unrelated NumPy reduction.
-
-    This path generates exactly the retained adaptive nodes row by row, samples
-    and projects only those nodes, then reconnects adjacent retained nodes in
-    rows and columns. EQUIRECT and CYLINDRICAL use the same code; only the
-    camera projector mapping differs upstream.
-    """
+    
     maxdist = max(0.0, float(maxdist))
     s0 = max(0.1, float(base_spacing))
     D = float(D_adapt if (D_adapt is not None and D_adapt > 0) else (100.0 * s0))
@@ -226,7 +192,7 @@ def _draw_dem_wireframe_sparse_adaptive(
     r2_lim = maxdist * maxdist + 1e-6
     ii_parts = []; jj_parts = []; x_parts = []; y_parts = []
 
-    # Row-sized temporaries only: O(size), not O(size²).
+    
     for i in range(size):
         y = (float(i) - float(n)) * s0
         rings = np.floor((np.abs(x_all) + abs(y)) / D).astype(np.int32, copy=False)
@@ -316,6 +282,12 @@ def _draw_dem_wireframe_sparse_adaptive(
         except Exception:
             horizon_visible = None
 
+    
+    
+    
+    if int(wire_mode) == 2 and horizon_visible is None:
+        return []
+
     def node_ok(q):
         if not valid[q]:
             return False
@@ -335,7 +307,7 @@ def _draw_dem_wireframe_sparse_adaptive(
                 return
         segs.append(((ua,va),(ub,vb)))
 
-    # Row-major input is already sorted by (i,j).
+    
     start = 0
     while start < count:
         row = int(ii[start]); end = start + 1
@@ -345,7 +317,7 @@ def _draw_dem_wireframe_sparse_adaptive(
             append_pair(q, q + 1)
         start = end
 
-    # Column connections: stable sort by (j,i), then connect adjacent retained nodes.
+    
     order = np.lexsort((ii, jj))
     start = 0
     olen = int(order.size)
@@ -376,28 +348,18 @@ def draw_dem_wireframe(
     R_earth: float = 6370000.0,
     k_refraction: float = 1.0/6.0
 ) -> List[Segment2D]:
-    """
-    Construit la grille adaptative + filaire et renvoie des segments écran.
-
-    V39.10f STABLE : la projection du filaire est effectuée en lot avec le
-    projecteur NumPy pur. L'ancienne boucle créait deux QgsPointXY/SIP pour
-    chaque nœud puis rappelait project_point() des milliers de fois. Sous
-    Windows/QGIS 3.44 ce chemin apparaissait dans des access violations lors
-    d'un rafraîchissement déclenché depuis le dialogue Style. La géométrie et
-    les formules de projection restent identiques, mais la boucle chaude ne
-    traverse plus SIP/Qt/QGIS.
-    """
+    
     R_eff = effective_radius(R_earth, k_refraction, enabled=curvature_enabled)
-    # 40.18.4 SAFE-WIREFRAME: avoid allocating the full base grid when it
-    # would exceed a conservative cell budget. At 8 km / 5 m the historical
-    # path allocates >10M cells several times before the adaptive mask; the
-    # sparse path retains the exact adaptive nodes without that peak memory.
+    
+    
+    
+    
     _n_est = int(math.ceil(float(maxdist) / max(0.1, float(base_spacing))))
     _dense_cells_est = int(2 * _n_est + 1) ** 2
     _proj_upper = str(proj_name or '').strip().upper()
     _is_panorama = _proj_upper in ('EQUIRECT', 'EQUIRECTANGULAR', 'CYLINDRICAL')
-    # Preserve the historical PINHOLE wireframe path byte-for-byte in normal
-    # operation; the sparse safety path is part of the common panorama engine.
+    
+    
     if _is_panorama and _dense_cells_est > 1200000:
         return _draw_dem_wireframe_sparse_adaptive(
             cam_xy=cam_xy, cam_z=cam_z, proj_name=proj_name, width=width, height=height,
@@ -412,9 +374,9 @@ def draw_dem_wireframe(
     segs: List[Segment2D] = []
     M, N = X.shape
 
-    # Projection de tous les nœuds DEM valides en une seule passe NumPy.
-    # On conserve des matrices U/V alignées sur X/Y afin que la construction
-    # des segments reste strictement équivalente à l'ancien parcours ligne/colonne.
+    
+    
+    
     valid_nodes = mask & np.isfinite(Z)
     U = np.full(X.shape, np.nan, dtype=np.float64)
     V = np.full(X.shape, np.nan, dtype=np.float64)
@@ -436,10 +398,10 @@ def draw_dem_wireframe(
             U[ii, jj] = uv[:, 0]
             V[ii, jj] = uv[:, 1]
 
-    # 40.18 — visibilité du filaire panoramique sans callback Python/QGIS.
-    # L'enveloppe radiale déjà calculée pour l'horizon permet de tester tous les
-    # nœuds en NumPy : aucune traversée SIP/Qt dans la boucle chaude, donc on
-    # restaure « Arêtes supérieures » sans réintroduire les crashs 3.44.
+    
+    
+    
+    
     horizon_visible = None
     if horizon_data is not None and int(wire_mode) != 0:
         try:
@@ -469,6 +431,11 @@ def draw_dem_wireframe(
                 horizon_visible &= np.isfinite(elev)
         except Exception:
             horizon_visible = None
+
+    
+    
+    if int(wire_mode) == 2 and horizon_visible is None:
+        return []
 
     def _node_vis(i: int, j: int) -> bool:
         if horizon_visible is not None:
@@ -522,7 +489,7 @@ def draw_dem_wireframe(
             if keep:
                 segs.append(((float(ua), float(va)), (float(ub), float(vb))))
 
-    # Connexions horizontales puis verticales, comme dans le renderer historique.
+    
     for i in range(M):
         _append_run(np.where(mask[i])[0], i, True)
     for j in range(N):
@@ -530,9 +497,9 @@ def draw_dem_wireframe(
 
     return segs
 
-# -----------------------------
-# Skyline (horizon) par rayons azimutaux
-# -----------------------------
+
+
+
 def draw_dem_horizon(
     cam_xy: Tuple[float,float], cam_z: float,
     projector,
@@ -546,16 +513,13 @@ def draw_dem_horizon(
     R_earth: float = 6370000.0,
     k_refraction: float = 1.0/6.0
 ) -> Polyline2D:
-    """
-    Discrétise l'azimut, scanne le profil radial, retient le point d'élévation apparente max,
-    et projette chaque sommet d'horizon en (u,v). Renvoie une polyligne écran.
-    """
+    
     R_eff = effective_radius(R_earth, k_refraction, enabled=curvature_enabled)
     cx, cy = cam_xy
     poly: Polyline2D = []
 
-    # Azimuts absolus (en degrés), couvrant HFOV autour du yaw
-    # Pour les projections non-360, on limite aux directions plausibles à l’écran
+    
+    
     half = HFOV * 0.5 if not is360 else 180.0
     az0 = yaw - half
     az1 = yaw + half
@@ -564,7 +528,7 @@ def draw_dem_horizon(
 
     for az in az_list:
         th = math.radians(az)
-        # pas radial croissant (progressif) : d, 1.5d, 2.25d, ...
+        
         d_values = build_radial_distances(d_step_min, maxdist)
         alpha_max = -1e9
         best_xy = None
@@ -572,7 +536,7 @@ def draw_dem_horizon(
             x = cx + d * math.sin(th)
             y = cy + d * math.cos(th)
             z = float(z_sampler(QgsPointXY(x, y)))
-            z -= float(curvature_drop(np.asarray([d]), R_eff)[0])  # correction
+            z -= float(curvature_drop(np.asarray([d]), R_eff)[0])  
             elev = math.degrees(math.atan2(z - cam_z, d))
             if elev >= alpha_max:
                 alpha_max = elev
@@ -592,9 +556,9 @@ def draw_dem_horizon(
 
     return poly
 
-# -----------------------------
-# Ridgelines (crêtes)
-# -----------------------------
+
+
+
 def draw_dem_ridgelines(
     cam_xy: Tuple[float,float], cam_z: float,
     projector,
@@ -603,17 +567,14 @@ def draw_dem_ridgelines(
     maxdist: float,
     z_sampler,
     base_spacing: float,
-    near_dist_for_ridges: float = 10000.0,  # calcul des crêtes sur la distance visible
+    near_dist_for_ridges: float = 10000.0,  
     angle_deg: float = 2.0,
     visibility_test=None,
     curvature_enabled: bool = True,
     R_earth: float = 6370000.0,
     k_refraction: float = 1.0/6.0
 ) -> List[Segment2D]:
-    """
-    Approche : grille uniforme dense (pas = base_spacing) dans un disque proche (near_dist_for_ridges),
-    normales par différences finies, angle plan-vue (déf. WindFarm) et sélection des arêtes 'grazing'.
-    """
+    
     R_eff = effective_radius(R_earth, k_refraction, enabled=curvature_enabled)
     s0 = float(base_spacing)
     n = int(math.ceil(near_dist_for_ridges / s0))
@@ -623,7 +584,7 @@ def draw_dem_ridgelines(
     R = np.hypot(X, Y)
     mask = (R <= near_dist_for_ridges + 1e-6)
 
-    # Échantillonnage Z corrigé
+    
     Z = np.full_like(X, np.nan, dtype=np.float64)
     cx, cy = cam_xy
     xs_f = X[mask].ravel(); ys_f = Y[mask].ravel()
@@ -634,15 +595,15 @@ def draw_dem_ridgelines(
     z -= curvature_drop(d, R_eff)
     Z[mask] = z
 
-    # Gradients (différences finies centrales)
-    # nX ~ dZ/dx ; nY ~ dZ/dy ; normale approx au plan local
-    # On travaille en pas métrique s0.
+    
+    
+    
     nX = np.full_like(Z, np.nan); nY = np.full_like(Z, np.nan)
     nX[:, 1:-1] = (Z[:, 2:] - Z[:, :-2]) / (2.0 * s0)
     nY[1:-1, :] = (Z[2:, :] - Z[:-2, :]) / (2.0 * s0)
 
-    # direction de vue locale v = (dx, dy, dz) vers la caméra
-    # ici, on évalue au centre des cellules; on prendra arêtes entre cellules où angle franchit le seuil
+    
+    
     segs: List[Segment2D] = []
     thres = float(angle_deg)
 
@@ -651,7 +612,7 @@ def draw_dem_ridgelines(
         for j in range(1, N - 1):
             if not np.isfinite(Z[i, j]): 
                 continue
-            # vecteur vue depuis (x,y,z) vers caméra (cx,cy,cam_z)
+            
             x = cx + X[i, j]; y = cy + Y[i, j]; zc = Z[i, j]
             vx, vy, vz = (cx - x), (cy - y), (cam_z - zc)
             vnorm = math.sqrt(vx*vx + vy*vy + vz*vz)
@@ -659,7 +620,7 @@ def draw_dem_ridgelines(
                 continue
             vx /= vnorm; vy /= vnorm; vz /= vnorm
 
-            # normale au plan local (approx) : n = (-nX, -nY, 1), non normalisée
+            
             if not (np.isfinite(nX[i, j]) and np.isfinite(nY[i, j])):
                 continue
             nx, ny, nz = (-nX[i, j], -nY[i, j], 1.0)
@@ -668,23 +629,23 @@ def draw_dem_ridgelines(
                 continue
             nx /= nnorm; ny /= nnorm; nz /= nnorm
 
-            # angle par rapport au plan : beta = 90° - angle(n, v)
-            # cos(theta) = n·v => theta = arccos(); beta = 90 - theta
+            
+            
             dot = max(-1.0, min(1.0, nx*vx + ny*vy + nz*vz))
             theta = math.degrees(math.acos(dot))
             beta = 90.0 - theta
 
-            # On marque une 'crête' si beta < seuil
+            
             if beta < thres:
-                # projeter petit segment autour du point (option : edge-following ultérieur)
-                # ici, on relie (i,j) -> (i,j+1) et (i,j) -> (i+1,j) si valides
+                
+                
                 for di, dj in [(0, 1), (1, 0)]:
                     ii, jj = i + di, j + dj
                     if ii >= M or jj >= N: 
                         continue
                     if not np.isfinite(Z[ii, jj]): 
                         continue
-                    # projeter 2 points voisins
+                    
                     uv1 = projector(
                         QgsPointXY(cx, cy), cam_z,
                         QgsPointXY(x, y), None,

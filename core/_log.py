@@ -1,7 +1,7 @@
-# -*- coding: utf-8 -*-
-# SPDX-FileCopyrightText: 2026 Fabrice Kerzerho — ArcTan°
-# SPDX-License-Identifier: GPL-3.0-or-later
-"""Centralised QCALVIEW logging to the QGIS message log."""
+
+
+
+
 from __future__ import annotations
 from ._i18n import tr
 
@@ -18,5 +18,5 @@ def qcv_log(message, section="CORE", level="INFO"):
         }
         QgsMessageLog.logMessage(text, "QCALVIEW", levels.get(str(level).upper(), levels["INFO"]))
     except Exception:
-        # Logging must never affect rendering/plugin startup.
+        
         pass

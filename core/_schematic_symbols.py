@@ -1,13 +1,7 @@
-# -*- coding: utf-8 -*-
-# SPDX-FileCopyrightText: 2026 Fabrice Kerzerho — ArcTan°
-# SPDX-License-Identifier: GPL-3.0-or-later
-"""Parametric schematic (AVR 0/1) symbols for QCALVIEW.
 
-The module deliberately stays 2.5D: source vector geometries are converted to a
-small set of world-space primitives, projected analytically with QCALVIEW's
-camera, then painted with Qt. No 3D scene, mesh engine, lighting or material
-system is involved.
-"""
+
+
+
 from __future__ import annotations
 from ._compat import QC, dialog_exec
 
@@ -25,7 +19,7 @@ from qgis.core import QgsPointXY, QgsWkbTypes
 
 try:
     from qgis.PyQt.QtSvg import QSvgRenderer
-except Exception:  # pragma: no cover - depends on Qt packaging
+except Exception:  
     QSvgRenderer = None
 
 from ..projector import build_camera_context, project_points_batch
@@ -36,24 +30,19 @@ from ._panorama_primitives import (
 )
 
 
-# -----------------------------------------------------------------------------
-# SVG rendering safety
-# -----------------------------------------------------------------------------
 
-# Small transparent safety margin around the SVG logical viewport.  40.17.3
-# expands the root viewBox *before* QSvgRenderer parses the document, then keeps
-# setViewBox() as a fallback.  This is more robust than 40.17.2, where only the
-# already-loaded renderer viewBox was altered.
+
+
+
+
+
+
+
 _SVG_SAFE_PADDING_RATIO = 0.035
 
 
 def _apply_svg_safe_viewbox(renderer, padding_ratio=_SVG_SAFE_PADDING_RATIO):
-    """Expand a QSvgRenderer logical viewBox by a small safety margin.
-
-    Works with the QRectF API exposed by both Qt5/PyQt5 (QGIS 3.44) and
-    Qt6/PyQt6 (QGIS 4.x).  Failure is intentionally non-fatal: an unusual SVG
-    or Qt binding simply falls back to the renderer's original viewBox.
-    """
+    
     if renderer is None:
         return False
     try:
@@ -82,13 +71,13 @@ def _apply_svg_safe_viewbox(renderer, padding_ratio=_SVG_SAFE_PADDING_RATIO):
         return False
 
 
-# Root SVG viewBox matcher. The replacement is deliberately byte-based so the
-# rest of the SVG (namespaces, metadata, entity text, formatting) is untouched.
+
+
 _SVG_ROOT_VIEWBOX_RE = re.compile(rb'\bviewBox\s*=\s*(["\'])([^"\']+)\1', re.IGNORECASE)
 
 
 def _svg_bytes_with_safe_viewbox(path, padding_ratio=_SVG_SAFE_PADDING_RATIO):
-    """Return SVG bytes whose root viewBox is expanded before Qt parses it."""
+    
     try:
         ratio = max(0.0, min(0.10, float(padding_ratio)))
     except Exception:
@@ -123,7 +112,7 @@ def _svg_bytes_with_safe_viewbox(path, padding_ratio=_SVG_SAFE_PADDING_RATIO):
 
 
 def _safe_svg_renderer(path, padding_ratio=_SVG_SAFE_PADDING_RATIO):
-    """Load an SVG renderer with padding applied before parsing when possible."""
+    
     if QSvgRenderer is None or not path:
         return None
     try:
@@ -144,9 +133,9 @@ def _safe_svg_renderer(path, padding_ratio=_SVG_SAFE_PADDING_RATIO):
     return None
 
 
-# Panorama-only asset caches.  The legacy/PINHOLE helper remains untouched;
-# these caches prevent dense panoramic stands from constructing a new native
-# QSvgRenderer/QImage for every billboard instance.
+
+
+
 _PANORAMA_SVG_RENDERER_CACHE = {}
 _PANORAMA_IMAGE_CACHE = {}
 
@@ -204,7 +193,7 @@ def _panorama_cached_image(path):
     return None
 
 def _small_xy_bounds(arr):
-    """Bounds for tiny projected primitives without NumPy reductions."""
+    
     pts = np.asarray(arr, dtype=np.float64)
     if pts.ndim != 2 or pts.shape[0] == 0 or pts.shape[1] < 2:
         return None
@@ -223,9 +212,9 @@ def _small_xy_bounds(arr):
         return None
     return minx, maxx, miny, maxy
 
-# -----------------------------------------------------------------------------
-# Primitive model
-# -----------------------------------------------------------------------------
+
+
+
 
 @dataclass
 class Primitive3D:
@@ -255,11 +244,7 @@ class Billboard3D(Primitive3D):
 
 
 class ProjectedSymbol:
-    """Abstract world-primitive generator.
-
-    Subclasses only know geometry + real dimensions. They do not know how Qt
-    paints or how PINHOLE/CYLINDRICAL/EQUIRECT are projected.
-    """
+    
     generator_id = "base"
 
     def build(self, ctx: "SymbolBuildContext") -> List[Primitive3D]:
@@ -277,11 +262,11 @@ class SymbolBuildContext:
     camera_xy: Tuple[float, float]
     layer_height_m: float
     plugin_dir: str
-    # Profil Z contractuel fourni par le renderer classique. Lorsqu'il est
-    # présent, les AVR l'utilisent tel quel : aucun nouvel échantillonnage MNT.
+    
+    
     ground_profiles_override: Any = None
-    # 40.18.7 preview-only runtime hints (billboard budget/LOD). They are not
-    # style parameters and are never persisted in the project.
+    
+    
     runtime_overrides: Any = None
     _ground_profiles: Any = field(default=None, init=False, repr=False)
 
@@ -296,12 +281,7 @@ class SymbolBuildContext:
         return 0.0
 
     def _ensure_ground_profiles(self):
-        """Construit un référentiel Z immuable en types Python natifs.
-
-        40.17 : ``ground_z`` est appelé très fréquemment par les générateurs AVR.
-        Les profils sont donc convertis une seule fois en tuples ``(x, y)`` et
-        ``z`` Python ; aucune vue ndarray/QGIS n'est conservée dans ce chemin.
-        """
+        
         if self._ground_profiles is not None:
             return self._ground_profiles
 
@@ -386,7 +366,7 @@ class SymbolBuildContext:
         return best_z
 
     def ground_z(self, x: float, y: float) -> float:
-        """Altitude de base contractuelle de la géométrie source."""
+        
         try:
             x = float(x); y = float(y)
             if not (math.isfinite(x) and math.isfinite(y)):
@@ -481,10 +461,10 @@ class SymbolBuildContext:
         raw = (self.definition.get("parameters", {}) or {}).get(name, default)
         if isinstance(raw, dict):
             if raw.get("source") == "layer_height":
-                # Use the per-layer height only when it is explicitly configured.
-                # Otherwise the symbol library default wins instead of blindly
-                # inheriting QCALVIEW's generic 3 m extrusion default (critical
-                # for trees, PV tables and wind turbines).
+                
+                
+                
+                
                 explicit_height = bool(str(getattr(self.style, "height_field_override", "") or "").strip()) or (getattr(self.style, "default_height_override", None) is not None)
                 if explicit_height:
                     try:
@@ -501,9 +481,9 @@ class SymbolBuildContext:
         return raw
 
 
-# -----------------------------------------------------------------------------
-# Symbol library
-# -----------------------------------------------------------------------------
+
+
+
 
 class SymbolLibrary:
     def __init__(self, plugin_dir: str):
@@ -584,9 +564,9 @@ def _asset_for_index(assets: Sequence[str], idx: int) -> str:
     return str(assets[int(idx) % len(assets)]) if assets else ''
 
 
-# -----------------------------------------------------------------------------
-# Geometry generators
-# -----------------------------------------------------------------------------
+
+
+
 
 class ExtrusionSymbol(ProjectedSymbol):
     generator_id = "extrusion"
@@ -612,12 +592,7 @@ class ExtrusionSymbol(ProjectedSymbol):
 
 
 def _resample_line_with_vertex_ground(ctx: SymbolBuildContext, arr: np.ndarray, step: float):
-    """Rééchantillonne XY en interpolant le profil Z des sommets source.
-
-    Le rendu linéaire/2,5D classique pose les sommets source sur le MNT puis les
-    relie. Les haies/clôtures AVR rééchantillonnaient auparavant le MNT à chaque
-    point généré, ce qui déplaçait visuellement le pied de la même géométrie.
-    """
+    
     try:
         xy=[(float(x),float(y)) for x,y in np.asarray(arr)[:,:2]]
     except Exception:
@@ -671,11 +646,7 @@ class PVSurfaceSymbol(ProjectedSymbol):
     @staticmethod
     def _append_vertical_post(out: List[Primitive3D], ctx: SymbolBuildContext, x: float, y: float,
                               z_top: float, width_m: float, role: str = "pv_support", seen: set = None) -> None:
-        """Append a square vertical support using metric world dimensions.
-
-        Four side faces are generated so the support itself participates in the
-        PINHOLE z-buffer.  This replaces the former pixel-width Polyline3D feet.
-        """
+        
         if not (math.isfinite(float(x)) and math.isfinite(float(y)) and math.isfinite(float(z_top))):
             return
         width_m = max(0.005, float(width_m or 0.005))
@@ -725,7 +696,7 @@ class PVSurfaceSymbol(ProjectedSymbol):
     @staticmethod
     def _resample_axis(arr: np.ndarray, step_m: float):
         pts = resample_polyline([(float(x), float(y)) for x, y in np.asarray(arr)[:, :2]], max(0.5, float(step_m)))
-        # Always keep the last source endpoint so a tracker row is supported at both ends.
+        
         if arr is not None and len(arr) and pts:
             last=(float(arr[-1][0]), float(arr[-1][1]))
             if math.hypot(pts[-1][0]-last[0], pts[-1][1]-last[1]) > 0.05:
@@ -774,7 +745,7 @@ class PVSurfaceSymbol(ProjectedSymbol):
         if not finite_u:
             return
         u0 = min(finite_u)
-        # Keep the real panel length constant: its plan projection shrinks with tilt.
+        
         u_new = u0 + (u-u0) * math.cos(t)
         xy_new = np.outer(u_new, s) + np.outer(v, q)
         z_ground = np.asarray([ctx.ground_z(x,y) for x,y in xy_new], dtype=np.float64)
@@ -788,7 +759,7 @@ class PVSurfaceSymbol(ProjectedSymbol):
         angle_deg = max(-60.0, min(60.0, float(angle_deg)))
         t = math.radians(angle_deg)
         post_seen=set()
-        # Surfaces are generated per source segment around the longitudinal torque axis.
+        
         for a, b in zip(arr[:-1], arr[1:]):
             n = self._line_normal_for_azimuth(a, b, azimuth_deg)
             if n is None:
@@ -829,7 +800,7 @@ class PVSurfaceSymbol(ProjectedSymbol):
             tilt_deg = 90.0
 
         if mode == "tracker":
-            # Trackers are intentionally line-based: a row is a longitudinal torque axis.
+            
             if ctx.gtype != QC.QgsWkbTypes_GeometryType_LineGeometry:
                 return out
             axis_height=max(0.2, _to_float(ctx.param("tracker_axis_height_m", 2.0), 2.0))
@@ -886,8 +857,8 @@ class WindTurbineSymbol(ProjectedSymbol):
                 targets=[(float(px),float(py)) for px,py in arr[:, :2]]
             for x, y in targets:
                 x = float(x); y = float(y); gz = ctx.ground_z(x, y)
-                # Rotor orientation. Default is face-camera; optional common azimuth
-                # gives the nacelle/rotor axis in QGIS azimuth convention.
+                
+                
                 vx, vy = x - cx, y - cy
                 d = math.hypot(vx, vy)
                 mode = str(ctx.param("orientation_mode", "face_camera") or "face_camera").strip().lower()
@@ -898,11 +869,11 @@ class WindTurbineSymbol(ProjectedSymbol):
                 elif d <= 1e-9:
                     nx, ny = 0.0, 1.0; ex, ey = 1.0, 0.0
                 else:
-                    # axis points toward camera; rotor plane is perpendicular to it
+                    
                     nx, ny = -vx / d, -vy / d
                     ex, ey = -ny, nx
                 hub = np.array([x, y, gz + hub_h], dtype=np.float64)
-                # Tower filled trapezoid.
+                
                 tower = np.asarray([
                     [x - ex * base_w * 0.5, y - ey * base_w * 0.5, gz],
                     [x + ex * base_w * 0.5, y + ey * base_w * 0.5, gz],
@@ -910,12 +881,12 @@ class WindTurbineSymbol(ProjectedSymbol):
                     [x - ex * top_w * 0.5, y - ey * top_w * 0.5, gz + hub_h],
                 ], dtype=np.float64)
                 out.append(Polygon3D(xyz=tower, role="wind_tower", metadata={"paint_priority": 0}))
-                # Nacelle is aligned with the wind axis. A small transverse width
-                # guarantees an opaque cap over the tower at the hub.
+                
+                
                 nh = max(top_w * 1.4, rotor_d * 0.018)
                 nw = max(top_w * 1.35, rotor_d * 0.014)
                 c = hub + np.array([nx * nac_len * 0.15, ny * nac_len * 0.15, 0.0])
-                # visible side face; face-camera mode naturally collapses its length
+                
                 nac = np.asarray([
                     c + np.array([-nx*nac_len*0.5-ex*nw*0.5, -ny*nac_len*0.5-ey*nw*0.5, -nh*0.5]),
                     c + np.array([ nx*nac_len*0.5-ex*nw*0.5,  ny*nac_len*0.5-ey*nw*0.5, -nh*0.5]),
@@ -923,10 +894,10 @@ class WindTurbineSymbol(ProjectedSymbol):
                     c + np.array([-nx*nac_len*0.5+ex*nw*0.5, -ny*nac_len*0.5+ey*nw*0.5,  nh*0.5]),
                 ], dtype=np.float64)
                 out.append(Polygon3D(xyz=nac, role="wind_nacelle", metadata={"paint_priority": 20}))
-                # Three tapered blade polygons in the vertical plane facing camera.
+                
                 for k in range(3):
                     a = rotor_angle + k * (2.0 * math.pi / 3.0)
-                    # In-plane coordinates: horizontal along e=(ex,ey), vertical in Z.
+                    
                     root_r = max(1.5, radius * 0.035)
                     def wp(rad: float, tang: float) -> np.ndarray:
                         rr = np.array([ex * math.cos(a), ey * math.cos(a), math.sin(a)], dtype=np.float64)
@@ -976,16 +947,7 @@ class BillboardSVGSymbol(ProjectedSymbol):
 
 
 class VegetationAdaptiveSymbol(ProjectedSymbol):
-    """One vegetation definition usable on point, line and polygon layers.
-
-    Point   -> one SVG billboard per point.
-    Line    -> repeated SVG alignment or continuous vegetation ribbon.
-    Polygon -> irregular vegetation mass or deterministic SVG stand.
-
-    The generator deliberately remains 2.5D. No mesh, lighting or scene graph is
-    introduced; it only emits the same Polygon3D/Billboard3D primitives already
-    consumed by QCALVIEW's schematic painter.
-    """
+    
 
     generator_id = "vegetation_adaptive"
 
@@ -1037,7 +999,7 @@ class VegetationAdaptiveSymbol(ProjectedSymbol):
             pts = resample_polyline([(float(x), float(y)) for x, y in arr[:, :2]], spacing)
             if not pts:
                 continue
-            # Closed lines would otherwise duplicate the first tree at the end.
+            
             if len(pts) > 1 and math.hypot(pts[0][0] - pts[-1][0], pts[0][1] - pts[-1][1]) < max(0.05, spacing * 0.05):
                 pts = pts[:-1]
             noise_h = deterministic_noise(seed + pidx * 1619, len(pts), amplitude=variation)
@@ -1107,8 +1069,8 @@ class VegetationAdaptiveSymbol(ProjectedSymbol):
                 ratio = max(crown_min, 1.0 + float(n))
                 base[i] = (x, y, gz)
                 top[i] = (x, y, gz + h * ratio)
-            # Side faces give the stand a readable solid envelope from normal
-            # viewpoints; the top cap is useful on elevated/drone photographs.
+            
+            
             for i in range(len(pts) - 1):
                 out.append(Polygon3D(xyz=np.vstack([base[i], base[i + 1], top[i + 1], top[i]]), role="vegetation_mass"))
             if top.shape[0] >= 4:
@@ -1154,12 +1116,7 @@ def _billboard_budget_exhausted(ctx: SymbolBuildContext) -> bool:
 
 def _billboard_primitive_if_allowed(ctx: SymbolBuildContext, x: float, y: float,
                                     width_m: float, height_m: float, svg_path: str):
-    """Preview-only billboard culling and global frame budget.
-
-    Exports and PINHOLE pass no runtime budget, therefore retain the exact
-    requested instance density.  In panoramic previews we reject sub-pixel
-    instances *before* sampling ground Z or creating a Billboard3D object.
-    """
+    
     try:
         x=float(x); y=float(y); h=max(0.05,float(height_m)); w=max(0.05,float(width_m))
         budget=ctx.runtime('_billboard_budget_state',None)
@@ -1177,8 +1134,8 @@ def _billboard_primitive_if_allowed(ctx: SymbolBuildContext, x: float, y: float,
             ppr=max(0.0,float(ctx.runtime('_pixels_per_rad',0.0) or 0.0))
             min_px=max(0.0,float(ctx.runtime('_min_billboard_px',0.0) or 0.0))
             if ppr>0.0 and min_px>0.0 and d>1e-6:
-                # Conservative max(width,height) angular extent: avoids hiding
-                # slender/tall symbols near the cylindrical vertical edges.
+                
+                
                 ang=max(2.0*math.atan2(h*0.5,d),2.0*math.atan2(w*0.5,d))
                 if ang*ppr < min_px:
                     budget['culled_lod']=int(budget.get('culled_lod',0))+1
@@ -1206,7 +1163,7 @@ def _billboard_primitive(ctx: SymbolBuildContext, x: float, y: float, z: float, 
 
 
 def _point_in_ring(x: float, y: float, ring: Sequence[Tuple[float, float]]) -> bool:
-    """Even/odd point-in-polygon test; boundary counts as inside."""
+    
     pts = [(float(px), float(py)) for px, py in ring]
     if len(pts) < 3:
         return False
@@ -1215,8 +1172,8 @@ def _point_in_ring(x: float, y: float, ring: Sequence[Tuple[float, float]]) -> b
     eps = 1e-10
     for i in range(len(pts)):
         xi, yi = pts[i]; xj, yj = pts[j]
-        # Boundary test first to avoid dropping regular rows that fall exactly
-        # on a plantation polygon edge.
+        
+        
         dx = xj - xi; dy = yj - yi
         den = dx * dx + dy * dy
         if den > eps:
@@ -1235,16 +1192,16 @@ def _point_in_ring(x: float, y: float, ring: Sequence[Tuple[float, float]]) -> b
 
 
 def _points_in_polygon_grid(ring: Sequence[Tuple[float, float]], spacing: float, seed: int, jitter_ratio: float, limit: int) -> List[Tuple[float, float]]:
-    """Deterministic staggered grid for orchards/plantations/woodland stands."""
+    
     pts = [(float(x), float(y)) for x, y in ring]
     if len(pts) < 3 or limit <= 0:
         return []
     xs = [p[0] for p in pts]; ys = [p[1] for p in pts]
     minx, maxx = min(xs), max(xs); miny, maxy = min(ys), max(ys)
     step = max(0.25, float(spacing))
-    # Local Random is deterministic and does not affect Python's global RNG.
+    
     import random
-    rnd = random.Random(int(seed) & 0xFFFFFFFF)  # nosec B311 -- deterministic rendering jitter, not cryptography
+    rnd = random.Random(int(seed) & 0xFFFFFFFF)  
     out: List[Tuple[float, float]] = []
     row = 0
     y = miny + step * 0.5
@@ -1263,10 +1220,7 @@ def _points_in_polygon_grid(ring: Sequence[Tuple[float, float]], spacing: float,
 
 
 class FencePerimeterSymbol(ProjectedSymbol):
-    """Clôture linéaire. Sur polygone, suit uniquement l'anneau extérieur fourni.
-
-    Il n'existe volontairement aucune dispersion surfacique pour ce générateur.
-    """
+    
     generator_id = "fence_perimeter"
 
     def build(self, ctx: SymbolBuildContext) -> List[Primitive3D]:
@@ -1310,21 +1264,21 @@ _GENERATORS = {
 }
 
 
-# -----------------------------------------------------------------------------
-# Projection / QPainter renderer
-# -----------------------------------------------------------------------------
+
+
+
 
 
 def schematic_role_colors(style, definition: Dict[str, Any], role: str) -> Tuple[QColor, QColor]:
-    """Return the exact semantic fill/outline colors used by the schematic renderer."""
+    
     appearance = (definition or {}).get("appearance", {}) or {}
     base_fill = QColor(getattr(style, "fill_color", QColor(70, 130, 90, 200)))
     base_line = QColor(getattr(style, "color", QColor(30, 60, 40, 240)))
     op = _opacity_factor(getattr(style, "opacity", 1.0))
-    # Appearance alpha is a multiplier, not a hidden replacement for the layer
-    # opacity.  At layer opacity 100 % and with a fully opaque color, built-in
-    # schematic symbols must therefore be opaque.  PNG/SVG intrinsic alpha is
-    # preserved later by the texture renderer.
+    
+    
+    
+    
     appearance_fill_alpha = int(appearance.get("fill_alpha", 255) or 255)
     appearance_outline_alpha = int(appearance.get("outline_alpha", 255) or 255)
     fill_alpha = int(round(base_fill.alpha() * (appearance_fill_alpha / 255.0) * op))
@@ -1352,7 +1306,7 @@ def schematic_role_colors(style, definition: Dict[str, Any], role: str) -> Tuple
 
 
 def billboard_world_quad(primitive: Billboard3D, camera_xy: Tuple[float, float]) -> np.ndarray:
-    """World-space camera-facing quad used by both QPainter and depth rendering."""
+    
     x, y, z = primitive.anchor_xyz
     cx, cy = camera_xy
     vx, vy = x - cx, y - cy
@@ -1374,12 +1328,7 @@ def build_schematic_feature_primitives(feature, parts: List[np.ndarray], gtype: 
                                        z_sampler, layer_height_m: float, plugin_dir: str,
                                        camera_xy: Tuple[float, float], ground_profiles=None,
                                        runtime_overrides=None):
-    """Build a schematic feature without painting it.
-
-    This is the shared entry point used by both the historical QPainter path and
-    the common software z-buffer path.  It prevents rendering and occlusion from
-    using different geometries.
-    """
+    
     if not style_uses_schematic(style):
         return None, []
     lib = get_symbol_library(plugin_dir)
@@ -1411,7 +1360,7 @@ def build_schematic_feature_primitives(feature, parts: List[np.ndarray], gtype: 
 
 
 class SchematicPainterRenderer:
-    """Projected Polygon3D/Polyline3D/Billboard3D → QPainter renderer."""
+    
     def __init__(self, painter, camera_ctx, style, definition, library: SymbolLibrary, width: int, height: int, visibility_test=None):
         self.painter = painter
         self.ctx = camera_ctx
@@ -1436,8 +1385,8 @@ class SchematicPainterRenderer:
         if self.visibility_test is None or xyz is None or xyz.shape[0] == 0:
             return True
         try:
-            # A partially visible schematic primitive is kept; exact clipping can
-            # be added later without changing the generator architecture.
+            
+            
             return any(bool(self.visibility_test(float(x), float(y), float(z))) for x, y, z in xyz)
         except Exception:
             return True
@@ -1468,7 +1417,7 @@ class SchematicPainterRenderer:
         )
 
     def _draw_polygon_panorama(self, primitive: Polygon3D, dist_max: float) -> bool:
-        """Seam-safe panorama polygon painter backed by a depth-carrying primitive."""
+        
         xyz = np.asarray(primitive.xyz, dtype=np.float64)
         if xyz.shape[0] < 3 or not self._is_primitive_visible(xyz):
             return False
@@ -1483,7 +1432,7 @@ class SchematicPainterRenderer:
         copies = [np.asarray(run, dtype=np.float64) for run in copies if np.asarray(run).shape[0] >= 3]
         if not copies:
             return False
-        # LOD is evaluated on an unwrapped local copy, not on raw seam-spanning UV.
+        
         lod = self._lod_level(copies[0])
         if lod == "hidden":
             return False
@@ -1555,13 +1504,7 @@ class SchematicPainterRenderer:
         return drawn
 
     def _draw_billboard_panorama(self, primitive: Billboard3D, dist_max: float, camera_xy: Tuple[float, float]) -> bool:
-        """Scalar panorama billboard hot path (40.18.7).
-
-        A billboard has only four corners.  Keeping it out of NumPy batch masks,
-        reductions and fancy-index writes removes the repeated native tiny-array
-        operations seen in crash traces while preserving the same panorama
-        mapping and 0/360 seam behavior.
-        """
+        
         try:
             x,y,z=(float(primitive.anchor_xyz[0]),float(primitive.anchor_xyz[1]),float(primitive.anchor_xyz[2]))
             cx,cy=float(camera_xy[0]),float(camera_xy[1])
@@ -1634,7 +1577,7 @@ class SchematicPainterRenderer:
             return False
 
     def draw_polygon(self, primitive: Polygon3D, dist_max: float) -> bool:
-        """Point 3: generic Polygon3D → QPainter implementation."""
+        
         if is_panorama_context(self.ctx):
             return self._draw_polygon_panorama(primitive, dist_max)
         xyz = np.asarray(primitive.xyz, dtype=np.float64)
@@ -1662,7 +1605,7 @@ class SchematicPainterRenderer:
         self.painter.setBrush(brush if do_fill else QC.Qt_BrushStyle_NoBrush)
         self.painter.drawPolygon(poly)
         if lod == "detailed":
-            # Lightweight semantic texture, still vector/schematic.
+            
             if primitive.role.startswith("vegetation") or pattern == "foliage":
                 hatch = QColor(line); hatch.setAlpha(max(45, min(150, line.alpha())))
                 self.painter.setPen(QPen(hatch, 0.7))
@@ -1675,7 +1618,7 @@ class SchematicPainterRenderer:
                     self.painter.drawLine(QPointF(x, rect.bottom()), QPointF(x + rect.height(), rect.top()))
                     x += spacing
             elif primitive.role == "pv" or pattern == "pv":
-                # Internal module stripes only when the table is large enough.
+                
                 rect = poly.boundingRect()
                 clip = QPainterPath(); clip.addPolygon(poly)
                 self.painter.setClipPath(clip)
@@ -1730,10 +1673,10 @@ class SchematicPainterRenderer:
         top, bottom = float(np.min(pts[:, 1])), float(np.max(pts[:, 1]))
         rect = QRectF(left, top, max(1.0, right - left), max(1.0, bottom - top))
         fill, line = self._colors(primitive.role)
-        # SVG is the actual schematic symbol, not merely a detailed texture.
-        # Keep it for both detailed and simple LOD so tractors/animals never
-        # collapse to the historical tree fallback. LOD still hides objects
-        # below simple_min_px.
+        
+        
+        
+        
         if primitive.svg_path and os.path.isfile(primitive.svg_path):
             try:
                 path = primitive.svg_path
@@ -1750,7 +1693,7 @@ class SchematicPainterRenderer:
             except Exception:
                 pass
 
-        # Generic vector fallbacks only when the SVG is unavailable/invalid.
+        
         fallback = str((primitive.metadata or {}).get("fallback", "generic") or "generic").lower()
         self.painter.save()
         self.painter.setPen(QPen(line, max(0.7, float(getattr(self.style, "width", 1.0) or 1.0))))
@@ -1781,7 +1724,7 @@ class SchematicPainterRenderer:
 
     def render(self, primitives: Sequence[Primitive3D], dist_max: float, camera_xy: Tuple[float, float]) -> bool:
         drawn = False
-        # Painter's algorithm inside the feature: farthest primitive first.
+        
         def depth_key(pr):
             try:
                 if isinstance(pr, Billboard3D):
@@ -1792,8 +1735,8 @@ class SchematicPainterRenderer:
                 return (mx - camera_xy[0]) ** 2 + (my - camera_xy[1]) ** 2
             except Exception:
                 return 0.0
-        # Far-to-near. paint_priority is only a local tie-breaker: it must never
-        # destroy inter-object depth ordering (regression observed after 40.7).
+        
+        
         ordered = sorted(primitives, key=lambda pr: (-float(depth_key(pr)), int((getattr(pr,'metadata',{}) or {}).get('paint_priority', 10))))
         for pr in ordered:
             if isinstance(pr, Polygon3D):
@@ -1829,7 +1772,7 @@ def render_schematic_feature(
     visibility_test=None,
     runtime_budget=None,
 ) -> bool:
-    """Build and render one selected schematic symbol. Returns True if handled."""
+    
     if not style_uses_schematic(style):
         return False
     lib = get_symbol_library(plugin_dir)
@@ -1849,8 +1792,8 @@ def render_schematic_feature(
         pano = str(proj or '').upper() in ("EQUIRECT", "EQUIRECTANGULAR", "CYLINDRICAL")
         runtime_overrides = None
         if pano and isinstance(runtime_budget, dict):
-            # Shared EQUIRECT/CYLINDRICAL preview budget.  Exports pass None and
-            # therefore retain the full user-requested symbol population.
+            
+            
             vf = math.radians(max(1e-6, float(vfov)))
             hf = math.radians(max(1e-6, float(hfov)))
             pixels_per_rad = max(float(width) / max(1e-9, hf), float(height) / max(1e-9, vf)) * 1.20
@@ -1868,27 +1811,27 @@ def render_schematic_feature(
             runtime_overrides=runtime_overrides
         )
         if not definition or not primitives:
-            # 40.18.1: a valid schematic style in a panorama must not silently
-            # fall back to rendering the whole source polygon. An empty symbol
-            # is treated as handled; this also prevents a second heavy path.
+            
+            
+            
             return bool(str(proj or '').upper() in ("EQUIRECT", "EQUIRECTANGULAR", "CYLINDRICAL"))
         camera_ctx = build_camera_context(cam_pt, float(cam_z), proj, int(width), int(height), float(yaw), float(pitch), float(roll), float(hfov), float(vfov), bool(is360))
         renderer = SchematicPainterRenderer(painter, camera_ctx, style, definition, lib, width, height, visibility_test=visibility_test)
         renderer.render(primitives, float(maxdist), camera_xy)
         return True
     except Exception:
-        # 40.18.1: in panoramas, do not cascade a schematic renderer error into
-        # the historical full-polygon fallback (which can be dramatically more
-        # expensive and was observed to end in a native access violation).
+        
+        
+        
         if str(proj or '').upper() in ("EQUIRECT", "EQUIRECTANGULAR", "CYLINDRICAL"):
             return True
-        # PINHOLE keeps the historical fallback contract unchanged.
+        
         return False
 
 
-# -----------------------------------------------------------------------------
-# Helpers
-# -----------------------------------------------------------------------------
+
+
+
 
 def _to_float(value: Any, default: float = 0.0) -> float:
     try:
@@ -1938,7 +1881,7 @@ def _xyz_on_ground(arr: np.ndarray, ctx: SymbolBuildContext) -> np.ndarray:
 
 
 def geometry_parts_in_camera_crs(geom, gtype: int, transform=None) -> List[np.ndarray]:
-    """Convert a QgsGeometry to XY numpy parts in camera CRS for the slow path."""
+    
     out: List[np.ndarray] = []
     try:
         if gtype == QC.QgsWkbTypes_GeometryType_PointGeometry:

@@ -1,7 +1,5 @@
-# -*- coding: utf-8 -*-
-"""Minimal embedded piexif-compatible helper for QCALVIEW.
-Provides just enough API for JPEG EXIF writing without external dependencies.
-"""
+
+
 from PIL import Image, TiffImagePlugin
 
 class ImageIFD:

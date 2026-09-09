@@ -1,6 +1,6 @@
-# -*- coding: utf-8 -*-
-# SPDX-FileCopyrightText: 2026 Fabrice Kerzerho — ArcTan°
-# SPDX-License-Identifier: GPL-3.0-or-later
+
+
+
 from ._i18n import tr
 from ._compat import QC, dialog_exec
 from qgis.PyQt.QtWidgets import (
@@ -9,7 +9,7 @@ from qgis.PyQt.QtWidgets import (
     QListWidgetItem, QColorDialog, QGroupBox, QFormLayout, QLineEdit, QScrollArea
 )
 
-# Dialogues simples
+
 class QInputDialogWithDefault:
     @staticmethod
     def getDouble(parent, title, label, value, minv, maxv, decimals):

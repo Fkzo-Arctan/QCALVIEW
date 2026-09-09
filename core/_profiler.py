@@ -1,10 +1,7 @@
-# -*- coding: utf-8 -*-
-# SPDX-FileCopyrightText: 2026 Fabrice Kerzerho — ArcTan°
-# SPDX-License-Identifier: GPL-3.0-or-later
-"""
-Profiler léger et tolérant pour le plugin QCALVIEW.
-Conçu pour ne jamais bloquer le chargement du plugin si le mode debug est présent.
-"""
+
+
+
+
 from __future__ import annotations
 from ._i18n import tr
 from ._compat import QC, dialog_exec
@@ -17,7 +14,7 @@ from typing import Dict, List
 
 try:
     from qgis.core import QgsMessageLog, Qgis
-except Exception:  # pragma: no cover
+except Exception:  
     QgsMessageLog = None
     Qgis = None
 

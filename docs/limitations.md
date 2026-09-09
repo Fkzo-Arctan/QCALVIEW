@@ -1,28 +1,16 @@
 # QCALVIEW — Current limitations
 
-This document describes the main technical constraints and known limitations of the current **ALPHA-40.20** release.
+This document describes the main technical constraints and known limitations of the current **ALPHA-40.20.3** release.
 
 QCALVIEW is under active development. These limitations may evolve as the rendering engine, panoramic projections, raster support and export workflows are consolidated.
 
 ## Coordinate reference systems
 
-QCALVIEW performs distance, azimuth, elevation and projection calculations using map coordinates.
+QCALVIEW performs distance, azimuth, elevation and projection calculations in the working/project coordinate space.
 
-A **projected coordinate reference system using metric units** is strongly recommended.
+A **projected project CRS using metric units** is strongly recommended, for example EPSG:2154 — RGF93 / Lambert-93 in France.
 
-Recommended examples:
-
-- EPSG:2154 — RGF93 / Lambert-93
-- other appropriate local or national projected CRS using metres
-
-Not recommended for QCALVIEW calculations:
-
-- EPSG:4326 — WGS84 latitude / longitude
-- other CRS expressed in angular units
-
-Projects using longitude/latitude coordinates can produce incorrect distances, offsets, azimuth-related behaviour or projected object placement.
-
-The operator should therefore reproject project data or work in an appropriate metric CRS before using QCALVIEW.
+Source viewpoint and vector layers may use another correctly declared CRS, including EPSG:4326, because QCALVIEW/QGIS transform supported data to the working project CRS. Incorrectly declared CRS definitions or a project CRS using angular units can still produce incorrect distances, offsets or placement.
 
 ## Georeferencing and source data
 

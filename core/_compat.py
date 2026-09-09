@@ -1,10 +1,7 @@
-# -*- coding: utf-8 -*-
-# SPDX-FileCopyrightText: 2026 Fabrice Kerzerho — ArcTan°
-# SPDX-License-Identifier: GPL-3.0-or-later
-"""QCALVIEW compatibility layer for QGIS 3.44/Qt5 and QGIS 4.x/Qt6.
 
-Do not import version-specific enum spellings elsewhere in the plugin.
-"""
+
+
+
 
 from qgis.PyQt.QtWidgets import QAbstractItemView
 from qgis.PyQt.QtGui import QColor
@@ -28,11 +25,11 @@ from qgis.PyQt.QtCore import Qt
 
 try:
     from qgis.PyQt.QtGui import QAction, QShortcut
-except ImportError:  # Qt5
+except ImportError:  
     from qgis.PyQt.QtWidgets import QAction, QShortcut
 
 def _enum(root, scope_name, member_name):
-    """Resolve a scoped Qt6/QGIS4 enum, falling back to its Qt5/QGIS3 alias."""
+    
     scope = getattr(root, scope_name, None)
     if scope is not None:
         value = getattr(scope, member_name, None)
@@ -74,7 +71,7 @@ QC.QImage_Format_Format_RGBA8888 = _enum(QImage, 'Format', 'Format_RGBA8888')
 QC.QMessageBox_StandardButton_No = _enum(QMessageBox, 'StandardButton', 'No')
 QC.QMessageBox_StandardButton_Yes = _enum(QMessageBox, 'StandardButton', 'Yes')
 
-# QgsField uses QMetaType in QGIS 4; QGIS 3.44 already accepts the same types.
+
 QC.QMetaType_Type_QString = _enum(QMetaType, 'Type', 'QString')
 QC.QMetaType_Type_Int = _enum(QMetaType, 'Type', 'Int')
 QC.QMetaType_Type_Double = _enum(QMetaType, 'Type', 'Double')
@@ -141,14 +138,14 @@ QC.Qt_WindowType_WindowCloseButtonHint = _enum(Qt, 'WindowType', 'WindowCloseBut
 QC.Qt_WindowType_WindowMinMaxButtonsHint = _enum(Qt, 'WindowType', 'WindowMinMaxButtonsHint')
 
 def enum_int(value):
-    """Integer representation for both SIP/Qt5 enums and Python/Qt6 enums."""
+    
     try:
         return int(value)
     except (TypeError, ValueError):
         return int(value.value)
 
 def dialog_exec(dialog):
-    """Execute a modal dialog on both PyQt5 and PyQt6."""
+    
     fn = getattr(dialog, "exec", None)
     if callable(fn):
         return fn()

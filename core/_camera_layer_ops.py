@@ -1,6 +1,6 @@
-# -*- coding: utf-8 -*-
-# SPDX-FileCopyrightText: 2026 Fabrice Kerzerho — ArcTan°
-# SPDX-License-Identifier: GPL-3.0-or-later
+
+
+
 from ._i18n import tr
 from ._compat import QC
 import os, json
@@ -13,8 +13,8 @@ from qgis.core import QgsProject, QgsField, QgsVectorLayer, QgsMapLayerStyle, Qg
 from ._log import qcv_log
 from ._image_io import load_working_image, probe_image
 
-# Champs courts homogènes SHP/GPKG.
-# Les alias permettent de relire les anciennes couches déjà enrichies.
+
+
 QCV_CAMERA_FIELDS = [
     ("qcv_id", QC.QMetaType_Type_QString, 64, 0, ["qcv_id"]),
     ("qcv_img", QC.QMetaType_Type_QString, 512, 0, ["qcv_img"]),
@@ -55,7 +55,7 @@ def _qcv_color_hex(c):
         return '#ff00ff00'
 
 def _qcv_style_to_dict(sty):
-    """Serialize the QCALVIEW overlay settings needed for a per-PDV visual snapshot."""
+    
     keys = (
         'visible','opacity','width','show_labels','label_field','label_size','label_pos',
         'label_bg','label_bg_padding','label_bg_radius','label_halo','label_halo_width',
@@ -103,7 +103,7 @@ def _qcv_style_from_dict(sty, data):
 def _camera_visual_state_key(self, fid):
     layer=_camera_layer(self)
     if layer is None or fid is None: return ''
-    # QgsProject.writeEntry uses an XML-safe key under one scope.
+    
     safe_layer=''.join(ch if (ch.isalnum() or ch in '_-') else '_' for ch in str(layer.id()))
     return f'/pdv_visual_state/{safe_layer}/{int(fid)}'
 
@@ -161,10 +161,17 @@ def _camera_capture_plugin_settings(self):
 
 def _camera_restore_plugin_settings(self, data):
     data=data or {}
-    for name in ('cb_occ_terrain','cb_occ_layers','cb_occ_objects','cb_transparent_objects','cb_debug_no_occ','cb_use_dem_z','cb_force_horizontal_25d','cb_draw_2p5d','cb_show_labels','cb_curvature'):
+    for name in ('cb_occ_terrain','cb_occ_layers','cb_transparent_objects','cb_debug_no_occ','cb_use_dem_z','cb_force_horizontal_25d','cb_draw_2p5d','cb_show_labels','cb_curvature'):
         if name in data:
             try: getattr(self,name).setChecked(bool(data[name]))
             except Exception: pass
+    
+    
+    
+    try:
+        self.cb_occ_objects.setChecked(True)
+    except Exception:
+        pass
     for name in ('d_eps','d_az_step','d_rad_step','d_hdefault','d_earth_radius_km'):
         if name in data:
             try: getattr(self,name).setValue(float(data[name]))
@@ -180,25 +187,19 @@ def _camera_restore_plugin_settings(self, data):
         except Exception: pass
     mode=str(data.get('relief_mode') or '')
     if mode:
-        # QCALVIEW already centralises the relief selector; try the public helper
-        # then fall back to matching combo data/text when present.
+        
+        
         try:
             if hasattr(self,'_set_relief_mode_id'): self._set_relief_mode_id(mode)
-            elif hasattr(self,'cmb_relief_mode'):
-                i=self.cmb_relief_mode.findData(mode)
-                if i<0: i=self.cmb_relief_mode.findText(mode)
-                if i>=0:self.cmb_relief_mode.setCurrentIndex(i)
+            elif hasattr(self,'combo_relief_mode'):
+                mapping={'none':0,'transparent':1,'opaque':2,'wireframe':3,'ridgelines':4,'skyline':5}
+                self.combo_relief_mode.setCurrentIndex(int(mapping.get(mode.lower(),0)))
+                if hasattr(self,'_sync_relief_mode_controls'): self._sync_relief_mode_controls()
         except Exception: pass
 
 
 def _camera_collect_visual_state_snapshot(self):
-    """Return the current visual state in the exact persistent schema.
-
-    40.19.8: export preflight needs to know whether the live theme/overlays
-    differ from the state saved in the QGIS project. Keeping one collector
-    avoids comparing a slightly different representation from the one written
-    by _camera_capture_visual_state().
-    """
+    
     state={'version':3,'theme':'','overlays':[],'settings':_camera_capture_plugin_settings(self)}
     try:
         combo=getattr(self,'cmb_qgis_theme',None)
@@ -215,11 +216,7 @@ def _camera_collect_visual_state_snapshot(self):
 
 
 def _camera_visual_state_dirty(self, fid):
-    """True when the live visual state differs from the persisted PDV state.
-
-    This intentionally compares only the current PDV. Other PDVs can only be
-    exported from the state previously stored in the project.
-    """
+    
     key=_camera_visual_state_key(self,fid)
     if not key:
         return False
@@ -234,17 +231,12 @@ def _camera_visual_state_dirty(self, fid):
         return a != b
     except Exception as exc:
         qcv_log(f"PDV {fid}: comparaison état visuel impossible: {exc}", 'EXPORT/PREFLIGHT', 'WARNING')
-        # Conservative: if comparison cannot be trusted, require an explicit save.
+        
         return True
 
 
 def _camera_capture_visual_state(self, fid):
-    """Persist QCALVIEW state per PDV; QGIS themes remain native QGIS themes.
-
-    40.7.3 tried to serialise MapThemeRecord objects. That path was fragile on
-    QGIS 3.44/Qt5. 40.7.4 deliberately stores only the selected native theme
-    name plus QCALVIEW-specific state, using QgsProject.writeEntry.
-    """
+    
     key=_camera_visual_state_key(self,fid)
     if not key: return False
     project=QgsProject.instance()
@@ -283,7 +275,7 @@ def _camera_restore_visual_state(self, fid):
         self._camera_last_visual_restore_fid=int(fid); self._camera_last_visual_restore_summary='état QCALVIEW illisible'
         return False
 
-    # 1) appliquer le thème QGIS natif s'il existe encore.
+    
     theme=str(state.get('theme') or '')
     theme_applied=False
     if theme:
@@ -296,7 +288,7 @@ def _camera_restore_visual_state(self, fid):
         except Exception as exc:
             qcv_log(f"PDV {fid}: thème {theme} non appliqué: {exc}", 'PDV/LOAD', 'WARNING')
 
-    # 2) restaurer réglages QCALVIEW globaux puis couches projetées.
+    
     _camera_restore_plugin_settings(self,state.get('settings') or {})
     restored=[]
     try:
@@ -305,7 +297,7 @@ def _camera_restore_visual_state(self, fid):
             lyr=project.mapLayer(str(d.get('layer_id') or ''))
             if lyr is None: continue
             sty=LayerStyle(lyr); _qcv_style_from_dict(sty,d)
-            # 40.12 : ne jamais restaurer un état AVR actif mais incomplet.
+            
             try:
                 if bool(getattr(sty, 'schematic_enabled', False)):
                     sid = str(getattr(sty, 'schematic_symbol_id', '') or '').strip()
@@ -352,19 +344,13 @@ def _camera_restore_visual_state(self, fid):
 
 
 def _camera_metric_project_crs(self):
-    """CRS de travail 40.10 : CRS projet, uniquement s'il est projeté.
-
-    Les couches source peuvent avoir un CRS différent (ex. PDV WGS84) ; elles sont
-    transformées vers ce CRS avant tout calcul de distance/azimut. Un projet en CRS
-    géographique reste volontairement refusé dans cette étape, car les distances en
-    degrés ne sont pas compatibles avec le moteur actuel.
-    """
+    
     try:
         crs = QgsProject.instance().crs()
         if crs is None or not crs.isValid() or crs.isGeographic():
             return None
-        # QGIS 3.44 et 4.x exposent Qgis.DistanceUnit.Meters ; conserver un
-        # fallback permissif si l'énumération n'est pas disponible.
+        
+        
         try:
             meters = getattr(getattr(Qgis, 'DistanceUnit', None), 'Meters', None)
             if meters is None:
@@ -460,11 +446,11 @@ def _camera_feature_value(layer, feat, canonical_name, default=None):
         return default
 
 
-# V39.10h — la source visuelle est un état explicite du PDV.
-# AUTO   : compatibilité historique, QCALVIEW résout une image depuis les champs.
-# PHOTO  : une photographie est explicitement associée au PDV.
-# SCHEMA : aucune photographie ne doit être recherchée, même si d'anciens champs
-#          (photo, filename, directory...) contiennent encore une référence.
+
+
+
+
+
 def _camera_normalize_view_mode(value, default='AUTO'):
     raw = str(value or '').strip().upper()
     aliases = {
@@ -503,7 +489,7 @@ def _camera_read_photo_metadata(path):
         meta = dict(read_exif(path) or {})
     except Exception:
         meta = {}
-    # Header-only fallback: never decode a 300+ MP panorama just to know W/H.
+    
     try:
         inf = probe_image(str(path))
         meta.setdefault('ImageWidth', int(inf.get('width', 0) or 0))
@@ -612,7 +598,7 @@ def _camera_first_existing_name(names, candidates):
 def _camera_default_state(self):
     defaults = {
         'qcv_proj': str(self.cmb_proj.currentText()).strip(),
-        'qcv_360': 1 if (self._is360_mode() if hasattr(self, '_is360_mode') else self.cb_360.isChecked()) else 0,
+        'qcv_360': 1 if (str(self.cmb_proj.currentText()).strip().upper() in ('EQUIRECT', 'EQUIRECTANGULAR') and self.cb_360.isChecked()) else 0,
         'qcv_yaw': _normalize_azimuth_360(self.d_yaw.value()),
         'qcv_pitch': float(self.d_pitch.value()),
         'qcv_roll': float(self.d_roll.value()),
@@ -794,7 +780,7 @@ def _camera_refresh_field_combos(self, layer=None):
     for combo in combos:
         combo.blockSignals(True)
         combo.clear()
-        # Libellé et ordre peuvent volontairement rester non renseignés.
+        
         if combo in (getattr(self, 'cmb_cam_label_field', None), getattr(self, 'cmb_cam_order_field', None)):
             combo.addItem(tr(''))
         combo.addItems(tr(names))
@@ -808,8 +794,8 @@ def _camera_refresh_field_combos(self, layer=None):
     label_name = prev_label if prev_label in names else default_label
     order_name = prev_order if prev_order in names else default_order
     img_name = prev_img if prev_img in names else default_img
-    # Ne pas déclencher un rechargement de PDV simplement parce que les champs
-    # QCALVIEW viennent d'être ajoutés ou que les combos sont reconstruits.
+    
+    
     for combo, value in ((self.cmb_cam_id_field, id_name), (self.cmb_cam_label_field, label_name),
                          (self.cmb_cam_order_field, order_name), (self.cmb_cam_image_field, img_name)):
         if value:
@@ -919,9 +905,9 @@ def _camera_refresh_feature_list(self, autoload=None):
             self.viewer.update_info()
     except Exception:
         pass
-    # V39.7 : ne jamais alimenter le tableau batch pendant l'ouverture du dock.
-    # Cette opération peut relire tous les PDV et leurs métadonnées image ; elle doit
-    # rester strictement déclenchée par une action Export / Rafraîchir PDV.
+    
+    
+    
     try:
         if (not getattr(self, '_ui_initializing', False)
                 and bool(getattr(self, '_export_tab_loaded', False))
@@ -953,7 +939,7 @@ def _camera_select_combo_feature_by_fid(self, fid, autoload=True):
 
 
 def _camera_select_layer_feature(self, fid):
-    # Plus de sélection forcée côté QGIS : elle jaunit le symbole et casse le style métier.
+    
     return
 
 
@@ -1040,12 +1026,7 @@ def _camera_set_live_enabled(self, enabled):
 
 
 def _camera_on_geometry_changed(self, fid, *args):
-    """Déclenche un rendu seulement pour le PDV courant et seulement en mode Live.
-
-    Le timer 250 ms agit comme un debounce : pendant un déplacement interactif,
-    plusieurs notifications éventuelles sont regroupées et le rendu intervient après
-    stabilisation / relâchement du sommet.
-    """
+    
     if not bool(getattr(self, '_camera_live_enabled', False)):
         return
     try:
@@ -1067,7 +1048,7 @@ def _camera_live_refresh_current(self):
 
 
 def _camera_refresh_current_view(self, force=False):
-    """Recharge la géométrie courante et actualise aperçu + visionneuse."""
+    
     try:
         getattr(self, '_overlay_cache', {}).clear()
         getattr(self, '_geom_cache', {}).clear()
@@ -1077,8 +1058,8 @@ def _camera_refresh_current_view(self, force=False):
         pass
     try: self._update_canvas_fov()
     except Exception: pass
-    # Le bouton Rafraîchir invalide les caches mais reste à la résolution
-    # normale de la preview/visionneuse. L'export pleine définition reste séparé.
+    
+    
     try: self.render_preview()
     except Exception: pass
     try:
@@ -1103,12 +1084,7 @@ def _camera_next_feature(self):
 
 
 def _camera_feature_image_path(self, layer, feat):
-    """Résout la photographie du PDV en respectant d'abord qcv_mode.
-
-    SCHEMA est autoritaire et court-circuite volontairement toute la logique
-    historique de recherche automatique. AUTO conserve la compatibilité avec
-    les anciennes couches. PHOTO privilégie qcv_img puis les champs historiques.
-    """
+    
     mode = _camera_feature_view_mode(self, layer, feat)
     if mode == 'SCHEMA':
         return None
@@ -1122,8 +1098,8 @@ def _camera_feature_image_path(self, layer, feat):
     except Exception:
         draft = None
 
-    # Une photo explicitement associée dans le brouillon ou qcv_img reste
-    # prioritaire sur les champs hérités.
+    
+    
     if isinstance(draft, dict) and draft.get('qcv_img') not in (None, ''):
         candidates.append(draft.get('qcv_img'))
 
@@ -1141,8 +1117,8 @@ def _camera_feature_image_path(self, layer, feat):
         except Exception:
             pass
 
-    # Compatibilité des couches antérieures à qcv_img. Elle n'est utilisée
-    # qu'en AUTO/PHOTO, jamais lorsqu'un PDV est explicitement SCHEMA.
+    
+    
     for fld in ('photo', 'image', 'img', 'path', 'file'):
         if fld in names:
             try:
@@ -1226,7 +1202,7 @@ def _camera_load_photo_from_path(self, path):
         pass
     try:
         if getattr(self, 'viewer', None):
-            # Never let QPixmap load the original 57k-wide JPEG implicitly.
+            
             self.viewer.update_image(self.image)
     except Exception:
         pass
@@ -1234,13 +1210,7 @@ def _camera_load_photo_from_path(self, path):
 
 
 def _camera_state_from_feature(self, layer, feat, photo_meta=None):
-    """Construit l'état caméra en conservant le modèle optique du jalon v38.1.
-
-    En HFOV automatique, les métadonnées de la photo associée sont prioritaires
-    lorsqu'elles fournissent une paire optique exploitable. Cela corrige aussi
-    automatiquement les qcv_foc/qcv_sens erronés enregistrés par v39.9/v39.10.
-    En mode manuel, les valeurs stockées restent prioritaires.
-    """
+    
     defaults = _camera_default_state(self)
     photo_meta = photo_meta or {}
     z_geom = _camera_geom_z(feat)
@@ -1262,8 +1232,8 @@ def _camera_state_from_feature(self, layer, feat, photo_meta=None):
         except Exception:
             return False
 
-    # Paire optique issue de la photo : focale physique + largeur physique du
-    # capteur en priorité ; équivalent 24×36 uniquement en repli.
+    
+    
     meta_foc = photo_meta.get('FocalLength')
     meta_sens = photo_meta.get('SensorWidthMM')
     meta_f35 = photo_meta.get('FocalLength35mmEq')
@@ -1274,7 +1244,7 @@ def _camera_state_from_feature(self, layer, feat, photo_meta=None):
         photo_foc, photo_sens = float(meta_f35), 36.0
 
     if auto_hfov and _pos(photo_foc) and _pos(photo_sens):
-        # En automatique, la photo est la source de vérité.
+        
         foc, sens = photo_foc, photo_sens
     else:
         foc = float(stored_foc) if _pos(stored_foc) else (photo_foc if _pos(photo_foc) else None)
@@ -1306,7 +1276,7 @@ def _camera_state_from_feature(self, layer, feat, photo_meta=None):
         state['qcv_sens'] = float(sens)
 
     if auto_hfov and (not _pos(foc) or not _pos(sens)):
-        # Ne jamais fabriquer un FOV en supposant un capteur 36 mm.
+        
         state['qcv_ahf'] = 0
 
     img_path = _camera_feature_image_path(self, layer, feat)
@@ -1331,7 +1301,13 @@ def _camera_apply_state(self, state):
         idx = self.cmb_proj.findText(proj)
         if idx >= 0:
             self.cmb_proj.setCurrentIndex(idx)
-        self.cb_360.setChecked(bool(int(_camera_pick_state_value(state, 'qcv_360', 0) or 0)))
+        proj_upper = str(proj).strip().upper()
+        full_equirect = bool(
+            proj_upper in ('EQUIRECT', 'EQUIRECTANGULAR')
+            and int(_camera_pick_state_value(state, 'qcv_360', 0) or 0)
+        )
+        self.cb_360.setEnabled(proj_upper in ('EQUIRECT', 'EQUIRECTANGULAR'))
+        self.cb_360.setChecked(full_equirect)
         self.d_yaw.setValue(_normalize_azimuth_360(_camera_pick_state_value(state, 'qcv_yaw', self.d_yaw.value()), fallback=self.d_yaw.value()))
         self.d_pitch.setValue(float(_camera_pick_state_value(state, 'qcv_pitch', self.d_pitch.value())))
         self.d_roll.setValue(float(_camera_pick_state_value(state, 'qcv_roll', self.d_roll.value())))
@@ -1360,12 +1336,23 @@ def _camera_apply_state(self, state):
         self._toggle_hfov_enable(self.cb_auto_hfov.isChecked())
     except Exception:
         pass
+    
+    
+    
+    try:
+        proj_upper = str(self.cmb_proj.currentText()).strip().upper()
+        if proj_upper in ('EQUIRECT', 'EQUIRECTANGULAR'):
+            full_equirect = bool(self.cb_360.isChecked())
+            self.d_hfov.setEnabled(not full_equirect)
+            self.d_vfov.setEnabled(not full_equirect)
+    except Exception:
+        pass
 
 
 def _camera_collect_ui_state(self):
     state = {
         'qcv_proj': str(self.cmb_proj.currentText()).strip(),
-        'qcv_360': 1 if (self._is360_mode() if hasattr(self, '_is360_mode') else self.cb_360.isChecked()) else 0,
+        'qcv_360': 1 if (str(self.cmb_proj.currentText()).strip().upper() in ('EQUIRECT', 'EQUIRECTANGULAR') and self.cb_360.isChecked()) else 0,
         'qcv_yaw': _normalize_azimuth_360(self.d_yaw.value()),
         'qcv_pitch': float(self.d_pitch.value()),
         'qcv_roll': float(self.d_roll.value()),
@@ -1387,8 +1374,8 @@ def _camera_collect_ui_state(self):
     state['qcv_mode'] = mode
     photo_path = getattr(self, '_camera_current_photo_path', None)
     if mode == 'SCHEMA':
-        # Garder la clé est volontaire : l'enregistrement doit effacer une
-        # éventuelle ancienne valeur qcv_img, et non simplement l'omettre.
+        
+        
         state['qcv_img'] = None
     elif photo_path:
         state['qcv_img'] = photo_path
@@ -1444,9 +1431,9 @@ def _camera_load_current_feature(self, auto=False):
                 photo_meta = dict(getattr(self, '_camera_last_photo_meta', {}) or {})
             self._camera_current_photo_path = path
         else:
-            # V39.10g : absence de chemin image = vue schématique explicite.
-            # On purge impérativement la photo précédente pour éviter qu'un PDV
-            # sans image hérite visuellement du JPEG du PDV précédent.
+            
+            
+            
             try:
                 self._activate_schematic_view()
             except Exception:
@@ -1477,9 +1464,9 @@ def _camera_load_current_feature(self, auto=False):
     finally:
         self._camera_loading_feature = False
 
-    # V39.10a STABLE : tous les rafraîchissements automatiques passent par le
-    # même antirebond. On évite un rendu synchrone pendant la fin de chargement
-    # d'une caméra, notamment lorsque le relief est actif.
+    
+    
+    
     try:
         self.render_preview()
     except Exception:
@@ -1565,12 +1552,7 @@ def _camera_assign_current_photo_path(self, path):
 
 
 def _camera_write_source_fields(self, mode, image_path=None, silent=False):
-    """Persiste uniquement la source Photo/Schéma du PDV courant.
-
-    Cette écriture immédiate évite qu'un changement de couche fasse perdre la
-    décision avant un clic sur « Enregistrer paramètres ». Les autres réglages
-    caméra ne sont pas enregistrés par cette fonction.
-    """
+    
     layer = _camera_layer(self)
     feat = _camera_current_feature(self)
     if layer is None or feat is None:
@@ -1604,8 +1586,8 @@ def _camera_write_source_fields(self, mode, image_path=None, silent=False):
             try:
                 ok = layer.changeAttributeValue(fid, idx, write_value)
             except Exception:
-                # Certains providers de chaînes préfèrent une chaîne vide à un
-                # QVariant NULL. qcv_mode reste de toute façon autoritaire.
+                
+                
                 ok = layer.changeAttributeValue(fid, idx, '' if key == 'qcv_img' else value)
             changed = bool(ok) or changed
         if started:
@@ -1632,7 +1614,7 @@ def _camera_write_source_fields(self, mode, image_path=None, silent=False):
 
 
 def _camera_set_current_schematic(self):
-    """Transforme explicitement le PDV courant en vue schématique."""
+    
     feat = _camera_current_feature(self)
     if feat is None:
         _camera_set_status(self, "Aucun point de vue actif.", "#aa6600")
@@ -1644,7 +1626,7 @@ def _camera_set_current_schematic(self):
         self.image = None
         self.photo_path = None
         self._camera_current_photo_path = None
-    # _activate_schematic_view ne modifie volontairement pas le mode.
+    
     self._camera_current_view_mode = 'SCHEMA'
     _camera_capture_current_draft(self, feat.id())
     _camera_write_source_fields(self, 'SCHEMA', None, silent=True)
@@ -1663,7 +1645,7 @@ def _camera_set_current_schematic(self):
 
 
 def _camera_use_auto_image_source(self):
-    """Réactive la résolution historique via « Champ image »."""
+    
     layer = _camera_layer(self)
     feat = _camera_current_feature(self)
     if layer is None or feat is None:
@@ -1681,7 +1663,7 @@ def _camera_use_auto_image_source(self):
 
 
 def _camera_associate_photo(self):
-    """Choisit une photo, l'associe au PDV et persiste uniquement la source."""
+    
     feat = _camera_current_feature(self)
     if feat is None:
         _camera_set_status(self, "Aucun point de vue actif.", "#aa6600")
@@ -1693,8 +1675,8 @@ def _camera_associate_photo(self):
         ok = False
     after = getattr(self, '_camera_current_photo_path', None)
     if ok is False or not after:
-        # load_photo renvoie False à l'annulation dans la 39.10h. Pour une
-        # ancienne implémentation sans valeur de retour, un nouveau chemin suffit.
+        
+        
         if not after or after == before:
             return
     self._camera_current_view_mode = 'PHOTO'
@@ -1705,11 +1687,11 @@ def _camera_associate_photo(self):
 
 
 def _camera_schedule_autosave(self, *_args):
-    # Pas d’autosave en base. On mémorise seulement le brouillon par point tant que le dock est ouvert.
+    
     if getattr(self, '_camera_loading_feature', False):
         return
-    # 40.19.3 : pendant une saisie manuelle, ne pas figer dans le brouillon un
-    # état intermédiaire (ex. 1 → 11 → 115). editingFinished relancera la synchro.
+    
+    
     if bool(getattr(self, '_render_edit_widgets', set())):
         self._camera_autosave_dirty = True
         return
@@ -1778,7 +1760,7 @@ def _camera_save_feature_by_fid(self, fid, silent=False):
         feat = None
     if feat is None or not feat.isValid():
         return False
-    # Création des champs seulement au premier enregistrement effectif.
+    
     if not _camera_ensure_fields(self):
         return False
 
@@ -1795,8 +1777,8 @@ def _camera_save_feature_by_fid(self, fid, silent=False):
     elif img_path:
         state['qcv_img'] = _camera_make_storable_image_path(layer, img_path)
     else:
-        # La clé reste présente afin d'effacer une ancienne association au lieu
-        # de laisser sa valeur en base parce qu'elle n'est plus parcourue.
+        
+        
         state['qcv_img'] = None
     state['qcv_upd'] = datetime.now().isoformat(timespec='seconds')
 
@@ -1830,9 +1812,9 @@ def _camera_save_feature_by_fid(self, fid, silent=False):
     finally:
         self._camera_internal_write = prev_write
 
-    # 40.17.5 : après enregistrement, l'état n'est plus un brouillon.
-    # Le conserver ici faisait afficher « Non enregistré » dans l'onglet Export
-    # même après un clic réussi sur « Enregistrer paramètres + état ».
+    
+    
+    
     drafts.pop(fid, None)
     self._camera_drafts = drafts
     if changed and not silent:

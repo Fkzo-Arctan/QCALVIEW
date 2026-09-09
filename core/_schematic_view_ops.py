@@ -1,6 +1,6 @@
-# -*- coding: utf-8 -*-
-# SPDX-FileCopyrightText: 2026 Fabrice Kerzerho — ArcTan°
-# SPDX-License-Identifier: GPL-3.0-or-later
+
+
+
 from ._i18n import tr
 from ._compat import QC, dialog_exec
 """QCALVIEW — gestion des vues schématiques sans photographie.
@@ -15,7 +15,7 @@ from qgis.PyQt.QtGui import QColor, QImage, QPainter, QBrush
 from qgis.PyQt.QtWidgets import QColorDialog
 
 def _settings_key(*parts):
-    """Build a QSettings path without embedding high-entropy credential-like literals."""
+    
     return "/".join(parts)
 
 
@@ -53,7 +53,7 @@ def _schematic_update_background_controls(self):
     btn = getattr(self, "btn_schematic_bg_color", None)
     if btn is not None:
         try:
-            # Lisible quel que soit le thème QGIS.
+            
             lum = (0.2126 * c.red() + 0.7152 * c.green() + 0.0722 * c.blue())
             fg = "#111111" if lum > 150 else "#ffffff"
             btn.setText(tr(c.name(QC.QColor_NameFormat_HexRgb).upper()))
@@ -122,7 +122,7 @@ def _make_checkerboard(width, height):
     img.fill(QColor(238, 238, 238, 255))
     p = QPainter(img)
     try:
-        # Carreaux adaptatifs : suffisamment fins dans le dock, pas de motif bruité.
+        
         cell = max(8, min(28, int(round(min(width, height) / 28.0))))
         light = QColor(248, 248, 248, 255)
         dark = QColor(220, 220, 220, 255)
@@ -137,12 +137,7 @@ def _make_checkerboard(width, height):
 
 
 def _make_schematic_base(self, width, height, for_export=False, force_transparent=None):
-    """Crée le fond d'une vue sans photo.
-
-    - aperçu : un fond transparent est matérialisé par un damier uniquement à l'écran ;
-    - export PNG : alpha réel à 0 lorsque la transparence globale est active ;
-    - export JPEG / force_transparent=False : couleur globale opaque.
-    """
+    
     width = max(1, int(width)); height = max(1, int(height))
     transparent = (_schematic_background_transparent(self)
                    if force_transparent is None else bool(force_transparent))
@@ -157,7 +152,7 @@ def _make_schematic_base(self, width, height, for_export=False, force_transparen
 
 
 def _activate_schematic_view(self):
-    """Bascule le runtime sur une vue sans photo sans modifier les attributs du PDV."""
+    
     self.image = None
     self.photo_path = None
     self._camera_current_photo_path = None

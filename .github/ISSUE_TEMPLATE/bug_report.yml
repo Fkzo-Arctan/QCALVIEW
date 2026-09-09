@@ -11,7 +11,7 @@ body:
     id: qcalview
     attributes:
       label: QCALVIEW version
-      placeholder: "e.g. ALPHA-40.20"
+      placeholder: "e.g. ALPHA-40.20.2"
     validations:
       required: true
   - type: input

@@ -1,19 +1,12 @@
-# -*- coding: utf-8 -*-
-# SPDX-FileCopyrightText: 2026 Fabrice Kerzerho — ArcTan°
-# SPDX-License-Identifier: GPL-3.0-or-later
-"""QCALVIEW translation bootstrap for QGIS/Qt.
 
-QCALVIEW currently uses French source strings in parts of the historical codebase.
-French therefore works as the source locale. For every other QGIS/system locale,
-English is loaded. Native Qt ``.qm`` catalogs are preferred; a lightweight ``.ts``
-reader is kept as a development/release fallback so the plugin never depends on a
-locally installed Qt Linguist tool merely to start.
-"""
+
+
+
 from __future__ import annotations
 
 import os
 import re
-import xml.etree.ElementTree as ET  # nosec B405 -- parses only bundled QCALVIEW .ts catalogs
+import xml.etree.ElementTree as ET  
 
 from qgis.PyQt.QtCore import QCoreApplication, QLocale, QSettings, QTranslator
 
@@ -34,7 +27,7 @@ def _normalise_locale(value):
 
 
 def resolve_language():
-    """Return ``fr`` only for a French QGIS/system locale, English otherwise."""
+    
     locale_name = ""
     try:
         locale_name = _normalise_locale(QSettings().value("locale/userLocale", ""))
@@ -53,7 +46,7 @@ def current_language():
 
 
 def _placeholder_pattern(source):
-    """Compile a Qt-style %1/%2 translation source into a full-string regex."""
+    
     matches = list(re.finditer(r"%([1-9][0-9]*)", source))
     if not matches:
         return None, []
@@ -73,7 +66,7 @@ def _placeholder_pattern(source):
 
 
 class _TsRuntimeTranslator(QTranslator):
-    """Fallback QTranslator backed directly by a Qt Linguist ``.ts`` file."""
+    
 
     def __init__(self, ts_path, parent=None):
         super().__init__(parent)
@@ -83,12 +76,12 @@ class _TsRuntimeTranslator(QTranslator):
         self._phrases = []
         self._load_ts(ts_path)
 
-    def isEmpty(self):  # noqa: N802 - Qt API spelling
+    def isEmpty(self):  
         return not bool(self._by_source)
 
     def _load_ts(self, ts_path):
         try:
-            root = ET.parse(ts_path).getroot()  # nosec B314 -- ts_path is resolved inside the plugin i18n directory
+            root = ET.parse(ts_path).getroot()  
         except Exception:
             return
         for ctx in root.findall("context"):
@@ -122,7 +115,7 @@ class _TsRuntimeTranslator(QTranslator):
         return out
 
     def lookup_text(self, sourceText, context=_CONTEXT):
-        """Translate text directly, including dynamic Qt-style placeholders."""
+        
         if sourceText is None:
             return ""
         source = str(sourceText)
@@ -135,7 +128,7 @@ class _TsRuntimeTranslator(QTranslator):
             m = pattern.match(source)
             if m:
                 return self._apply_groups(translation, groups, m)
-        # Handles messages assembled from several already-known fragments.
+        
         out = source
         changed = False
         for src, dst in self._phrases:
@@ -144,12 +137,12 @@ class _TsRuntimeTranslator(QTranslator):
                 changed = True
         return out if changed else source
 
-    def translate(self, context, sourceText, disambiguation=None, n=-1):  # noqa: N802
+    def translate(self, context, sourceText, disambiguation=None, n=-1):  
         return self.lookup_text(sourceText, context)
 
 
 def install_qcalview_translator(parent=None):
-    """Install the translator using QGIS locale first, then the system locale."""
+    
     global _active_translator, _translation_memory, _active_language
     if _active_translator is not None:
         return _active_translator
@@ -197,7 +190,7 @@ def remove_qcalview_translator():
 
 
 def tr(value, context=_CONTEXT):
-    """Translate a user-visible value while preserving non-string Qt arguments."""
+    
     if isinstance(value, list):
         return [tr(v, context) for v in value]
     if isinstance(value, tuple):
@@ -211,9 +204,9 @@ def tr(value, context=_CONTEXT):
         translated = QCoreApplication.translate(context, value)
     except Exception:
         translated = value
-    # Native .qm catalogs only match exact source strings. Several historical
-    # QCALVIEW messages are assembled dynamically; retain the TS memory as a
-    # safe secondary lookup so those messages never become mixed-language.
+    
+    
+    
     if translated == value and _translation_memory is not None:
         try:
             translated = _translation_memory.lookup_text(value, context)

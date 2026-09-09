@@ -6,7 +6,7 @@ QCALVIEW is a QGIS plugin for photographic viewpoint calibration, visual simulat
 Visual Simulation & Geomatics  
 https://qcalview.com · https://arctan.fr · contact@arctan.fr
 
-This documentation directory is intended to grow into the public QCALVIEW user manual. It may be distributed with the plugin and is deliberately separate from the private `dev_docs/` development notes.
+This documentation directory contains the public QCALVIEW user documentation distributed with the plugin.
 
 ## Current documents
 - `USER_MANUAL_EN.md` — English quick-start/manual skeleton.

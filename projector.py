@@ -1,12 +1,12 @@
-# SPDX-FileCopyrightText: 2026 Fabrice Kerzerho — ArcTan°
-# SPDX-License-Identifier: GPL-3.0-or-later
 
-# -*- coding: utf-8 -*-
+
+
+
 
 import math
 import numpy as np
 
-# --- Helpers FOV ----------------------------------------------------------------
+
 
 def hfov_from_focal_sensor(focal_mm, sensor_width_mm):
 
@@ -21,7 +21,7 @@ def vfov_from_hfov_ratio(hfov_deg, width_px, height_px):
     w = max(1, int(width_px)); h = max(1, int(height_px))
     return math.degrees(2.0 * math.atan(math.tan(hf/2.0) * (h / float(w))))
 
-# --- Base caméra ----------------------------------------------------------------
+
 
 def _dot(a,b): return a[0]*b[0] + a[1]*b[1] + a[2]*b[2]
 def _cross(a,b): return [a[1]*b[2]-a[2]*b[1], a[2]*b[0]-a[0]*b[2], a[0]*b[1]-a[1]*b[0]]
@@ -32,7 +32,7 @@ def _normalize(a):
     return [a[0]/n, a[1]/n, a[2]/n]
 
 def _basis_from_yaw_pitch_roll(yaw_deg, pitch_deg, roll_deg):
-    """Base caméra (r,u,f) en repère ENU (x=Est, y=Nord, z=Up)."""
+    
     yaw = math.radians(yaw_deg)
     pitch = math.radians(pitch_deg)
     roll = math.radians(roll_deg)
@@ -40,7 +40,7 @@ def _basis_from_yaw_pitch_roll(yaw_deg, pitch_deg, roll_deg):
     cy = math.cos(yaw); sy = math.sin(yaw)
     cp = math.cos(pitch); sp = math.sin(pitch)
 
-    f = [sy*cp, cy*cp, sp]  # axe optique
+    f = [sy*cp, cy*cp, sp]  
     world_up = [0.0, 0.0, 1.0]
 
     r0 = _normalize(_cross(f, world_up))
@@ -55,7 +55,7 @@ def _basis_from_yaw_pitch_roll(yaw_deg, pitch_deg, roll_deg):
     r = _normalize(r); u = _normalize(u); f = _normalize(f)
     return r, u, f
 
-# --- Projection -----------------------------------------------------------------
+
 
 def _validated_vfov_for_cylindrical(vfov_deg, hfov_deg, width, height):
     vf = math.radians(max(1e-6, float(vfov_deg)))
@@ -118,7 +118,7 @@ def project_point(cam_pt, cam_z, pt, tr,
                   dist_max=None, z_tgt=None, z_sampler=None,
                   soft_clip_px=0, hard_clip=True):
 
-    # XY en CRS caméra
+    
     try:
         p = tr.transform(pt) if tr is not None else pt
         px = float(p.x()); py = float(p.y())
@@ -128,7 +128,7 @@ def project_point(cam_pt, cam_z, pt, tr,
         except Exception:
             return None
 
-    # Altitude
+    
     if z_tgt is not None:
         pz = float(z_tgt)
     elif z_sampler is not None:
@@ -144,7 +144,7 @@ def project_point(cam_pt, cam_z, pt, tr,
     else:
         pz = 0.0
 
-    # Vecteur 3D depuis caméra
+    
     cx = float(cam_pt.x()) if hasattr(cam_pt, 'x') else float(cam_pt[0])
     cy = float(cam_pt.y()) if hasattr(cam_pt, 'y') else float(cam_pt[1])
     dx = px - cx
@@ -156,16 +156,16 @@ def project_point(cam_pt, cam_z, pt, tr,
 
     r, u, f = _basis_from_yaw_pitch_roll(yaw, pitch, roll)
 
-    # Coord caméra
-    xc = _dot([dx,dy,dz], r)   # droite
-    yc = _dot([dx,dy,dz], f)   # avant
-    zc = _dot([dx,dy,dz], u)   # haut
+    
+    xc = _dot([dx,dy,dz], r)   
+    yc = _dot([dx,dy,dz], f)   
+    zc = _dot([dx,dy,dz], u)   
 
     W = int(width); H = int(height)
     if W <= 1 or H <= 1:
         return None
 
-    # PINHOLE
+    
     if str(proj).upper() == "PINHOLE":
         if yc <= 1e-6:
             return None
@@ -177,39 +177,39 @@ def project_point(cam_pt, cam_z, pt, tr,
         v_img = H*0.5 - fy * (zc / yc)
         return (u_img, v_img) if (math.isfinite(u_img) and math.isfinite(v_img)) else None
 
-    # Angles locaux (Equirect/Cylindrical)
-    alpha = math.atan2(xc, yc)              # az latéral
+    
+    alpha = math.atan2(xc, yc)              
     rho   = math.hypot(xc, yc)
-    beta  = math.atan2(zc, rho)             # élévation
+    beta  = math.atan2(zc, rho)             
 
-    # Marges (soft-clip) converties en angle
+    
     m_alpha = math.radians(HFOV) * (float(soft_clip_px) / max(1.0, W))
     m_beta  = math.radians(VFOV) * (float(soft_clip_px) / max(1.0, H))
 
-    # EQUIRECT
+    
     if str(proj).upper() == "EQUIRECT":
         if is360:
-            # wrap 0..W / 0..H
+            
             u = (alpha + math.pi) / (2.0*math.pi) * W
             v = (math.pi/2.0 - beta) / math.pi * H
             return (u, v) if (math.isfinite(u) and math.isfinite(v)) else None
         else:
-            # fenêtré : NE JAMAIS renvoyer None sur débord —> clamp dans viewport
+            
             hf = math.radians(max(1e-6, float(HFOV)))
             vf = math.radians(max(1e-6, float(VFOV)))
-            # mapping centré linéaire (on calcule toujours u,v, même hors champ)
+            
             u = W*0.5 * (1.0 + alpha / (hf*0.5))
             v = H*0.5 * (1.0 - beta  / (vf*0.5))
             if not (math.isfinite(u) and math.isfinite(v)):
                 return None
-            # Clamp systématique pour éviter le drop en aval
+            
             eps = 1e-2
             if W > 1:
                 u = min(max(u, eps), W - eps)
             if H > 1:
                 v = min(max(v, eps), H - eps)
             return (u, v)
-    # CYLINDRIC
+    
     if proj.upper() == "CYLINDRICAL":
         return _project_cylindrical_uv(alpha, beta, W, H, HFOV, VFOV, is360=bool(is360),
                                        soft_clip_px=soft_clip_px, hard_clip=hard_clip)
@@ -217,7 +217,7 @@ def project_point(cam_pt, cam_z, pt, tr,
     return None
 
 
-# --- Batch projection -------------------------------------------------------------
+
 
 def build_camera_context(cam_pt, cam_z, proj, width, height, yaw, pitch, roll, HFOV, VFOV, is360):
 

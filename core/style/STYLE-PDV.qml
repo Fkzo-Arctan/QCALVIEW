@@ -190,7 +190,7 @@ p, li { white-space: pre-wrap; }
         <layer locked="0" id="{7f8e6f1b-2d43-4f84-b4a0-c9b7f5d4e901}" enabled="1" pass="0" class="GeometryGenerator">
           <Option type="Map">
             <Option name="SymbolType" value="Fill" type="QString" />
-            <Option name="geometryModifier" value="if(@fov_show_all = 1 OR @qcv_current_fid = $id, if(if(@qcv_current_fid = $id, @fov_is360, coalesce(&quot;qcv_360&quot;, 0)) = 1, buffer($geometry, if(@qcv_current_fid = $id, @fov_range_full, if(coalesce(&quot;qcv_mdst&quot;, 0) &lt;= 0, 200, coalesce(&quot;qcv_mdst&quot;, 0)))), wedge_buffer(center:=$geometry, azimuth:=if(@qcv_current_fid = $id, @fov_yaw, coalesce(&quot;qcv_yaw&quot;, 0)), width:=if(@qcv_current_fid = $id, @fov_hfov, if(coalesce(&quot;qcv_360&quot;, 0) = 1, 360, coalesce(&quot;qcv_hfov&quot;, 60))), outer_radius:=if(@qcv_current_fid = $id, @fov_range_full, if(coalesce(&quot;qcv_mdst&quot;, 0) &lt;= 0, 200, coalesce(&quot;qcv_mdst&quot;, 0))), inner_radius:=0)), NULL)" type="QString" />
+            <Option name="geometryModifier" value="if((@fov_show_all = 1 OR @qcv_current_fid = $id) AND @qcv_layer_crs != &#x27;&#x27; AND @qcv_work_crs != &#x27;&#x27;, with_variable(&#x27;hf&#x27;, if(@qcv_current_fid = $id, coalesce(@fov_hfov, 60.0), if(coalesce(&quot;qcv_hfov&quot;, 0.0) &gt; 0.0, coalesce(&quot;qcv_hfov&quot;, 60.0), if(coalesce(&quot;qcv_360&quot;, 0) = 1, 360.0, 60.0))), with_variable(&#x27;r&#x27;, if(@qcv_current_fid = $id, coalesce(@fov_range_full, 200.0), if(coalesce(&quot;qcv_mdst&quot;, 0.0) &lt;= 0.0, 200.0, coalesce(&quot;qcv_mdst&quot;, 200.0))), with_variable(&#x27;c&#x27;, transform($geometry, @qcv_layer_crs, @qcv_work_crs), if(@hf &gt;= 359.999, transform(buffer(@c, @r, segments:=24), @qcv_work_crs, @qcv_layer_crs), transform(densify_by_distance(wedge_buffer(center:=@c, azimuth:=if(@qcv_current_fid = $id, coalesce(@fov_yaw, 0.0), coalesce(&quot;qcv_yaw&quot;, 0.0)), width:=if(abs(@hf - 180.0) &lt; 0.000001, 179.999999, @hf), outer_radius:=@r, inner_radius:=0.0), if(@r / 32.0 &lt; 0.5, 0.5, @r / 32.0)), @qcv_work_crs, @qcv_layer_crs))))), NULL)" type="QString" />
             <Option name="units" value="MapUnit" type="QString" />
           </Option>
           <data_defined_properties>
@@ -235,7 +235,7 @@ p, li { white-space: pre-wrap; }
         <layer locked="0" id="{2b2d3078-5193-4e0a-8d74-d436a4ec4712}" enabled="1" pass="0" class="GeometryGenerator">
           <Option type="Map">
             <Option name="SymbolType" value="Fill" type="QString" />
-            <Option name="geometryModifier" value="if(@fov_show_all = 1 OR @qcv_current_fid = $id, if(if(@qcv_current_fid = $id, @fov_is360, coalesce(&quot;qcv_360&quot;, 0)) = 1, buffer($geometry, @fov_symrange), wedge_buffer(center:=$geometry, azimuth:=if(@qcv_current_fid = $id, @fov_yaw, coalesce(&quot;qcv_yaw&quot;, 0)), width:=if(@qcv_current_fid = $id, @fov_hfov, if(coalesce(&quot;qcv_360&quot;, 0) = 1, 360, coalesce(&quot;qcv_hfov&quot;, 60))), outer_radius:=@fov_symrange, inner_radius:=0)), NULL)" type="QString" />
+            <Option name="geometryModifier" value="if((@fov_show_all = 1 OR @qcv_current_fid = $id) AND @qcv_layer_crs != &#x27;&#x27; AND @qcv_work_crs != &#x27;&#x27;, with_variable(&#x27;hf&#x27;, if(@qcv_current_fid = $id, coalesce(@fov_hfov, 60.0), if(coalesce(&quot;qcv_hfov&quot;, 0.0) &gt; 0.0, coalesce(&quot;qcv_hfov&quot;, 60.0), if(coalesce(&quot;qcv_360&quot;, 0) = 1, 360.0, 60.0))), with_variable(&#x27;r&#x27;, if(coalesce(@fov_symrange, 40.0) &lt; 1.0, 1.0, coalesce(@fov_symrange, 40.0)), with_variable(&#x27;c&#x27;, transform($geometry, @qcv_layer_crs, @qcv_work_crs), if(@hf &gt;= 359.999, transform(buffer(@c, @r, segments:=24), @qcv_work_crs, @qcv_layer_crs), transform(densify_by_distance(wedge_buffer(center:=@c, azimuth:=if(@qcv_current_fid = $id, coalesce(@fov_yaw, 0.0), coalesce(&quot;qcv_yaw&quot;, 0.0)), width:=if(abs(@hf - 180.0) &lt; 0.000001, 179.999999, @hf), outer_radius:=@r, inner_radius:=0.0), if(@r / 32.0 &lt; 0.5, 0.5, @r / 32.0)), @qcv_work_crs, @qcv_layer_crs))))), NULL)" type="QString" />
             <Option name="units" value="MapUnit" type="QString" />
           </Option>
           <data_defined_properties>
@@ -286,7 +286,7 @@ p, li { white-space: pre-wrap; }
         <layer locked="0" id="{ce525a62-7d36-4320-9d3b-2d03df01ba91}" enabled="1" pass="0" class="GeometryGenerator">
           <Option type="Map">
             <Option name="SymbolType" value="Fill" type="QString" />
-            <Option name="geometryModifier" value="if(@fov_show_all = 1 OR @qcv_current_fid = $id, if(if(@qcv_current_fid = $id, @fov_is360, coalesce(&quot;qcv_360&quot;, 0)) = 1, wedge_buffer(center:=$geometry, azimuth:=if(@qcv_current_fid = $id, @fov_yaw, coalesce(&quot;qcv_yaw&quot;, 0)), width:=360, outer_radius:=@fov_symrange + if(@fov_symrange * 0.06 &lt; 8, 8, @fov_symrange * 0.06), inner_radius:=@fov_symrange), wedge_buffer(center:=$geometry, azimuth:=if(@qcv_current_fid = $id, @fov_yaw, coalesce(&quot;qcv_yaw&quot;, 0)), width:=if(@qcv_current_fid = $id, @fov_hfov, if(coalesce(&quot;qcv_360&quot;, 0) = 1, 360, coalesce(&quot;qcv_hfov&quot;, 60))), outer_radius:=@fov_symrange + if(@fov_symrange * 0.06 &lt; 8, 8, @fov_symrange * 0.06), inner_radius:=@fov_symrange)), NULL)" type="QString" />
+            <Option name="geometryModifier" value="if((@fov_show_all = 1 OR @qcv_current_fid = $id) AND @qcv_layer_crs != &#x27;&#x27; AND @qcv_work_crs != &#x27;&#x27;, with_variable(&#x27;hf&#x27;, if(@qcv_current_fid = $id, coalesce(@fov_hfov, 60.0), if(coalesce(&quot;qcv_hfov&quot;, 0.0) &gt; 0.0, coalesce(&quot;qcv_hfov&quot;, 60.0), if(coalesce(&quot;qcv_360&quot;, 0) = 1, 360.0, 60.0))), with_variable(&#x27;r&#x27;, if(coalesce(@fov_symrange, 40.0) &lt; 1.0, 1.0, coalesce(@fov_symrange, 40.0)), with_variable(&#x27;c&#x27;, transform($geometry, @qcv_layer_crs, @qcv_work_crs), if(@hf &gt;= 359.999, transform(difference(buffer(@c, @r + if(@r * 0.06 &lt; 8.0, 8.0, @r * 0.06), segments:=24), buffer(@c, @r, segments:=24)), @qcv_work_crs, @qcv_layer_crs), transform(densify_by_distance(wedge_buffer(center:=@c, azimuth:=if(@qcv_current_fid = $id, coalesce(@fov_yaw, 0.0), coalesce(&quot;qcv_yaw&quot;, 0.0)), width:=if(abs(@hf - 180.0) &lt; 0.000001, 179.999999, @hf), outer_radius:=@r + if(@r * 0.06 &lt; 8.0, 8.0, @r * 0.06), inner_radius:=@r), if(@r / 32.0 &lt; 0.5, 0.5, @r / 32.0)), @qcv_work_crs, @qcv_layer_crs))))), NULL)" type="QString" />
             <Option name="units" value="MapUnit" type="QString" />
           </Option>
           <data_defined_properties>
@@ -334,75 +334,111 @@ p, li { white-space: pre-wrap; }
             </layer>
           </symbol>
         </layer>
-        <layer locked="0" id="{b3335046-db50-4d1d-9ea2-fbb0698f0772}" enabled="1" pass="0" class="SimpleMarker">
+        <layer locked="0" id="{b3335046-db50-4d1d-9ea2-fbb0698f0772}" enabled="1" pass="0" class="GeometryGenerator">
           <Option type="Map">
-            <Option name="angle" value="0" type="QString" />
-            <Option name="cap_style" value="square" type="QString" />
-            <Option name="color" value="255,0,0,255,rgb:1,0,0,1" type="QString" />
-            <Option name="horizontal_anchor_point" value="1" type="QString" />
-            <Option name="joinstyle" value="bevel" type="QString" />
-            <Option name="name" value="line" type="QString" />
-            <Option name="offset" value="0,0" type="QString" />
-            <Option name="offset_map_unit_scale" value="3x:0,0,0,0,0,0" type="QString" />
-            <Option name="offset_unit" value="MM" type="QString" />
-            <Option name="outline_color" value="255,35,35,255,rgb:1,0.1372549,0.1372549,1" type="QString" />
-            <Option name="outline_style" value="solid" type="QString" />
-            <Option name="outline_width" value="0.6" type="QString" />
-            <Option name="outline_width_map_unit_scale" value="3x:0,0,0,0,0,0" type="QString" />
-            <Option name="outline_width_unit" value="MM" type="QString" />
-            <Option name="scale_method" value="diameter" type="QString" />
-            <Option name="size" value="500" type="QString" />
-            <Option name="size_map_unit_scale" value="3x:0,0,0,0,0,0" type="QString" />
-            <Option name="size_unit" value="MapUnit" type="QString" />
-            <Option name="vertical_anchor_point" value="2" type="QString" />
+            <Option name="SymbolType" value="Line" type="QString" />
+            <Option name="geometryModifier" value="if((@fov_show_all = 1 OR @qcv_current_fid = $id) AND @qcv_layer_crs != &#x27;&#x27; AND @qcv_work_crs != &#x27;&#x27;, with_variable(&#x27;r&#x27;, if(coalesce(@fov_symrange, 40.0) &lt; 1.0, 1.0, coalesce(@fov_symrange, 40.0)), with_variable(&#x27;c&#x27;, transform($geometry, @qcv_layer_crs, @qcv_work_crs), transform(make_line(@c, make_point(x(@c) + @r * sin(radians(if(@qcv_current_fid = $id, coalesce(@fov_yaw, 0.0), coalesce(&quot;qcv_yaw&quot;, 0.0)))), y(@c) + @r * cos(radians(if(@qcv_current_fid = $id, coalesce(@fov_yaw, 0.0), coalesce(&quot;qcv_yaw&quot;, 0.0)))))), @qcv_work_crs, @qcv_layer_crs))), NULL)" type="QString" />
+            <Option name="units" value="MapUnit" type="QString" />
           </Option>
           <data_defined_properties>
             <Option type="Map">
               <Option name="name" value="" type="QString" />
-              <Option name="properties" type="Map">
-                <Option name="angle" type="Map">
-                  <Option name="active" value="true" type="bool" />
-                  <Option name="expression" value="if(@fov_show_all = 1 OR @qcv_current_fid = $id, if(@qcv_current_fid = $id, @fov_yaw, coalesce(&quot;qcv_yaw&quot;, 0)), 0)" type="QString" />
-                  <Option name="type" value="3" type="int" />
-                </Option>
-                <Option name="size" type="Map">
-                  <Option name="active" value="true" type="bool" />
-                  <Option name="expression" value="if(@fov_show_all = 1 OR @qcv_current_fid = $id, @fov_symrange, 0)" type="QString" />
-                  <Option name="type" value="3" type="int" />
-                </Option>
-              </Option>
+              <Option name="properties" />
               <Option name="type" value="collection" type="QString" />
             </Option>
           </data_defined_properties>
+          <symbol force_rhr="0" alpha="1" name="@0@direction" frame_rate="10" clip_to_extent="1" type="line" is_animated="0">
+            <data_defined_properties>
+              <Option type="Map">
+                <Option name="name" value="" type="QString" />
+                <Option name="properties" />
+                <Option name="type" value="collection" type="QString" />
+              </Option>
+            </data_defined_properties>
+            <layer locked="0" id="{a65eb886-b65e-4a7e-b9d8-40202d1e0001}" enabled="1" pass="0" class="SimpleLine">
+              <Option type="Map">
+                <Option name="align_dash_pattern" value="0" type="QString" />
+                <Option name="capstyle" value="square" type="QString" />
+                <Option name="customdash" value="5;2" type="QString" />
+                <Option name="customdash_map_unit_scale" value="3x:0,0,0,0,0,0" type="QString" />
+                <Option name="customdash_unit" value="MM" type="QString" />
+                <Option name="dash_pattern_offset" value="0" type="QString" />
+                <Option name="dash_pattern_offset_map_unit_scale" value="3x:0,0,0,0,0,0" type="QString" />
+                <Option name="dash_pattern_offset_unit" value="MM" type="QString" />
+                <Option name="draw_inside_polygon" value="0" type="QString" />
+                <Option name="joinstyle" value="bevel" type="QString" />
+                <Option name="line_color" value="255,35,35,255,rgb:1,0.1372549,0.1372549,1" type="QString" />
+                <Option name="line_style" value="solid" type="QString" />
+                <Option name="line_width" value="0.6" type="QString" />
+                <Option name="line_width_unit" value="MM" type="QString" />
+                <Option name="offset" value="0" type="QString" />
+                <Option name="offset_map_unit_scale" value="3x:0,0,0,0,0,0" type="QString" />
+                <Option name="offset_unit" value="MM" type="QString" />
+                <Option name="ring_filter" value="0" type="QString" />
+                <Option name="trim_distance_end" value="0" type="QString" />
+                <Option name="trim_distance_end_map_unit_scale" value="3x:0,0,0,0,0,0" type="QString" />
+                <Option name="trim_distance_end_unit" value="MM" type="QString" />
+                <Option name="trim_distance_start" value="0" type="QString" />
+                <Option name="trim_distance_start_map_unit_scale" value="3x:0,0,0,0,0,0" type="QString" />
+                <Option name="trim_distance_start_unit" value="MM" type="QString" />
+                <Option name="tweak_dash_pattern_on_corners" value="0" type="QString" />
+                <Option name="use_custom_dash" value="0" type="QString" />
+                <Option name="width_map_unit_scale" value="3x:0,0,0,0,0,0" type="QString" />
+              </Option>
+              <data_defined_properties>
+                <Option type="Map">
+                  <Option name="name" value="" type="QString" />
+                  <Option name="properties" />
+                  <Option name="type" value="collection" type="QString" />
+                </Option>
+              </data_defined_properties>
+            </layer>
+          </symbol>
         </layer>
-        <layer locked="0" id="{f06de360-9a61-4ce2-a65a-022eb3600001}" enabled="1" pass="0" class="SimpleMarker">
+        <layer locked="0" id="{f06de360-9a61-4ce2-a65a-022eb3600001}" enabled="1" pass="0" class="GeometryGenerator">
           <Option type="Map">
-            <Option name="angle" value="0" type="QString" />
-            <Option name="cap_style" value="square" type="QString" />
-            <Option name="color" value="0,0,0,0,rgb:0,0,0,0" type="QString" />
-            <Option name="horizontal_anchor_point" value="1" type="QString" />
-            <Option name="joinstyle" value="bevel" type="QString" />
-            <Option name="name" value="circle" type="QString" />
-            <Option name="offset" value="0,0" type="QString" />
-            <Option name="offset_map_unit_scale" value="3x:0,0,0,0,0,0" type="QString" />
-            <Option name="offset_unit" value="MM" type="QString" />
-            <Option name="outline_color" value="60,120,190,220,rgb:0.235294,0.470588,0.745098,0.862745" type="QString" />
-            <Option name="outline_style" value="solid" type="QString" />
-            <Option name="outline_width" value="0.5" type="QString" />
-            <Option name="outline_width_map_unit_scale" value="3x:0,0,0,0,0,0" type="QString" />
-            <Option name="outline_width_unit" value="MM" type="QString" />
-            <Option name="scale_method" value="diameter" type="QString" />
-            <Option name="size" value="40" type="QString" />
-            <Option name="size_map_unit_scale" value="3x:0,0,0,0,0,0" type="QString" />
-            <Option name="size_unit" value="MapUnit" type="QString" />
-            <Option name="vertical_anchor_point" value="1" type="QString" />
+            <Option name="SymbolType" value="Fill" type="QString" />
+            <Option name="geometryModifier" value="if((@fov_show_all = 1 OR @qcv_current_fid = $id) AND @qcv_layer_crs != &#x27;&#x27; AND @qcv_work_crs != &#x27;&#x27;, with_variable(&#x27;hf&#x27;, if(@qcv_current_fid = $id, coalesce(@fov_hfov, 60.0), if(coalesce(&quot;qcv_hfov&quot;, 0.0) &gt; 0.0, coalesce(&quot;qcv_hfov&quot;, 60.0), if(coalesce(&quot;qcv_360&quot;, 0) = 1, 360.0, 60.0))), if(@hf &gt;= 359.999 AND upper(if(@qcv_current_fid = $id, coalesce(@fov_proj, &#x27;&#x27;), coalesce(&quot;qcv_proj&quot;, &#x27;&#x27;))) IN (&#x27;EQUIRECT&#x27;, &#x27;EQUIRECTANGULAR&#x27;), with_variable(&#x27;r&#x27;, if(coalesce(@fov_symrange, 40.0) * 0.11 &lt; 5.0, 5.0, coalesce(@fov_symrange, 40.0) * 0.11), with_variable(&#x27;c&#x27;, transform($geometry, @qcv_layer_crs, @qcv_work_crs), transform(buffer(@c, @r, segments:=24), @qcv_work_crs, @qcv_layer_crs))), NULL)), NULL)" type="QString" />
+            <Option name="units" value="MapUnit" type="QString" />
           </Option>
           <data_defined_properties>
             <Option type="Map">
               <Option name="name" value="" type="QString" />
-              <Option name="properties" type="Map"><Option name="size" type="Map"><Option name="active" value="true" type="bool" /><Option name="expression" value="if(( @fov_show_all = 1 OR @qcv_current_fid = $id ) AND if(@qcv_current_fid = $id, @fov_is360, coalesce(&quot;qcv_360&quot;, 0)) = 1 AND upper(if(@qcv_current_fid = $id, @fov_proj, coalesce(&quot;qcv_proj&quot;, &quot;&quot;))) = 'EQUIRECT', if(@fov_symrange * 0.22 &lt; 10, 10, @fov_symrange * 0.22), 0)" type="QString" /><Option name="type" value="3" type="int" /></Option></Option><Option name="type" value="collection" type="QString" />
+              <Option name="properties" />
+              <Option name="type" value="collection" type="QString" />
             </Option>
           </data_defined_properties>
+          <symbol force_rhr="0" alpha="1" name="@0@equirect-circle" frame_rate="10" clip_to_extent="1" type="fill" is_animated="0">
+            <data_defined_properties>
+              <Option type="Map">
+                <Option name="name" value="" type="QString" />
+                <Option name="properties" />
+                <Option name="type" value="collection" type="QString" />
+              </Option>
+            </data_defined_properties>
+            <layer locked="0" id="{a65eb886-b65e-4a7e-b9d8-40202c1e0001}" enabled="1" pass="0" class="SimpleFill">
+              <Option type="Map">
+                <Option name="border_width_map_unit_scale" value="3x:0,0,0,0,0,0" type="QString" />
+                <Option name="color" value="0,0,0,0,rgb:0,0,0,0" type="QString" />
+                <Option name="joinstyle" value="round" type="QString" />
+                <Option name="offset" value="0,0" type="QString" />
+                <Option name="offset_map_unit_scale" value="3x:0,0,0,0,0,0" type="QString" />
+                <Option name="offset_unit" value="MM" type="QString" />
+                <Option name="outline_color" value="60,120,190,220,rgb:0.235294,0.470588,0.745098,0.862745" type="QString" />
+                <Option name="outline_style" value="solid" type="QString" />
+                <Option name="outline_width" value="0.5" type="QString" />
+                <Option name="outline_width_unit" value="MM" type="QString" />
+                <Option name="style" value="solid" type="QString" />
+              </Option>
+              <data_defined_properties>
+                <Option type="Map">
+                  <Option name="name" value="" type="QString" />
+                  <Option name="properties" />
+                  <Option name="type" value="collection" type="QString" />
+                </Option>
+              </data_defined_properties>
+            </layer>
+          </symbol>
         </layer>
       <layer locked="0" id="{e0ae168a-057e-4ee0-b9cd-3be46acb4cdf}" enabled="1" pass="0" class="SimpleMarker">
           <Option type="Map">

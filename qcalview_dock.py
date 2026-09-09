@@ -1,6 +1,6 @@
-# -*- coding: utf-8 -*-
-# SPDX-FileCopyrightText: 2026 Fabrice Kerzerho — ArcTan°
-# SPDX-License-Identifier: GPL-3.0-or-later
+
+
+
 from .core._i18n import tr
 from .core._compat import QC, dialog_exec
 import os, json, math, html
@@ -31,7 +31,7 @@ from .core._release import PUBLIC_EXPERIMENTAL_LIMITED
 
 
 def _settings_key(*parts):
-    """Build a QSettings path while keeping scanner-sensitive literals split."""
+    
     return "/".join(parts)
 
 
@@ -52,8 +52,8 @@ class AzimuthSpinBox(QDoubleSpinBox):
     def __init__(self, parent=None):
         super().__init__(parent)
         self.setRange(-1.0e9, 1.0e9)
-        # Une saisie clavier ne pousse pas les états intermédiaires (5, 52, 520)
-        # dans le moteur ; seule la valeur validée est publiée.
+        
+        
         self.setKeyboardTracking(False)
 
     @staticmethod
@@ -62,7 +62,7 @@ class AzimuthSpinBox(QDoubleSpinBox):
             out = float(value) % 360.0
             if out < 0.0:
                 out += 360.0
-            # Évite d'afficher 360,00 à cause d'un résidu flottant.
+            
             if abs(out - 360.0) < 1.0e-10 or abs(out) < 1.0e-12:
                 out = 0.0
             return out
@@ -106,7 +106,7 @@ class QCalViewDock(QDockWidget):
         self.resize(780, 980)
         self.setMinimumSize(280, 240)
 
-        # État
+        
         self.photo_path = None
         self.image = None
         self.last_preview = None
@@ -115,7 +115,7 @@ class QCalViewDock(QDockWidget):
         self._image_pick_mode = None
         self._last_nav_target = None
 
-        # Caches
+        
 
         self._base_cache = {}
         self._z_cache = {}
@@ -169,7 +169,7 @@ class QCalViewDock(QDockWidget):
         self._camera_autosave_timer.timeout.connect(self._camera_autosave_timeout)
         self._camera_feature_refresh_timer.timeout.connect(self._camera_refresh_feature_list)
 
-        # --- UI ---
+        
         self._settings = QSettings("ArcTan", "QCALVIEW")
 
         self._ui_initializing = True
@@ -179,7 +179,7 @@ class QCalViewDock(QDockWidget):
         root = self._load_designer_shell()
 
 
-        # --- Canvas overlays (heading + HFOV wedge) ---
+        
         self._rb_dir = None
         self._rb_fov = None
         self._rb_pick = None
@@ -187,10 +187,10 @@ class QCalViewDock(QDockWidget):
         try:
             canvas = self.iface.mapCanvas()
             from qgis.PyQt.QtGui import QColor
-            self._rb_dir = QgsRubberBand(canvas, False)  # line
+            self._rb_dir = QgsRubberBand(canvas, False)  
             self._rb_dir.setWidth(2)
             self._rb_dir.setColor(QColor(0, 180, 255, 200))
-            self._rb_fov = QgsRubberBand(canvas, True)   # polygon
+            self._rb_fov = QgsRubberBand(canvas, True)   
             self._rb_fov.setWidth(1)
             self._rb_fov.setColor(QColor(0, 180, 255, 60))
             self._rb_fov.setFillColor(QColor(0, 180, 255, 40))
@@ -199,7 +199,7 @@ class QCalViewDock(QDockWidget):
 
 
 
-        # --- PARAMETRES CAMERA ET PROJECTION DE LA PHOTO ---
+        
 
         g_cam = CollapsibleBox("Paramètres caméra", checked=True)
         content_cam = QWidget()
@@ -210,7 +210,7 @@ class QCalViewDock(QDockWidget):
         f.setHorizontalSpacing(10)
         f.setVerticalSpacing(8)
 
-        # Cases UI pour les guides
+        
         self.cb_show_center_axis = QCheckBox(tr("Afficher barre centrale"))
         self.cb_show_center_axis.setChecked(True)
         self.cb_show_center_axis.toggled.connect(lambda checked: self._on_toggle_center_axis(checked))
@@ -394,7 +394,7 @@ class QCalViewDock(QDockWidget):
         self.tab_calage_layout.addWidget(g_cam)
 
 
-        #--- POINT POSITION CAMERA ---
+        
         self.grp_camera_layer = CollapsibleBox("Couche caméra", checked=True)
         content_campos = QWidget()
         f2 = QFormLayout(content_campos)
@@ -420,10 +420,15 @@ class QCalViewDock(QDockWidget):
         self.cb_cam_apply_style = QCheckBox(tr("Appliquer le style QCALVIEW à la couche PDV"))
         self.cb_cam_apply_style.setChecked(False)
         self.cb_cam_apply_style.setToolTip(tr("Désactivé par défaut. Si activé, le style QCALVIEW est appliqué uniquement à la couche explicitement choisie ci-dessus."))
+        self.cb_cam_auto_colors = QCheckBox(tr("Couleurs automatiques (hauteur / tangage)"))
+        self.cb_cam_auto_colors.setChecked(True)
+        self.cb_cam_auto_colors.setEnabled(False)
+        self.cb_cam_auto_colors.setToolTip(tr("Coché : couleurs QCALVIEW automatiques. Décoché : STYLE-MOD.qml et couleurs modifiables dans la symbologie QGIS ; les modifications sont conservées avec le projet pour cette couche."))
         self.lbl_cam_status = QLabel(tr("Aucun point de vue chargé."))
         self.lbl_cam_status.setStyleSheet("color:#666;")
         f2.addRow(tr("Couche caméra"), self.cmb_camera)
         f2.addRow(tr(self.cb_cam_apply_style))
+        f2.addRow(tr(self.cb_cam_auto_colors))
         f2.addRow(tr("Champ identifiant"), self.cmb_cam_id_field)
         f2.addRow(tr("Champ libellé"), self.cmb_cam_label_field)
         f2.addRow(tr("Champ d’ordre"), self.cmb_cam_order_field)
@@ -473,18 +478,18 @@ class QCalViewDock(QDockWidget):
         fe.addRow(tr(self.lbl_exp_status))
         self.grp_exp.setContentLayout(fe)
         self.tab_camera_layout.addWidget(self.grp_exp)
-        self.grp_exp.setVisible(False)  # piloté depuis la fenêtre Paramètres
+        self.grp_exp.setVisible(False)  
  
-        # --- GCP & CALCULS HFOV ET AZIMUTH/TANGAGE/ROULIS : OBJECTIF AUTOMATISER LE POSITIONNEMENT ---
+        
 
         self.lbl_experimental_notice = QLabel(
-            tr("ALPHA-40.20 — Ces outils sont encore en cours de développement. Leur comportement et leur interface peuvent évoluer dans les prochaines versions Alpha.")
+            tr("ALPHA-40.20.3 — Ces outils sont encore en cours de développement. Leur comportement et leur interface peuvent évoluer dans les prochaines versions Alpha.")
         )
         self.lbl_experimental_notice.setWordWrap(True)
         self.lbl_experimental_notice.setStyleSheet("color:#666; padding:4px 2px 8px 2px;")
         self.tab_gcp_layout.addWidget(self.lbl_experimental_notice)
         
-        self.gcps = []  # liste de dicts {u,v,x,y,z} avec u,v en px image full
+        self.gcps = []  
         self._adding_gcp_uv = None
         self._gcp_markers = []
         self._maptool_backup = None
@@ -506,7 +511,7 @@ class QCalViewDock(QDockWidget):
         hb.addWidget(self.btn_add_gcp); hb.addWidget(self.btn_del_gcp); hb.addWidget(self.btn_clear_gcp)
         self.install_global_shortcuts()
 
-        # Paramètres à estimer
+        
         self.cb_sol_yaw = QCheckBox(tr("Yaw"));   self.cb_sol_yaw.setChecked(True)
         self.cb_sol_pitch = QCheckBox(tr("Pitch")); self.cb_sol_pitch.setChecked(True)
         self.cb_sol_roll = QCheckBox(tr("Roll"));  self.cb_sol_roll.setChecked(True)
@@ -559,7 +564,7 @@ class QCalViewDock(QDockWidget):
         self.btn_monoplot_clear.clicked.connect(self.clear_monoplot_reperes)
 
 
-        # --- GESTION DU RELIEF / DE L'AFFICHAGE DE LA TOPOGRAPHIE
+        
         self._relief_grid_container = QWidget()
         self._relief_grid_layout = QGridLayout(self._relief_grid_container)
         self._relief_grid_layout.setContentsMargins(0, 0, 0, 0)
@@ -609,7 +614,7 @@ class QCalViewDock(QDockWidget):
         self.lbl_wire_mode = QLabel(tr("Mode wireframe"))
         form_dem.addRow(tr(self.lbl_wire_mode), self.combo_wire_mode)
 
-        # Contrôles legacy masqués, conservés pour compatibilité interne.
+        
         self.cb_show_dem = QCheckBox(tr("_legacy_show_dem")); self.cb_show_dem.setChecked(False); self.cb_show_dem.setVisible(False)
         self.cb_transparent_topo = QCheckBox(tr("_legacy_transparent_topo")); self.cb_transparent_topo.setChecked(False); self.cb_transparent_topo.setVisible(False)
         self.cb_draw_skyline = QCheckBox(tr("_legacy_draw_skyline")); self.cb_draw_skyline.setChecked(False); self.cb_draw_skyline.setVisible(False)
@@ -638,7 +643,7 @@ class QCalViewDock(QDockWidget):
         form_dem.addRow(tr(self.grp_skyline))
 
 
-        # Occlusions & Débogage
+        
         self.grp_occ = CollapsibleBox(tr("Occlusions / débogage"), checked=False)
         content_occ = QWidget()
         fo = QFormLayout(content_occ)
@@ -656,7 +661,7 @@ class QCalViewDock(QDockWidget):
         fo.addRow(tr(self.cb_show_guides))
         self.grp_occ.setContentLayout(fo)
         
-        # --- Profiling (debug) ---
+        
         self.profiler = get_profiler()
         self.cb_enable_profiler = QCheckBox(tr("Activer profiling (debug)"))
         self.cb_enable_profiler.toggled.connect(lambda c: setattr(self.profiler, 'enabled', c))
@@ -666,7 +671,7 @@ class QCalViewDock(QDockWidget):
         fo.addRow(tr(self.btn_profiler_report))
         self.tab_gcp_layout.addWidget(self.grp_occ)
         
-        # --- PERSPECTIVE 3D ---
+        
         self.grp_calib = CollapsibleBox(tr("Grille de projection / règle azimutale (expérimental)") if PUBLIC_EXPERIMENTAL_LIMITED else tr("Aides 3D (expérimental)"), checked=False)
         content_calib = QWidget()
         calib_v = QVBoxLayout(content_calib)
@@ -739,7 +744,7 @@ class QCalViewDock(QDockWidget):
         except Exception:
             pass
 
-        # --- 2,5D ---
+        
         g_h = QGroupBox(tr("2,5D Hauteurs (végétation/bâti)"))
         fh = QFormLayout(g_h)
         self.cb_draw_2p5d = QCheckBox(tr("Extruder les polygones"))
@@ -759,7 +764,7 @@ class QCalViewDock(QDockWidget):
         except Exception:
             pass
 
-        # --- COUCHES VECTEUR A REPRESENTER ---
+        
         g_layers = CollapsibleBox("Couches vectorielles à projeter", checked=True)
         content_layers = QWidget()
         ly = QVBoxLayout(content_layers)
@@ -816,7 +821,7 @@ class QCalViewDock(QDockWidget):
 
         g_layers.setContentLayout(ly)
         self.tab_layers_layout.addWidget(g_layers)
-        # --- EXPORT ---
+        
         g_export = CollapsibleBox("Export", checked=True)
         export_box = QWidget()
         export_layout = QGridLayout(export_box)
@@ -894,7 +899,7 @@ class QCalViewDock(QDockWidget):
 
         self.setWidget(root)
 
-        # état
+        
         self.layer_styles = []
         try:
             self.cb_export_metadata.setChecked(str(self._settings.value('QCALVIEW/export_write_metadata', 'true')).lower() in ('1','true','yes','on'))
@@ -903,7 +908,7 @@ class QCalViewDock(QDockWidget):
         except Exception:
             self.cb_export_metadata.setChecked(True)
 
-        # Synchronisation projet -> overlays QCALVIEW
+        
         try:
             QgsProject.instance().layersWillBeRemoved.connect(self._on_project_layers_removed)
             try:
@@ -973,6 +978,7 @@ class QCalViewDock(QDockWidget):
         self.cmb_cam_order_field.currentIndexChanged.connect(lambda *_: self._camera_refresh_feature_list(autoload=False))
         self.cmb_cam_image_field.currentIndexChanged.connect(self._camera_on_feature_changed)
         self.cb_cam_apply_style.toggled.connect(self._on_camera_style_toggle)
+        self.cb_cam_auto_colors.toggled.connect(self._on_camera_auto_colors_toggle)
         self.cmb_orientation_step.currentIndexChanged.connect(self._on_orientation_step_changed)
         self.cmb_cam_feature.currentIndexChanged.connect(self._monoplot_on_pdv_changed)
         self.cmb_cam_feature.currentIndexChanged.connect(self._camera_on_feature_changed)
@@ -1009,8 +1015,8 @@ class QCalViewDock(QDockWidget):
         self.d_az_rule_band_pct.valueChanged.connect(self.render_preview)
         self.d_az_rule_text_pct.valueChanged.connect(self.render_preview)
 
-        # DEM toggles
-        #self.grp_dem.toggled.connect(self.render_preview)
+        
+        
         self.cb_use_dem_z.toggled.connect(self.render_preview)
         self.combo_relief_mode.currentIndexChanged.connect(self._on_relief_mode_changed)
         self.cb_curvature.toggled.connect(lambda *_: (setattr(self, '_horizon', None), setattr(self, '_horizon_params', None), getattr(self, '_overlay_cache', {}).clear(), self.render_preview()))
@@ -1026,8 +1032,8 @@ class QCalViewDock(QDockWidget):
         self.cb_skyline_fill.toggled.connect(self.render_preview)
         self.spin_sky_fill_alpha.valueChanged.connect(self.render_preview)
         
-        # Occlusions / debug
-        #self.grp_occ.toggled.connect(self.render_preview)
+        
+        
         self.cb_occ_objects.toggled.connect(self.render_preview)
         self.cb_transparent_objects.toggled.connect(self.render_preview)
         self.cb_debug_no_occ.toggled.connect(self.render_preview)
@@ -1036,7 +1042,7 @@ class QCalViewDock(QDockWidget):
         self.d_rad_step.valueChanged.connect(self.render_preview)
         self.d_eps.valueChanged.connect(self.render_preview)
 
-        # Contrôles influençant le rendu
+        
         for w in [self.cmb_proj, self.spin_w, self.spin_h, self.d_yaw, self.d_yaw_offset, self.d_pitch, self.d_roll,
                   self.d_hfov, self.d_vfov, self.cb_360, self.d_focal, self.d_sensorw,
                   self.d_maxdist, self.cb_auto_depth, self.cmb_perf_budget, self.cb_block_heavy_layers, self.cmb_camera, self.cmb_dem, self.combo_relief_mode, self.spin_dem_step, self.spin_dem_alpha,
@@ -1054,14 +1060,14 @@ class QCalViewDock(QDockWidget):
         self.spin_off_h.valueChanged.connect(self._refresh_preview_and_viewer)
         self.spin_off_v.valueChanged.connect(self._refresh_preview_and_viewer)
 
-        # Rafraîchir la direction + emprise HFOV sur le canevas à chaque changement pertinent
+        
         for w in [self.d_yaw, self.d_hfov, self.cb_360, self.d_maxdist, self.d_symdist, self.cmb_camera]:
             for sig in ('valueChanged','currentIndexChanged','toggled','editingFinished'):
                 if hasattr(w, sig):
                     getattr(w, sig).connect(self._update_canvas_fov)
         self.debounce.timeout.connect(self._update_canvas_fov)
         
-        # Sync QML à la volée (yaw/hfov/360/portée/pitch/projection)
+        
         for w, sig in [
             (self.d_yaw,  'valueChanged'),
             (self.d_hfov, 'valueChanged'),
@@ -1090,17 +1096,36 @@ class QCalViewDock(QDockWidget):
         
         def _on_projection_changed():
             txt = str(self.cmb_proj.currentText()).strip().upper()
-            prev_txt = str(getattr(self, '_last_projection_ui', '') or '').strip().upper()
-            # Le 360° n'est forcé automatiquement que pour l'équirectangulaire.
-            auto_is360 = txt in ("EQUIRECT", "EQUIRECTANGULAR")
+            is_equirect = txt in ("EQUIRECT", "EQUIRECTANGULAR")
+
+            
+            
+            
+            
             try:
                 self.cb_360.blockSignals(True)
-                if auto_is360:
-                    self.cb_360.setChecked(True)
-                elif txt == 'CYLINDRICAL' and prev_txt in ('EQUIRECT', 'EQUIRECTANGULAR'):
-                    self.cb_360.setChecked(False)
+                self.cb_360.setEnabled(is_equirect)
+                self.cb_360.setChecked(bool(is_equirect))
             finally:
                 self.cb_360.blockSignals(False)
+
+            if is_equirect:
+                try:
+                    self.d_hfov.blockSignals(True)
+                    self.d_vfov.blockSignals(True)
+                    self.d_hfov.setValue(360.0)
+                    self.d_vfov.setValue(180.0)
+                    self.d_hfov.setEnabled(False)
+                    self.d_vfov.setEnabled(False)
+                finally:
+                    self.d_hfov.blockSignals(False)
+                    self.d_vfov.blockSignals(False)
+            else:
+                try:
+                    self.d_hfov.setEnabled(True)
+                    self.d_vfov.setEnabled(True)
+                except Exception:
+                    pass
 
             if txt == 'CYLINDRICAL':
                 try:
@@ -1110,12 +1135,41 @@ class QCalViewDock(QDockWidget):
                     self.d_vfov.blockSignals(False)
 
             self._last_projection_ui = txt
-            # retracer immédiatement sur le canevas, mais pas pendant l'initialisation du dock.
+            
             if not getattr(self, '_ui_initializing', False):
                 self._update_canvas_fov()
+
+        def _on_full_equirect_toggled(checked):
+            txt = str(self.cmb_proj.currentText()).strip().upper()
+            is_equirect = txt in ("EQUIRECT", "EQUIRECTANGULAR")
+            if not is_equirect:
+                
+                if checked:
+                    try:
+                        self.cb_360.blockSignals(True)
+                        self.cb_360.setChecked(False)
+                    finally:
+                        self.cb_360.blockSignals(False)
+                return
+
+            if bool(checked):
+                try:
+                    self.d_hfov.blockSignals(True)
+                    self.d_vfov.blockSignals(True)
+                    self.d_hfov.setValue(360.0)
+                    self.d_vfov.setValue(180.0)
+                    self.d_hfov.setEnabled(False)
+                    self.d_vfov.setEnabled(False)
+                finally:
+                    self.d_hfov.blockSignals(False)
+                    self.d_vfov.blockSignals(False)
+            else:
+                
+                self.d_hfov.setEnabled(True)
+                self.d_vfov.setEnabled(True)
         
         def _update_offset_ranges():
-            # 0 = Pixels, 1 = Pourcentage (-0.5..+0.5 = -50%..+50%)
+            
             is_pct = (self.cmb_off_mode.currentIndex() == 1)
             if is_pct:
                 self.spin_off_h.setRange(-0.5, 0.5); self.spin_off_h.setSingleStep(0.005)
@@ -1139,7 +1193,7 @@ class QCalViewDock(QDockWidget):
                 layer = self.cmb_camera.currentLayer()
                 if not layer:
                     return
-                # Proj 360 automatique (abrégé EQUIRECT accepté)
+                
                 proj_txt = ""
                 try:
                     proj_txt = str(self.cmb_proj.currentText()).strip().upper()
@@ -1147,11 +1201,11 @@ class QCalViewDock(QDockWidget):
                     pass
                 is360 = bool(self._is360_mode())
         
-                # portée graphique : clamp(md/5, 50, 500) sinon 200
+                
                 md = float(self.d_maxdist.value())
                 rng = 200.0 if md <= 0 else max(50.0, min(500.0, md/5.0))
         
-                # pousse les variables de style (méthode bindée depuis _layerstyle.py)
+                
                 self.update_pdv_qml_vars(
                     layer,
                     yaw_deg=(float(self.d_yaw.value()) % 360.0),
@@ -1163,9 +1217,10 @@ class QCalViewDock(QDockWidget):
             except Exception:
                 pass
 
+        self.cb_360.toggled.connect(_on_full_equirect_toggled)
         self.cmb_proj.currentIndexChanged.connect(_on_projection_changed)
         
-        # Miroir du câblage _update_canvas_fov → on met aussi à jour le style
+        
         for w, sig in [
             (self.d_yaw, 'valueChanged'),
             (self.d_hfov, 'valueChanged'),
@@ -1186,7 +1241,7 @@ class QCalViewDock(QDockWidget):
 
         self._camera_point_defaults = {
             'qcv_proj': str(self.cmb_proj.currentText()).strip(),
-            'qcv_360': 1 if self._is360_mode() else 0,
+            'qcv_360': 1 if (str(self.cmb_proj.currentText()).strip().upper() in ('EQUIRECT', 'EQUIRECTANGULAR') and self.cb_360.isChecked()) else 0,
             'qcv_yaw': float(self.d_yaw.value()) % 360.0,
             'qcv_pitch': float(self.d_pitch.value()),
             'qcv_roll': float(self.d_roll.value()),
@@ -1222,8 +1277,8 @@ class QCalViewDock(QDockWidget):
             raise RuntimeError(f"Fichier UI introuvable : {ui_path}")
         uic.loadUi(ui_path, root)
         if not root.styleSheet().strip():
-            # Fallback uniquement : le style principal est porté par qcalview_dock.ui
-            # afin de rester éditable dans Qt Designer.
+            
+            
             root.setStyleSheet("""
                 QFrame#qcvCockpit, QFrame#qcvPreviewPanel { border: 1px solid rgba(120,140,150,90); border-radius: 8px; }
                 QFrame#cardPhotoPdv, QFrame#cardProjection, QFrame#cardCamera, QFrame#cardTheme, QFrame#qcvGridCard { border: 1px solid rgba(120,140,150,60); border-radius: 7px; }
@@ -1327,7 +1382,7 @@ class QCalViewDock(QDockWidget):
                 lay = QVBoxLayout(holder)
                 lay.setContentsMargins(0, 0, 0, 0)
                 lay.setSpacing(8)
-            # Supprime les libellés de repérage présents uniquement pour Qt Designer.
+            
             try:
                 while lay.count():
                     item = lay.takeAt(0)
@@ -1515,7 +1570,7 @@ class QCalViewDock(QDockWidget):
             return bool(default)
 
     def _prepare_qgis_theme_combo_lazy(self):
-        """Initialise le combo thème sans scanner le projet au démarrage."""
+        
         try:
             combo = getattr(self, 'cmb_qgis_theme', None)
             if combo is None:
@@ -1535,13 +1590,13 @@ class QCalViewDock(QDockWidget):
             pass
 
     def _lazy_load_qgis_themes(self):
-        """Charge les thèmes seulement quand ils deviennent utiles."""
+        
         if getattr(self, '_theme_combo_loaded', False):
             return
         try:
             self._theme_combo_loaded = True
             self.refresh_qgis_themes()
-            # Restaurer le thème sauvegardé sans appliquer automatiquement les overlays.
+            
             self._suspend_theme_auto_apply = True
             try:
                 self._restore_qgis_theme_settings()
@@ -1553,7 +1608,7 @@ class QCalViewDock(QDockWidget):
             pass
 
     def _on_main_tab_changed(self, index):
-        """Lazy loading des onglets coûteux."""
+        
         try:
             widget = self.tabs.widget(int(index))
         except Exception:
@@ -1646,7 +1701,7 @@ class QCalViewDock(QDockWidget):
             pass
 
     def _relayout_compact_row(self, row_widget, groups_per_line=2):
-        """Redistribue une ligne de réglages en petites colonnes lisibles."""
+        
         try:
             grid = getattr(row_widget, "_qcv_grid", None)
             items = list(getattr(row_widget, "_qcv_items", []) or [])
@@ -1808,12 +1863,42 @@ class QCalViewDock(QDockWidget):
 
     def _on_camera_style_toggle(self, checked):
 
+        try:
+            self.cb_cam_auto_colors.setEnabled(bool(checked))
+        except Exception:
+            pass
         if not checked:
             return
         try:
             layer = self.cmb_camera.currentLayer()
             if layer is not None:
                 self._after_camera_layer_changed(layer)
+        except Exception as exc:
+            try: self.iface.messageBar().pushWarning(tr("QCALVIEW"), tr(f"Style PDV non appliqué : {exc}"))
+            except Exception: pass
+
+    def _on_camera_auto_colors_toggle(self, checked):
+        layer = None
+        try:
+            layer = self.cmb_camera.currentLayer()
+        except Exception:
+            layer = None
+        if layer is None:
+            return
+        try:
+            layer.setCustomProperty("QCALVIEW/pdv_auto_colors", 1 if checked else 0)
+        except Exception:
+            pass
+        if not bool(getattr(self, 'cb_cam_apply_style', None) and self.cb_cam_apply_style.isChecked()):
+            return
+        try:
+            ok = bool(self.apply_pdv_style_mode(layer, automatic=bool(checked)))
+            if not ok:
+                self.iface.messageBar().pushWarning(tr("QCALVIEW"), tr("Le style PDV demandé n’a pas pu être appliqué."))
+                return
+            self._sync_pdv_qml()
+            layer.triggerRepaint()
+            self.iface.mapCanvas().refresh()
         except Exception as exc:
             try: self.iface.messageBar().pushWarning(tr("QCALVIEW"), tr(f"Style PDV non appliqué : {exc}"))
             except Exception: pass
@@ -1881,7 +1966,7 @@ class QCalViewDock(QDockWidget):
         dlg.setWindowIcon(QIcon(self._qcalview_icon_path))
         lay = QVBoxLayout(dlg)
 
-        # Identité QCALVIEW : logo horizontal dédié à la version ALPHA.
+        
         if os.path.isfile(self._qcalview_alpha_path):
             brand = QLabel(dlg)
             brand_pixmap = QPixmap(self._qcalview_alpha_path)
@@ -1940,7 +2025,7 @@ class QCalViewDock(QDockWidget):
 
         version = QLabel(
             tr("<b>QCALVIEW</b><br>"
-            "Version ALPHA-40.20 — expérimental<br>"
+            "Version ALPHA-40.20.3 — expérimental<br>"
             "Simulation visuelle &amp; géomatique pour QGIS<br>"
             "Développé par Fabrice Kerzerho — ArcTan°<br>"
             "© 2026 Fabrice Kerzerho — ArcTan°<br>"
@@ -1951,8 +2036,8 @@ class QCalViewDock(QDockWidget):
         version.setWordWrap(True)
         lay.addWidget(version)
 
-        # Signature ArcTan° discrète dans l'interface uniquement. Elle n'est
-        # jamais ajoutée aux rendus ni aux exports produits avec QCALVIEW.
+        
+        
         arctan_row = QWidget(dlg)
         arctan_layout = QHBoxLayout(arctan_row)
         arctan_layout.setContentsMargins(0, 2, 0, 2)
@@ -2065,14 +2150,14 @@ class QCalViewDock(QDockWidget):
         return self.force_refresh_now()
 
     def _is360_mode(self) -> bool:
-
+        
         try:
             proj_txt = str(self.cmb_proj.currentText()).strip().upper()
-            if proj_txt not in ("EQUIRECT", "EQUIRECTANGULAR", "CYLINDRICAL"):
-                return False
-            checked = bool(self.cb_360.isChecked())
-            hfov_full = float(self.d_hfov.value()) >= 359.999
-            return bool(checked or hfov_full)
+            if proj_txt in ("EQUIRECT", "EQUIRECTANGULAR"):
+                return bool(self.cb_360.isChecked())
+            if proj_txt == "CYLINDRICAL":
+                return bool(float(self.d_hfov.value()) >= 359.999)
+            return False
         except Exception:
             return False
 
@@ -2113,23 +2198,40 @@ class QCalViewDock(QDockWidget):
             except Exception as meta_exc:
                 qcv_log(f"Impossible de journaliser les métadonnées de couche : {meta_exc}", "PDV-QML", "WARNING")
 
-            # 40.10 : ne jamais modifier la symbologie d'une couche à l'ouverture.
-            # Le QML n'est appliqué que si l'utilisateur l'a explicitement demandé.
+            
+            
+            
+            auto_colors = True
+            try:
+                auto_colors = bool(self.pdv_layer_auto_colors(layer, True))
+                self.cb_cam_auto_colors.blockSignals(True)
+                self.cb_cam_auto_colors.setChecked(auto_colors)
+            finally:
+                try: self.cb_cam_auto_colors.blockSignals(False)
+                except Exception: pass
+
+            
+            
             apply_style = bool(getattr(self, 'cb_cam_apply_style', None) and self.cb_cam_apply_style.isChecked())
-            qcv_log(f"Application STYLE-PDV.qml demandée={apply_style}", "PDV-QML", "INFO")
+            try:
+                self.cb_cam_auto_colors.setEnabled(apply_style)
+            except Exception:
+                pass
+            mode_name = "STYLE-PDV.qml" if auto_colors else "STYLE-MOD.qml"
+            qcv_log(f"Application {mode_name} demandée={apply_style}", "PDV-QML", "INFO")
             if apply_style:
                 try:
-                    style_ok = bool(self.apply_pdv_qml_style(layer, "core/style/STYLE-PDV.qml"))
+                    style_ok = bool(self.apply_pdv_style_mode(layer, automatic=auto_colors))
                     if style_ok:
-                        qcv_log("STYLE-PDV.qml appliqué avec succès", "PDV-QML", "INFO")
+                        qcv_log(f"{mode_name} appliqué avec succès", "PDV-QML", "INFO")
                     else:
                         qcv_log(
-                            "STYLE-PDV.qml NON appliqué — consulter les messages loadNamedStyle précédents",
+                            f"{mode_name} NON appliqué — consulter les messages loadNamedStyle précédents",
                             "PDV-QML", "WARNING"
                         )
                 except Exception as style_exc:
                     qcv_log(
-                        f"Exception pendant apply_pdv_qml_style: {style_exc}\n{traceback.format_exc()}",
+                        f"Exception pendant apply_pdv_style_mode: {style_exc}\n{traceback.format_exc()}",
                         "PDV-QML", "CRITICAL"
                     )
 
@@ -2173,9 +2275,18 @@ class QCalViewDock(QDockWidget):
             QgsExpressionContextUtils.setLayerVariable(layer, "fov_altagl", float(self.d_camheight.value()))
             QgsExpressionContextUtils.setLayerVariable(layer, "fov_proj", str(self.cmb_proj.currentText()).strip().upper())
             QgsExpressionContextUtils.setLayerVariable(layer, "fov_show_all", 1 if getattr(self, 'cb_cam_show_all', None) and self.cb_cam_show_all.isChecked() else 0)
-            QgsExpressionContextUtils.setLayerVariable(layer, "qcv_current_fid", int(getattr(self, '_camera_current_fid', -1) or -1))
+            _current_fid = getattr(self, '_camera_current_fid', None)
+            QgsExpressionContextUtils.setLayerVariable(layer, "qcv_current_fid", int(_current_fid) if _current_fid is not None else -1)
+            try:
+                _layer_crs = layer.crs()
+                _work_crs = self._camera_metric_project_crs()
+                QgsExpressionContextUtils.setLayerVariable(layer, "qcv_layer_crs", str(_layer_crs.authid() or _layer_crs.toWkt()))
+                QgsExpressionContextUtils.setLayerVariable(layer, "qcv_work_crs", str(_work_crs.authid() or _work_crs.toWkt()) if _work_crs is not None else "")
+            except Exception:
+                QgsExpressionContextUtils.setLayerVariable(layer, "qcv_layer_crs", "")
+                QgsExpressionContextUtils.setLayerVariable(layer, "qcv_work_crs", "")
             
-            # --- Offsets (mode + valeurs) ---
+            
             
             try:
                 mode = 0 if str(self.cmb_off_mode.currentText()).lower().startswith("pixel") else 1
@@ -2184,13 +2295,13 @@ class QCalViewDock(QDockWidget):
             _ECU.setLayerVariable(layer, "fov_off_mode", int(mode))
 
             if mode == 0:
-                # Pixels
+                
                 _ECU.setLayerVariable(layer, "fov_dx_px", float(self.spin_off_h.value()))
                 _ECU.setLayerVariable(layer, "fov_dy_px", float(self.spin_off_v.value()))
                 _ECU.setLayerVariable(layer, "fov_dx_pct", 0.0)
                 _ECU.setLayerVariable(layer, "fov_dy_pct", 0.0)
             else:
-                # Pourcentage (-0.5..+0.5)
+                
                 _ECU.setLayerVariable(layer, "fov_dx_px", 0.0)
                 _ECU.setLayerVariable(layer, "fov_dy_px", 0.0)
                 _ECU.setLayerVariable(layer, "fov_dx_pct", float(self.spin_off_h.value()))
@@ -2232,17 +2343,17 @@ class QCalViewDock(QDockWidget):
             if not layer:
                 return
 
-            # 360° uniquement si case cochée
+            
             is360 = self._is360_mode()
 
-            # HFOV : 360 si is360, sinon valeur UI bornée
+            
             try:
                 hfov_ui = float(self.d_hfov.value())
             except Exception:
                 hfov_ui = 60.0
             hfov_val = 360.0 if is360 else max(1.0, min(359.9, hfov_ui))
 
-            # Yaw / Pitch
+            
             try:
                 yaw = float(self.d_yaw.value())
             except Exception:
@@ -2252,7 +2363,7 @@ class QCalViewDock(QDockWidget):
             except Exception:
                 pitch = 0.0
 
-            # Portée graphique (m)
+            
             try:
                 md = float(self.d_maxdist.value())
             except Exception:
@@ -2265,7 +2376,7 @@ class QCalViewDock(QDockWidget):
                 symrng = 200.0
             symrng = 200.0 if symrng <= 0 else float(symrng)
 
-            # Pousser les variables à CHAQUE synchro (écrasement explicite)
+            
             from qgis.core import QgsExpressionContextUtils
             QgsExpressionContextUtils.setLayerVariable(layer, "fov_is360", 1 if is360 else 0)
             QgsExpressionContextUtils.setLayerVariable(layer, "fov_hfov",  float(hfov_val))
@@ -2277,9 +2388,18 @@ class QCalViewDock(QDockWidget):
             QgsExpressionContextUtils.setLayerVariable(layer, "fov_altagl", float(self.d_camheight.value()))
             QgsExpressionContextUtils.setLayerVariable(layer, "fov_proj", str(self.cmb_proj.currentText()).strip().upper())
             QgsExpressionContextUtils.setLayerVariable(layer, "fov_show_all", 1 if getattr(self, 'cb_cam_show_all', None) and self.cb_cam_show_all.isChecked() else 0)
-            QgsExpressionContextUtils.setLayerVariable(layer, "qcv_current_fid", int(getattr(self, '_camera_current_fid', -1) or -1))
+            _current_fid = getattr(self, '_camera_current_fid', None)
+            QgsExpressionContextUtils.setLayerVariable(layer, "qcv_current_fid", int(_current_fid) if _current_fid is not None else -1)
+            try:
+                _layer_crs = layer.crs()
+                _work_crs = self._camera_metric_project_crs()
+                QgsExpressionContextUtils.setLayerVariable(layer, "qcv_layer_crs", str(_layer_crs.authid() or _layer_crs.toWkt()))
+                QgsExpressionContextUtils.setLayerVariable(layer, "qcv_work_crs", str(_work_crs.authid() or _work_crs.toWkt()) if _work_crs is not None else "")
+            except Exception:
+                QgsExpressionContextUtils.setLayerVariable(layer, "qcv_layer_crs", "")
+                QgsExpressionContextUtils.setLayerVariable(layer, "qcv_work_crs", "")
             
-            # --- Offsets (mode + valeurs) ---
+            
 
             try:
                 mode = 0 if str(self.cmb_off_mode.currentText()).lower().startswith("pixel") else 1
@@ -2288,13 +2408,13 @@ class QCalViewDock(QDockWidget):
             _ECU.setLayerVariable(layer, "fov_off_mode", int(mode))
 
             if mode == 0:
-                # Pixels
+                
                 _ECU.setLayerVariable(layer, "fov_dx_px", float(self.spin_off_h.value()))
                 _ECU.setLayerVariable(layer, "fov_dy_px", float(self.spin_off_v.value()))
                 _ECU.setLayerVariable(layer, "fov_dx_pct", 0.0)
                 _ECU.setLayerVariable(layer, "fov_dy_pct", 0.0)
             else:
-                # Pourcentage (-0.5..+0.5)
+                
                 _ECU.setLayerVariable(layer, "fov_dx_px", 0.0)
                 _ECU.setLayerVariable(layer, "fov_dy_px", 0.0)
                 _ECU.setLayerVariable(layer, "fov_dx_pct", float(self.spin_off_h.value()))
@@ -2303,23 +2423,23 @@ class QCalViewDock(QDockWidget):
             
             
             
-            # Refresh
+            
             layer.triggerRepaint()
             self.iface.mapCanvas().refresh()
 
-            # (Debug rapide) : décommente pour tracer les valeurs poussées
-            # from qgis.core import QgsMessageLog, Qgis
-            # QgsMessageLog.logMessage(
-            #     f"[CALIB] is360={1 if is360 else 0}, hfov={hfov_val}, yaw={yaw}, range={rng}, pitch={pitch}",
-            #     "QCALVIEW", QC.Qgis_MessageLevel_Info
-            # )
+            
+            
+            
+            
+            
+            
     
         except Exception:
             pass
 
 
     def _teardown_overlays(self):
-        """Nettoie les RubberBands FOV/azimut pour éviter les fuites visuelles."""
+        
         for rb in (getattr(self, "_rb_dir", None), getattr(self, "_rb_fov", None), getattr(self, "_rb_pick", None)):
             try:
                 if rb:
@@ -2419,7 +2539,7 @@ def force_refresh_now(self):
 
 
 def _show_profiler_report(self):
-    """Affiche un rapport simple sans casser le chargement du plugin."""
+    
     try:
         text = self.profiler.report_text() if hasattr(self, 'profiler') else 'Profiler non initialisé.'
     except Exception as e:
@@ -2427,7 +2547,7 @@ def _show_profiler_report(self):
     QMessageBox.information(self, tr('Rapport de performance'), tr(text))
 
 
-# --- SPLIT-ONLY BINDINGS (auto-generated) ---
+
 
 
 
@@ -2446,6 +2566,27 @@ def _relief_mode_id(self):
         5: 'skyline',
     }
     return mapping.get(idx, 'none')
+
+
+def _set_relief_mode_id(self, mode):
+    
+    key=str(mode or 'none').strip().lower()
+    mapping={
+        'none':0, 'transparent':1, 'opaque':2, 'wireframe':3,
+        'ridgelines':4, 'skyline':5,
+    }
+    idx=int(mapping.get(key,0))
+    try:
+        combo=getattr(self,'combo_relief_mode',None)
+        if combo is None:
+            return False
+        old=combo.blockSignals(True)
+        combo.setCurrentIndex(idx)
+        combo.blockSignals(old)
+        self._sync_relief_mode_controls()
+        return True
+    except Exception:
+        return False
 
 
 def _sync_relief_mode_controls(self):
@@ -2594,7 +2735,7 @@ setattr(QCalViewDock, '_monoplot_refresh_list', _monoplot_refresh_list)
 setattr(QCalViewDock, '_monoplot_current_pdv_info', _monoplot_current_pdv_info)
 setattr(QCalViewDock, '_monoplot_current_camera_context', _monoplot_current_camera_context)
 from .core._render_ops import _pick_dem_color, _build_horizon_cache, _is_visible_by_horizon, _update_horizon_by_segment, _draw_dem_wireframe, _draw_skyline, _draw_dem_opaque, _draw_azimuth_rule, _make_pov_curved_sampler, _apply_pov_curvature_to_z, _curvature_drop_from_cam_xy, _effective_curvature_radius
-from .core._render_ops import _draw_dem_ridgelines   # (si tu veux activer les crêtes)
+from .core._render_ops import _draw_dem_ridgelines   
 setattr(QCalViewDock, '_draw_dem_ridgelines', _draw_dem_ridgelines)
 setattr(QCalViewDock, '_pick_dem_color', _pick_dem_color)
 setattr(QCalViewDock, '_build_horizon_cache', _build_horizon_cache)
@@ -2604,9 +2745,11 @@ setattr(QCalViewDock, '_draw_dem_wireframe', _draw_dem_wireframe)
 setattr(QCalViewDock, '_draw_skyline', _draw_skyline)
 setattr(QCalViewDock, '_draw_dem_opaque', _draw_dem_opaque)
 setattr(QCalViewDock, '_draw_azimuth_rule', _draw_azimuth_rule)
-from .core._layerstyle import apply_pdv_qml_style, update_pdv_qml_vars
+from .core._layerstyle import apply_pdv_qml_style, update_pdv_qml_vars, apply_pdv_style_mode, pdv_layer_auto_colors
 setattr(QCalViewDock, 'apply_pdv_qml_style', apply_pdv_qml_style)
 setattr(QCalViewDock, 'update_pdv_qml_vars', update_pdv_qml_vars)
+setattr(QCalViewDock, 'apply_pdv_style_mode', apply_pdv_style_mode)
+setattr(QCalViewDock, 'pdv_layer_auto_colors', staticmethod(pdv_layer_auto_colors))
 from .core._labels_ops import _label_offset_from_pos, _label_anchor_uv
 setattr(QCalViewDock, '_label_offset_from_pos', _label_offset_from_pos)
 setattr(QCalViewDock, '_label_anchor_uv', _label_anchor_uv)
@@ -2615,7 +2758,7 @@ setattr(QCalViewDock, '_draw_label', _draw_label)
 setattr(QCalViewDock, 'render_preview', render_preview)
 setattr(QCalViewDock, '_render_debounce_timeout', _render_debounce_timeout)
 setattr(QCalViewDock, '_render_debounce_delay_ms', _render_debounce_delay_ms)
-setattr(QCalViewDock, 'update_preview', render_preview)  # alias compat ancienne UI
+setattr(QCalViewDock, 'update_preview', render_preview)  
 
 setattr(QCalViewDock, '_clear_base_cache_and_render', _clear_base_cache_and_render)
 setattr(QCalViewDock, '_draw_fov_frame', _draw_fov_frame)
@@ -2688,5 +2831,6 @@ setattr(QCalViewDock, '_set_all_batch_rows_checked', _set_all_batch_rows_checked
 setattr(QCalViewDock, '_on_batch_table_item_changed', _on_batch_table_item_changed)
 setattr(QCalViewDock, '_fit_export_table_height', _fit_export_table_height)
 setattr(QCalViewDock, '_relief_mode_id', _relief_mode_id)
+setattr(QCalViewDock, '_set_relief_mode_id', _set_relief_mode_id)
 setattr(QCalViewDock, '_sync_relief_mode_controls', _sync_relief_mode_controls)
 setattr(QCalViewDock, '_on_relief_mode_changed', _on_relief_mode_changed)

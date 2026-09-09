@@ -22,6 +22,6 @@ QCALVIEW intègre directement dans QGIS des fonctions de calage photographique e
 ## Important
 Ce manuel est volontairement concis pour la version expérimentale. Les procédures détaillées, captures et recommandations méthodologiques seront enrichies avec la stabilisation de QCALVIEW.
 
-## Outils expérimentaux dans ALPHA-40.20
+## Outils expérimentaux dans ALPHA-40.20.3
 
 La version Alpha publique expose la Grille de projection, la Règle azimutale et le Monoplotting interactif pour les tests. Ces outils restent en cours de développement et leur comportement ou leur interface peuvent évoluer. Les autres modules expérimentaux internes ne sont volontairement pas encore exposés dans les versions publiques.
