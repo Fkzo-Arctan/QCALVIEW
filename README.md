@@ -2,7 +2,7 @@
   <img src="docs/images/qcalview-banner.webp" alt="QCALVIEW - Overlay photos and vector data" width="100%">
 </p>
 
-# QCALVIEW — ALPHA-40.20.3
+# QCALVIEW — ALPHA-40.20.4
 
 **Visual Simulation & Geomatics for QGIS**
 
@@ -12,6 +12,11 @@ QCALVIEW is an open-source QGIS plugin developed by **Fabrice Kerzerho — ArcTa
 - ArcTan°: https://arctan.fr
 - Contact: contact@arctan.fr
 
+
+## Rendering prerequisite
+
+**Terrain raster required for rendering.** QCALVIEW requires an explicitly selected DEM/DTM/DSM raster in **Relief > Raster MNT/MNS** before any preview or visual export can be rendered. Merely having a raster in the QGIS project is not sufficient.
+
 ## Compatibility
 
 - QGIS 3.44.x / Qt5
@@ -19,7 +24,7 @@ QCALVIEW is an open-source QGIS plugin developed by **Fabrice Kerzerho — ArcTa
 
 ## Experimental status
 
-ALPHA-40.20.3 is an **experimental QGIS plugin**. Interfaces and rendering behaviour may still change. Results should be checked on representative projects before production use.
+ALPHA-40.20.4 is an **experimental QGIS plugin**. Interfaces and rendering behaviour may still change. Results should be checked on representative projects before production use.
 
 For public testing, the Experimental Tools tab exposes only:
 
@@ -41,7 +46,7 @@ See [Current limitations](docs/limitations.md).
 
 ## Documentation
 
-See `docs/` for the user manuals, current limitations and licensing notes.
+See `docs/`  or https://qcalview.com/DOCS/#/ for the user manuals, current limitations and licensing notes.
 
 ## Licence
 

@@ -264,25 +264,94 @@ def _activate_qml_as_named_style(self, layer, style_name, qml_rel_path, refresh_
 
 
 def apply_pdv_style_mode(self, layer, automatic=True):
-    
+    """Apply the normal PDV style, then lighten its FOV renderer if safe."""
     if not isinstance(layer, QgsVectorLayer):
         return False
+
     automatic = bool(automatic)
     try:
         layer.setCustomProperty(PDV_AUTO_COLOR_PROPERTY, 1 if automatic else 0)
     except Exception as _qcv_exc:
-        _qcv_suppress(_qcv_exc, "core/_layerstyle.py:272")
+        _qcv_suppress(_qcv_exc, "core/_layerstyle.py:apply_pdv_style_mode:property")
+
     if automatic:
-        
-        
-        return _activate_qml_as_named_style(
-            self, layer, PDV_AUTO_STYLE_NAME, "core/style/STYLE-PDV.qml", refresh_existing=True
+        ok = _activate_qml_as_named_style(
+            self,
+            layer,
+            PDV_AUTO_STYLE_NAME,
+            "core/style/STYLE-PDV.qml",
+            refresh_existing=True,
         )
-    
-    
-    return _activate_qml_as_named_style(
-        self, layer, PDV_MANUAL_STYLE_NAME, "core/style/STYLE-MOD.qml", refresh_existing=False
-    )
+    else:
+        ok = _activate_qml_as_named_style(
+            self,
+            layer,
+            PDV_MANUAL_STYLE_NAME,
+            "core/style/STYLE-MOD.qml",
+            refresh_existing=False,
+        )
+
+    if not ok:
+        return False
+
+    # The 40.20.3 QML remains the fallback. We only patch the five geometry
+    # expressions after the auxiliary cache has been created and validated.
+    prepare_fov = getattr(self, "_qcv_fov_prepare_layer", None)
+    patch_renderer = getattr(self, "_qcv_fov_patch_renderer", None)
+    restore_renderer = getattr(self, "_qcv_fov_restore_legacy_renderer", None)
+    if callable(prepare_fov) and callable(patch_renderer):
+        try:
+            prepared_layers = getattr(self, "_qcv_fov_prepared_layers", None)
+            if not isinstance(prepared_layers, set):
+                prepared_layers = set()
+                self._qcv_fov_prepared_layers = prepared_layers
+            layer_key = str(layer.id())
+            rebuild_cache = layer_key not in prepared_layers
+            prepared = bool(prepare_fov(layer, rebuild=rebuild_cache))
+            if prepared:
+                prepared_layers.add(layer_key)
+            patched = bool(patch_renderer(layer)) if prepared else False
+            if not patched:
+                if callable(restore_renderer):
+                    restore_renderer(layer, automatic=automatic)
+                QgsMessageLog.logMessage(
+                    tr(
+                        "[QCALVIEW][PDV-FOV] Cache FOV indisponible : "
+                        "renderer géométrique 40.20.3 restauré."
+                    ),
+                    "QCALVIEW",
+                    QC.Qgis_MessageLevel_Warning,
+                )
+        except Exception as exc:
+            if callable(restore_renderer):
+                try:
+                    restore_renderer(layer, automatic=automatic)
+                except Exception as restore_exc:
+                    _qcv_suppress(
+                        restore_exc,
+                        "core/_layerstyle.py:apply_pdv_style_mode:restore",
+                    )
+            QgsMessageLog.logMessage(
+                tr(
+                    f"[QCALVIEW][PDV-FOV] Initialisation FOV impossible: {exc}. "
+                    "Renderer géométrique 40.20.3 restauré."
+                ),
+                "QCALVIEW",
+                QC.Qgis_MessageLevel_Warning,
+            )
+    # Named styles may restore layer variables captured when the style was
+    # saved. Force the next _sync_pdv_qml() to rewrite the current Live WKT,
+    # even when yaw/HFOV/range themselves did not change.
+    try:
+        live_signatures = getattr(self, "_qcv_fov_live_signatures", None)
+        if isinstance(live_signatures, dict):
+            live_signatures.pop(str(layer.id()), None)
+    except Exception as _qcv_exc:
+        _qcv_suppress(
+            _qcv_exc,
+            "core/_layerstyle.py:apply_pdv_style_mode:invalidate_live",
+        )
+    return True
 
 
 def pdv_layer_auto_colors(layer, default=True):

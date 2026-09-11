@@ -145,8 +145,8 @@ Enregistrer maintenant « paramètres + état » avant de lancer l’export ?</t
       <translation>&lt;b&gt;Informations&lt;/b&gt;&lt;br&gt;%1&lt;br&gt;Hauteur caméra : %2 m&lt;br&gt;Azimut : %3°&lt;br&gt;Tangage : %4°&lt;br&gt;Roulis : %5°&lt;br&gt;HFOV : %6°&lt;br&gt;VFOV : %7°&lt;br&gt;Projection : %8&lt;br&gt;Image : %9&lt;br&gt;PDV : %10</translation>
     </message>
     <message>
-      <source>&lt;b&gt;QCALVIEW&lt;/b&gt;&lt;br&gt;Version ALPHA-40.20.3 — expérimental&lt;br&gt;Simulation visuelle &amp;amp; géomatique pour QGIS&lt;br&gt;Développé par Fabrice Kerzerho — ArcTan°&lt;br&gt;© 2026 Fabrice Kerzerho — ArcTan°&lt;br&gt;GNU GPL v3 ou ultérieure&lt;br&gt;&lt;br&gt;&lt;a href='https://www.qcalview.com'&gt;qcalview.com&lt;/a&gt;</source>
-      <translation>&lt;b&gt;QCALVIEW&lt;/b&gt;&lt;br&gt;Version ALPHA-40.20.3 — expérimental&lt;br&gt;Simulation visuelle &amp;amp; géomatique pour QGIS&lt;br&gt;Développé par Fabrice Kerzerho — ArcTan°&lt;br&gt;© 2026 Fabrice Kerzerho — ArcTan°&lt;br&gt;GNU GPL v3 ou ultérieure&lt;br&gt;&lt;br&gt;&lt;a href='https://www.qcalview.com'&gt;qcalview.com&lt;/a&gt;</translation>
+      <source>&lt;b&gt;QCALVIEW&lt;/b&gt;&lt;br&gt;Version ALPHA-40.20.4 — expérimental&lt;br&gt;Simulation visuelle &amp;amp; géomatique pour QGIS&lt;br&gt;Développé par Fabrice Kerzerho — ArcTan°&lt;br&gt;© 2026 Fabrice Kerzerho — ArcTan°&lt;br&gt;GNU GPL v3 ou ultérieure&lt;br&gt;&lt;br&gt;&lt;a href='https://www.qcalview.com'&gt;qcalview.com&lt;/a&gt;</source>
+      <translation>&lt;b&gt;QCALVIEW&lt;/b&gt;&lt;br&gt;Version ALPHA-40.20.4 — expérimental&lt;br&gt;Simulation visuelle &amp;amp; géomatique pour QGIS&lt;br&gt;Développé par Fabrice Kerzerho — ArcTan°&lt;br&gt;© 2026 Fabrice Kerzerho — ArcTan°&lt;br&gt;GNU GPL v3 ou ultérieure&lt;br&gt;&lt;br&gt;&lt;a href='https://www.qcalview.com'&gt;qcalview.com&lt;/a&gt;</translation>
     </message>
     <message>
       <source>&lt;b&gt;X : %1&lt;/b&gt;    &lt;b&gt;Y : %2&lt;/b&gt;%3&lt;br&gt;Z sol : —    Hauteur : %4 m</source>
@@ -173,8 +173,8 @@ Enregistrer maintenant « paramètres + état » avant de lancer l’export ?</t
       <translation>&lt;sans nom&gt;</translation>
     </message>
     <message>
-      <source>ALPHA-40.20.3 — Ces outils sont encore en cours de développement. Leur comportement et leur interface peuvent évoluer dans les prochaines versions Alpha.</source>
-      <translation>ALPHA-40.20.3 — Ces outils sont encore en cours de développement. Leur comportement et leur interface peuvent évoluer dans les prochaines versions Alpha.</translation>
+      <source>ALPHA-40.20.4 — Ces outils sont encore en cours de développement. Leur comportement et leur interface peuvent évoluer dans les prochaines versions Alpha.</source>
+      <translation>ALPHA-40.20.4 — Ces outils sont encore en cours de développement. Leur comportement et leur interface peuvent évoluer dans les prochaines versions Alpha.</translation>
     </message>
     <message>
       <source>ATTENTION : le motif de haie n’est pas un ruban continu; l’occultation complète n’est pas garantie.</source>
@@ -661,8 +661,8 @@ Continuer ?</translation>
       <translation>Champ image</translation>
     </message>
     <message>
-      <source>Champ image utilisé en mode automatique. Un PDV réglé sur « Vue schématique » ignore volontairement tous les chemins d'image historiques.</source>
-      <translation>Champ image utilisé en mode automatique. Un PDV réglé sur « Vue schématique » ignore volontairement tous les chemins d'image historiques.</translation>
+      <source>Champ image utilisé en mode automatique. En « Vue schématique », la photo associée est conservée mais n'est pas affichée.</source>
+      <translation>Champ image utilisé en mode automatique. En « Vue schématique », la photo associée est conservée mais n'est pas affichée.</translation>
     </message>
     <message>
       <source>Champ libellé</source>
@@ -897,8 +897,8 @@ Continuer ?</translation>
       <translation>Descendre dans l'ordre de dessin</translation>
     </message>
     <message>
-      <source>Dissocier la photographie pour ce point de vue et enregistrer une vue schématique.</source>
-      <translation>Dissocier la photographie pour ce point de vue et enregistrer une vue schématique.</translation>
+      <source>Afficher et enregistrer une vue schématique sans supprimer la photographie associée au point de vue.</source>
+      <translation>Afficher et enregistrer une vue schématique sans supprimer la photographie associée au point de vue.</translation>
     </message>
     <message>
       <source>Distance devant caméra (m)</source>
@@ -2821,6 +2821,34 @@ Hauteur maximale calculée :</translation>
     <message>
       <source>📊 Rapport perf</source>
       <translation>📊 Rapport perf</translation>
+    </message>
+    <message>
+      <source>— Sélectionner un MNT/MNS —</source>
+      <translation>— Sélectionner un MNT/MNS —</translation>
+    </message>
+    <message>
+      <source>MNT/MNS requis pour le rendu : sélectionnez un raster de topographie.</source>
+      <translation>MNT/MNS requis pour le rendu : sélectionnez un raster de topographie.</translation>
+    </message>
+    <message>
+      <source>QCALVIEW nécessite un modèle numérique de terrain ou de surface explicitement sélectionné avant tout rendu.</source>
+      <translation>QCALVIEW nécessite un modèle numérique de terrain ou de surface explicitement sélectionné avant tout rendu.</translation>
+    </message>
+    <message>
+      <source>QCALVIEW nécessite un modèle numérique de terrain (MNT/MNS). Sélectionnez un raster dans Relief &gt; Raster MNT/MNS avant tout rendu.</source>
+      <translation>QCALVIEW nécessite un modèle numérique de terrain (MNT/MNS). Sélectionnez un raster dans Relief &gt; Raster MNT/MNS avant tout rendu.</translation>
+    </message>
+    <message>
+      <source>QCALVIEW — MNT/MNS requis</source>
+      <translation>QCALVIEW — MNT/MNS requis</translation>
+    </message>
+    <message>
+      <source>Export impossible : aucun MNT/MNS valide n’est sélectionné.
+
+Sélectionnez un raster de topographie dans l’onglet Relief, puis relancez l’export.</source>
+      <translation>Export impossible : aucun MNT/MNS valide n’est sélectionné.
+
+Sélectionnez un raster de topographie dans l’onglet Relief, puis relancez l’export.</translation>
     </message>
   </context>
   <context>

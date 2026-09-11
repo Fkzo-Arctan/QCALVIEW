@@ -11,7 +11,7 @@ from qgis.utils import iface
 from qgis.core import Qgis, QgsVectorLayer
 from .qcalview_dock import QCalViewDock
 from .core._log import qcv_log
-from .core._release import RELEASE_LABEL
+from .core._release import RELEASE_LABEL, PREVIEW_JOBS_GUARD_ENABLED
 
 class QCalViewPlugin:
     def __init__(self, iface_):
@@ -26,6 +26,7 @@ class QCalViewPlugin:
         
         
         self._canvas_preview_jobs_previous = None
+        self._preview_jobs_notice_logged = False
         self.plugin_dir = os.path.dirname(__file__)
         self.icon_path = os.path.join(
             self.plugin_dir, "resources", "icons", "qcalview_icon.png"
@@ -93,7 +94,26 @@ class QCalViewPlugin:
         self._qcv_translator = None
 
     def _disable_canvas_preview_jobs(self):
-        
+        if not PREVIEW_JOBS_GUARD_ENABLED:
+            if self._preview_jobs_notice_logged:
+                return
+            try:
+                enabled = bool(self.iface.mapCanvas().previewJobsEnabled())
+                qcv_log(
+                    f"{RELEASE_LABEL} : preview jobs QGIS laissés dans leur état normal "
+                    f"(previewJobsEnabled={enabled})",
+                    "PLUGIN",
+                    "INFO",
+                )
+            except Exception as exc:
+                qcv_log(
+                    f"État des preview jobs QGIS non lisible : {exc}",
+                    "PLUGIN",
+                    "WARNING",
+                )
+            self._preview_jobs_notice_logged = True
+            return
+
         if self._canvas_preview_jobs_previous is not None:
             return
         try:
@@ -112,7 +132,9 @@ class QCalViewPlugin:
             qcv_log(f"Impossible de suspendre les preview jobs : {exc}", "PLUGIN", "WARNING")
 
     def _restore_canvas_preview_jobs(self):
-        
+        if not PREVIEW_JOBS_GUARD_ENABLED:
+            return
+
         previous = self._canvas_preview_jobs_previous
         if previous is None:
             return

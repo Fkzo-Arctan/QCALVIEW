@@ -438,10 +438,10 @@ class QCalViewDock(QDockWidget):
         self.cmb_cam_id_field.setToolTip(tr("Identifiant court du point de vue."))
         self.cmb_cam_label_field.setToolTip(tr("Libellé descriptif affiché dans la visionneuse. Peut être laissé vide."))
         self.cmb_cam_order_field.setToolTip(tr("Champ utilisé pour l’ordre des flèches précédent/suivant. Si vide, QCALVIEW utilise l’identifiant puis le FID."))
-        self.cmb_cam_image_field.setToolTip(tr("Champ image utilisé en mode automatique. Un PDV réglé sur « Vue schématique » ignore volontairement tous les chemins d'image historiques."))
+        self.cmb_cam_image_field.setToolTip(tr("Champ image utilisé en mode automatique. En « Vue schématique », la photo associée est conservée mais n'est pas affichée."))
         self.btn_cam_source_auto.setToolTip(tr("Réutiliser la photographie indiquée par le Champ image / les champs historiques de la couche."))
         self.btn_cam_source_photo.setToolTip(tr("Choisir ou remplacer explicitement la photographie de ce point de vue."))
-        self.btn_cam_source_schema.setToolTip(tr("Dissocier la photographie pour ce point de vue et enregistrer une vue schématique."))
+        self.btn_cam_source_schema.setToolTip(tr("Afficher et enregistrer une vue schématique sans supprimer la photographie associée au point de vue."))
         f2.addRow(tr(self.cb_cam_show_all))
         self.btn_cam_save.setToolTip(tr("Enregistre les paramètres caméra et l’état visuel du PDV : couches, styles, opacités, règles/catégories, thème et réglages QCALVIEW."))
         f2.addRow(tr("Synchronisation"), _compact_row(self.btn_cam_load, self.btn_cam_save, self.btn_cam_fields))
@@ -483,7 +483,7 @@ class QCalViewDock(QDockWidget):
         
 
         self.lbl_experimental_notice = QLabel(
-            tr("ALPHA-40.20.3 — Ces outils sont encore en cours de développement. Leur comportement et leur interface peuvent évoluer dans les prochaines versions Alpha.")
+            tr("ALPHA-40.20.4 — Ces outils sont encore en cours de développement. Leur comportement et leur interface peuvent évoluer dans les prochaines versions Alpha.")
         )
         self.lbl_experimental_notice.setWordWrap(True)
         self.lbl_experimental_notice.setStyleSheet("color:#666; padding:4px 2px 8px 2px;")
@@ -576,6 +576,17 @@ class QCalViewDock(QDockWidget):
         content_dem = QWidget()
         form_dem = QFormLayout(content_dem)
         self.cmb_dem = QgsMapLayerComboBox(); self.cmb_dem.setFilters(QC.QgsMapLayerProxyModel_Filter_RasterLayer)
+        try:
+            self.cmb_dem.setAllowEmptyLayer(True, tr("— Sélectionner un MNT/MNS —"))
+        except TypeError:
+            self.cmb_dem.setAllowEmptyLayer(True)
+        try:
+            self.cmb_dem.setLayer(None)
+        except Exception as exc:
+            _qcv_suppress(exc, "qcalview_dock.py:suppressed")
+        self.lbl_dem_required = QLabel(tr("MNT/MNS requis pour le rendu : sélectionnez un raster de topographie."))
+        self.lbl_dem_required.setWordWrap(True)
+        self.lbl_dem_required.setStyleSheet("font-weight:600; color:#a35a00;")
         self.cb_use_dem_z = QCheckBox(tr("Utiliser le MNT/MNS pour les altitudes (caméra + objets)"))
         self.cb_use_dem_z.setChecked(False)
         self.combo_relief_mode = QComboBox()
@@ -596,6 +607,7 @@ class QCalViewDock(QDockWidget):
         self.d_earth_radius_km.setToolTip(tr("Rayon terrestre utilisé pour la correction de courbure. Réglage avancé : Paramètres > Variables."))
         self.d_earth_radius_km.setVisible(False)
         form_dem.addRow(tr("Raster MNT/MNS"), self.cmb_dem)
+        form_dem.addRow("", self.lbl_dem_required)
         form_dem.addRow(tr(self.cb_use_dem_z))
         form_dem.addRow(tr("Mode relief"), self.combo_relief_mode)
         form_dem.addRow(tr("Échantillonnage"), self.spin_dem_step)
@@ -1018,6 +1030,7 @@ class QCalViewDock(QDockWidget):
         
         
         self.cb_use_dem_z.toggled.connect(self.render_preview)
+        self.cmb_dem.layerChanged.connect(self._on_terrain_layer_changed)
         self.combo_relief_mode.currentIndexChanged.connect(self._on_relief_mode_changed)
         self.cb_curvature.toggled.connect(lambda *_: (setattr(self, '_horizon', None), setattr(self, '_horizon_params', None), getattr(self, '_overlay_cache', {}).clear(), self.render_preview()))
         self.d_earth_radius_km.valueChanged.connect(lambda *_: (setattr(self, '_horizon', None), setattr(self, '_horizon_params', None), getattr(self, '_overlay_cache', {}).clear(), self.render_preview()))
@@ -1267,6 +1280,7 @@ class QCalViewDock(QDockWidget):
         except Exception as _qcv_exc:
             _qcv_suppress(_qcv_exc, "qcalview_dock.py:1266")
         self._update_ui_summary()
+        QTimer.singleShot(0, lambda: self._validate_terrain_layer(notify=True, purpose="startup"))
     
 
     def _load_designer_shell(self):
@@ -2025,7 +2039,7 @@ class QCalViewDock(QDockWidget):
 
         version = QLabel(
             tr("<b>QCALVIEW</b><br>"
-            "Version ALPHA-40.20.3 — expérimental<br>"
+            "Version ALPHA-40.20.4 — expérimental<br>"
             "Simulation visuelle &amp; géomatique pour QGIS<br>"
             "Développé par Fabrice Kerzerho — ArcTan°<br>"
             "© 2026 Fabrice Kerzerho — ArcTan°<br>"
@@ -2420,10 +2434,31 @@ class QCalViewDock(QDockWidget):
                 _ECU.setLayerVariable(layer, "fov_dx_pct", float(self.spin_off_h.value()))
                 _ECU.setLayerVariable(layer, "fov_dy_pct", float(self.spin_off_v.value()))
 
-            
-            
-            
-            
+            # 40.20.4: update the precomputed geometry for the current PDV.
+            # If the cache is unavailable, the untouched 40.20.3 QML remains
+            # active and continues to use the variables set above.
+            try:
+                sync_fov = getattr(self, "_qcv_fov_sync_live", None)
+                if (
+                    callable(sync_fov)
+                    and not getattr(self, "_camera_loading_feature", False)
+                ):
+                    sync_fov(
+                        layer,
+                        yaw=float(yaw),
+                        hfov=float(hfov_val),
+                        full_range=float(rng_full),
+                        symbol_range=float(symrng),
+                        projection=str(self.cmb_proj.currentText()).strip().upper(),
+                        is360=bool(is360),
+                    )
+            except Exception as exc:
+                qcv_log(
+                    f"Synchronisation FOV Live impossible: {exc}",
+                    "PDV/FOV",
+                    "WARNING",
+                )
+
             layer.triggerRepaint()
             self.iface.mapCanvas().refresh()
 
@@ -2750,9 +2785,29 @@ setattr(QCalViewDock, 'apply_pdv_qml_style', apply_pdv_qml_style)
 setattr(QCalViewDock, 'update_pdv_qml_vars', update_pdv_qml_vars)
 setattr(QCalViewDock, 'apply_pdv_style_mode', apply_pdv_style_mode)
 setattr(QCalViewDock, 'pdv_layer_auto_colors', staticmethod(pdv_layer_auto_colors))
+from .core._fov_geometry import (
+    qcv_fov_patch_renderer,
+    qcv_fov_prepare_layer,
+    qcv_fov_rebuild_layer,
+    qcv_fov_restore_legacy_renderer,
+    qcv_fov_sync_live,
+    qcv_fov_update_feature,
+)
+setattr(QCalViewDock, '_qcv_fov_patch_renderer', qcv_fov_patch_renderer)
+setattr(QCalViewDock, '_qcv_fov_prepare_layer', qcv_fov_prepare_layer)
+setattr(QCalViewDock, '_qcv_fov_rebuild_layer', qcv_fov_rebuild_layer)
+setattr(QCalViewDock, '_qcv_fov_restore_legacy_renderer', qcv_fov_restore_legacy_renderer)
+setattr(QCalViewDock, '_qcv_fov_sync_live', qcv_fov_sync_live)
+setattr(QCalViewDock, '_qcv_fov_update_feature', qcv_fov_update_feature)
 from .core._labels_ops import _label_offset_from_pos, _label_anchor_uv
 setattr(QCalViewDock, '_label_offset_from_pos', _label_offset_from_pos)
 setattr(QCalViewDock, '_label_anchor_uv', _label_anchor_uv)
+from .core._terrain_guard import (
+    validate_terrain_layer, refresh_terrain_requirement_ui, on_terrain_layer_changed
+)
+setattr(QCalViewDock, '_validate_terrain_layer', validate_terrain_layer)
+setattr(QCalViewDock, '_refresh_terrain_requirement_ui', refresh_terrain_requirement_ui)
+setattr(QCalViewDock, '_on_terrain_layer_changed', on_terrain_layer_changed)
 from .core._render_ops import _draw_label, render_preview, _render_debounce_timeout, _render_debounce_delay_ms, _clear_base_cache_and_render, _overlay_params_key, _draw_fov_frame, _draw_axes_debug, _render_preview_now, _render_overlay, export_overlay, _draw_center_and_pdv_guides, set_pdv_azimuth, _render_vector_layers_fast
 setattr(QCalViewDock, '_draw_label', _draw_label)
 setattr(QCalViewDock, 'render_preview', render_preview)

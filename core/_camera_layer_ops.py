@@ -983,8 +983,37 @@ def _camera_schedule_feature_refresh(self, autoload=False):
 
 
 def _camera_on_layer_data_changed(self, *args):
-    if getattr(self, '_camera_internal_write', False) or getattr(self, '_camera_loading_feature', False):
+    if (
+        getattr(self, '_camera_internal_write', False)
+        or getattr(self, '_camera_loading_feature', False)
+        or getattr(self, '_qcv_fov_cache_write', False)
+    ):
         return
+
+    # Keep the auxiliary FOV cache in sync when saved camera parameters are
+    # edited directly in the attribute table. Failures never block the normal
+    # camera refresh or the legacy 40.20.3 renderer.
+    try:
+        layer = _camera_layer(self)
+        if layer is not None and len(args) >= 2:
+            fid = int(args[0])
+            field_index = int(args[1])
+            field_name = str(layer.fields().field(field_index).name()).lower()
+            # Auxiliary-cache writes can be delivered after the write guard has
+            # been released. They must never rebuild the PDV combo or alter the
+            # current viewpoint.
+            if field_name == 'qcv_uid' or 'qcv_fov_' in field_name:
+                return
+            if field_name in {'qcv_proj', 'qcv_360', 'qcv_yaw', 'qcv_hfov', 'qcv_mdst'}:
+                update_fov = getattr(self, '_qcv_fov_update_feature', None)
+                if callable(update_fov):
+                    update_fov(layer, fid, save=True)
+    except Exception as _qcv_exc:
+        _qcv_suppress(
+            _qcv_exc,
+            'core/_camera_layer_ops.py:_camera_on_layer_data_changed:fov',
+        )
+
     self._camera_schedule_feature_refresh(autoload=False)
 
 
@@ -1027,19 +1056,38 @@ def _camera_set_live_enabled(self, enabled):
 
 
 def _camera_on_geometry_changed(self, fid, *args):
-    
-    if not bool(getattr(self, '_camera_live_enabled', False)):
-        return
     try:
         fid = int(fid)
-        current = _camera_current_fid(self)
-        if current is None or fid != int(current):
-            return
     except Exception:
         return
+
+    current = _camera_current_fid(self)
+    is_current = current is not None and fid == int(current)
+
+    try:
+        if is_current:
+            self._sync_pdv_qml()
+        else:
+            update_fov = getattr(self, '_qcv_fov_update_feature', None)
+            if callable(update_fov):
+                update_fov(_camera_layer(self), fid, save=True)
+    except Exception as _qcv_exc:
+        _qcv_suppress(
+            _qcv_exc,
+            'core/_camera_layer_ops.py:_camera_on_geometry_changed:fov',
+        )
+
+    if not is_current or not bool(getattr(self, '_camera_live_enabled', False)):
+        return
+
     self._camera_live_pending_fid = fid
-    try: self._camera_live_refresh_timer.start(250)
-    except Exception as _qcv_exc: _qcv_suppress(_qcv_exc, "core/_camera_layer_ops.py:1041")
+    try:
+        self._camera_live_refresh_timer.start(250)
+    except Exception as _qcv_exc:
+        _qcv_suppress(
+            _qcv_exc,
+            'core/_camera_layer_ops.py:_camera_on_geometry_changed:timer',
+        )
 
 
 def _camera_live_refresh_current(self):
@@ -1374,12 +1422,21 @@ def _camera_collect_ui_state(self):
     mode = _camera_normalize_view_mode(getattr(self, '_camera_current_view_mode', 'AUTO'))
     state['qcv_mode'] = mode
     photo_path = getattr(self, '_camera_current_photo_path', None)
-    if mode == 'SCHEMA':
-        
-        
-        state['qcv_img'] = None
-    elif photo_path:
+    if photo_path:
         state['qcv_img'] = photo_path
+    elif mode == 'SCHEMA':
+        # The schematic/photo choice is a display mode, not a destructive
+        # association change. Keep any qcv_img already stored on the PDV so
+        # the user can return to the associated photograph without having to
+        # associate it again.
+        try:
+            layer = _camera_layer(self)
+            feat = _camera_current_feature(self)
+            stored_img = _camera_feature_value(layer, feat, 'qcv_img', None) if layer is not None and feat is not None else None
+            if stored_img not in (None, NULL, ''):
+                state['qcv_img'] = stored_img
+        except Exception as _qcv_exc:
+            _qcv_suppress(_qcv_exc, "core/_camera_layer_ops.py:_camera_collect_ui_state:qcv_img")
     return state
 
 
@@ -1545,10 +1602,11 @@ def _camera_assign_current_photo_path(self, path):
     self._camera_current_view_mode = 'PHOTO'
     self._camera_current_photo_path = str(path)
     _camera_capture_current_draft(self)
-    try:
-        self._sync_pdv_qml()
-    except Exception as _qcv_exc:
-        _qcv_suppress(_qcv_exc, "core/_camera_layer_ops.py:1549")
+    if not getattr(self, '_camera_loading_feature', False):
+        try:
+            self._sync_pdv_qml()
+        except Exception as _qcv_exc:
+            _qcv_suppress(_qcv_exc, "core/_camera_layer_ops.py:photo_path_sync")
     return True
 
 
@@ -1567,6 +1625,12 @@ def _camera_write_source_fields(self, mode, image_path=None, silent=False):
     if mode == 'PHOTO' and image_path:
         stored = _camera_make_storable_image_path(layer, image_path)
 
+    # qcv_img is the persistent photograph association. Switching the PDV
+    # display mode to SCHEMA or AUTO must not erase that association.
+    fields_to_write = [('qcv_mode', mode)]
+    if mode == 'PHOTO':
+        fields_to_write.append(('qcv_img', stored))
+
     started = False
     if not layer.isEditable():
         try:
@@ -1578,7 +1642,7 @@ def _camera_write_source_fields(self, mode, image_path=None, silent=False):
     prev_write = getattr(self, '_camera_internal_write', False)
     self._camera_internal_write = True
     try:
-        for key, value in (('qcv_mode', mode), ('qcv_img', stored)):
+        for key, value in fields_to_write:
             name = _camera_field_name(layer, key)
             if name not in layer.fields().names():
                 continue
@@ -1602,13 +1666,21 @@ def _camera_write_source_fields(self, mode, image_path=None, silent=False):
     drafts = getattr(self, '_camera_drafts', {}) or {}
     draft = dict(drafts.get(fid) or _camera_collect_ui_state(self))
     draft['qcv_mode'] = mode
-    draft['qcv_img'] = image_path if mode == 'PHOTO' and image_path else None
+    if mode == 'PHOTO' and image_path:
+        draft['qcv_img'] = image_path
+    elif mode in ('SCHEMA', 'AUTO'):
+        # Preserve any image association already held by the draft/feature.
+        existing = draft.get('qcv_img')
+        if existing in (None, ''):
+            existing = _camera_feature_value(layer, feat, 'qcv_img', None)
+        if existing not in (None, NULL, ''):
+            draft['qcv_img'] = existing
     drafts[fid] = draft
     self._camera_drafts = drafts
     if not silent:
         _camera_set_status(self,
             "Source enregistrée : photographie." if mode == 'PHOTO' else
-            ("Source enregistrée : vue schématique sans photo." if mode == 'SCHEMA' else
+            ("Source enregistrée : vue schématique (photo associée conservée)." if mode == 'SCHEMA' else
              "Source enregistrée : détection automatique depuis le champ image."),
             "#2b6" if mode == 'PHOTO' else "#386a8a")
     return changed
@@ -1620,6 +1692,14 @@ def _camera_set_current_schematic(self):
     if feat is None:
         _camera_set_status(self, "Aucun point de vue actif.", "#aa6600")
         return
+    # Preserve the current photograph association before replacing the
+    # displayed image with the schematic background.
+    layer = _camera_layer(self)
+    fid = int(feat.id())
+    associated_img = getattr(self, '_camera_current_photo_path', None)
+    if not associated_img and layer is not None:
+        associated_img = _camera_feature_value(layer, feat, 'qcv_img', None)
+
     self._camera_current_view_mode = 'SCHEMA'
     try:
         self._activate_schematic_view()
@@ -1629,7 +1709,10 @@ def _camera_set_current_schematic(self):
         self._camera_current_photo_path = None
     
     self._camera_current_view_mode = 'SCHEMA'
-    _camera_capture_current_draft(self, feat.id())
+    draft = _camera_capture_current_draft(self, feat.id()) or {}
+    if associated_img not in (None, NULL, ''):
+        draft['qcv_img'] = associated_img
+        self._camera_drafts[fid] = draft
     _camera_write_source_fields(self, 'SCHEMA', None, silent=True)
     try:
         if getattr(self, 'viewer', None):
@@ -1642,7 +1725,7 @@ def _camera_set_current_schematic(self):
     except Exception as _qcv_exc:
         _qcv_suppress(_qcv_exc, "core/_camera_layer_ops.py:1641")
     title = _camera_resolve_title(self, _camera_layer(self), feat)
-    _camera_set_status(self, f"{title} — vue schématique enregistrée (sans photo).", "#386a8a")
+    _camera_set_status(self, f"{title} — vue schématique enregistrée (photo associée conservée).", "#386a8a")
 
 
 def _camera_use_auto_image_source(self):
@@ -1656,7 +1739,10 @@ def _camera_use_auto_image_source(self):
     drafts = getattr(self, '_camera_drafts', {}) or {}
     draft = dict(drafts.get(int(feat.id())) or _camera_collect_ui_state(self))
     draft['qcv_mode'] = 'AUTO'
-    draft['qcv_img'] = None
+    if draft.get('qcv_img') in (None, ''):
+        stored_img = _camera_feature_value(layer, feat, 'qcv_img', None)
+        if stored_img not in (None, NULL, ''):
+            draft['qcv_img'] = stored_img
     drafts[int(feat.id())] = draft
     self._camera_drafts = drafts
     _camera_write_source_fields(self, 'AUTO', None, silent=True)
@@ -1774,12 +1860,16 @@ def _camera_save_feature_by_fid(self, fid, silent=False):
     state['qcv_mode'] = mode
     img_path = state.get('qcv_img') or getattr(self, '_camera_current_photo_path', None)
     if mode == 'SCHEMA':
-        state['qcv_img'] = None
+        # Preserve the photo association while saving a schematic display mode.
+        if not img_path:
+            img_path = _camera_feature_value(layer, feat, 'qcv_img', None)
+        if img_path not in (None, NULL, ''):
+            state['qcv_img'] = _camera_make_storable_image_path(layer, img_path)
+        else:
+            state.pop('qcv_img', None)
     elif img_path:
         state['qcv_img'] = _camera_make_storable_image_path(layer, img_path)
     else:
-        
-        
         state['qcv_img'] = None
     state['qcv_upd'] = datetime.now().isoformat(timespec='seconds')
 
@@ -1820,6 +1910,17 @@ def _camera_save_feature_by_fid(self, fid, silent=False):
     self._camera_drafts = drafts
     if changed and not silent:
         _camera_set_status(self, f"Paramètres enregistrés pour {title}.", "#2b6")
+
+    try:
+        update_fov = getattr(self, '_qcv_fov_update_feature', None)
+        if callable(update_fov):
+            update_fov(layer, fid, save=True)
+    except Exception as _qcv_exc:
+        _qcv_suppress(
+            _qcv_exc,
+            'core/_camera_layer_ops.py:_camera_save_feature_by_fid:fov',
+        )
+
     try:
         self._sync_pdv_qml()
     except Exception as _qcv_exc:

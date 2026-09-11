@@ -1,5 +1,10 @@
 # QCALVIEW — User manual
 
+
+## Rendering prerequisite
+
+QCALVIEW requires an **explicitly selected DEM/DTM/DSM raster** in **Relief > Raster MNT/MNS** before any preview or visual export. A raster merely being present in the QGIS project is not enough: it must be selected as the terrain source in QCALVIEW.
+
 ## About QCALVIEW
 QCALVIEW is developed by **Fabrice Kerzerho — ArcTan°**, a French practice specialising in visual simulation and geomatics, including landscape assessment support, renewable-energy projects, photographic simulations and GIS workflows.
 
@@ -22,6 +27,6 @@ QCALVIEW brings photographic calibration and visual simulation workflows directl
 ## Important
 This manual is intentionally concise for the experimental release. Detailed workflows, screenshots and methodological guidance will be expanded as QCALVIEW stabilises.
 
-## Experimental tools in ALPHA-40.20.3
+## Experimental tools in ALPHA-40.20.4
 
 The public Alpha exposes the Projection grid, Azimuth ruler and Interactive monoplotting for testing. These tools remain under active development and their behaviour or interface may change. Other internal experimental modules are intentionally not exposed in public builds yet.

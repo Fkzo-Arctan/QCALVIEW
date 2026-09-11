@@ -689,6 +689,9 @@ def _render_preview_now(self):
     if int(getattr(self, '_render_suspend_count', 0) or 0) > 0:
         self._render_resume_requested = True
         return
+    validator = getattr(self, '_validate_terrain_layer', None)
+    if callable(validator) and not validator(notify=True, purpose='render'):
+        return
     requested_generation = int(getattr(self, '_render_request_generation', 0))
     if getattr(self, '_rendering_now', False):
         
@@ -5185,12 +5188,13 @@ def _draw_panorama_uv_segments_ztested_4019(self, painter, uvs, depths, depth_bu
         W=float(wrap_width or 0.0)
     except Exception:
         W=0.0
-    terrain_test=None
+    terrain_test = None
     if terrain_horizon is not None and terrain_ctx is not None:
-        def terrain_test(x, y, d):
+        def _terrain_test(x, y, d):
             return _panorama_fragment_visible_by_horizon(
                 terrain_ctx, terrain_horizon, float(terrain_eps), x, y, d
             )
+        terrain_test = _terrain_test
     for pts,dep in _iter_wrapped_runs_with_depth(uvs,depths,wrap_width=(W if W>1.0 else None),min_len=2):
         n=min(len(pts),len(dep))
         for i in range(max(0,n-1)):
@@ -6187,8 +6191,13 @@ def _render_vector_layers_fast(self, painter, cam_pt, cam_z, cam_crs, proj, widt
     terrain_test = None
     if terrain_horizon is not None and str(proj).upper() == 'PINHOLE':
         _prepare_pinhole_screen_metrics(ctx)
-        def terrain_test(x, y, d):
-            return _pinhole_fragment_visible_by_horizon(ctx, terrain_horizon, terrain_eps, x, y, d)
+
+        def _terrain_test(x, y, d):
+            return _pinhole_fragment_visible_by_horizon(
+                ctx, terrain_horizon, terrain_eps, x, y, d
+            )
+
+        terrain_test = _terrain_test
     global_draw_2p5d = bool(self.cb_draw_2p5d.isChecked())
     panoramic_overlay_mode = str(proj).upper() in ('EQUIRECT', 'EQUIRECTANGULAR', 'CYLINDRICAL')
     force_horizontal_25d = bool(getattr(self, 'cb_force_horizontal_25d', None) and self.cb_force_horizontal_25d.isChecked())
@@ -6547,6 +6556,9 @@ def _render_vector_layers_fast(self, painter, cam_pt, cam_z, cam_crs, proj, widt
         self._draw_label(painter, text, anchor_uv, sty)
 
 def export_overlay(self):
+    validator = getattr(self, '_validate_terrain_layer', None)
+    if callable(validator) and not validator(notify=True, purpose='export'):
+        return
     
     try:
         from ._export_ops import _default_export_dir

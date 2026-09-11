@@ -145,8 +145,8 @@ Save “parameters + state” now before starting the export?</translation>
       <translation>&lt;b&gt;Informations&lt;/b&gt;&lt;br&gt;%1&lt;br&gt;Height camera : %2 m&lt;br&gt;Azimuth : %3°&lt;br&gt;Pitch : %4°&lt;br&gt;Roll : %5°&lt;br&gt;HFOV : %6°&lt;br&gt;VFOV : %7°&lt;br&gt;Projection : %8&lt;br&gt;Image : %9&lt;br&gt;PDV : %10</translation>
     </message>
     <message>
-      <source>&lt;b&gt;QCALVIEW&lt;/b&gt;&lt;br&gt;Version ALPHA-40.20.3 — expérimental&lt;br&gt;Simulation visuelle &amp;amp; géomatique pour QGIS&lt;br&gt;Développé par Fabrice Kerzerho — ArcTan°&lt;br&gt;© 2026 Fabrice Kerzerho — ArcTan°&lt;br&gt;GNU GPL v3 ou ultérieure&lt;br&gt;&lt;br&gt;&lt;a href='https://www.qcalview.com'&gt;qcalview.com&lt;/a&gt;</source>
-      <translation>&lt;b&gt;QCALVIEW&lt;/b&gt;&lt;br&gt;Version ALPHA-40.20.3 — experimental&lt;br&gt;Visual Simulation &amp;amp; Geomatics for QGIS&lt;br&gt;Developed by Fabrice Kerzerho — ArcTan°&lt;br&gt;© 2026 Fabrice Kerzerho — ArcTan°&lt;br&gt;GNU GPL v3 or later&lt;br&gt;&lt;br&gt;&lt;a href='https://www.qcalview.com'&gt;qcalview.com&lt;/a&gt;</translation>
+      <source>&lt;b&gt;QCALVIEW&lt;/b&gt;&lt;br&gt;Version ALPHA-40.20.4 — expérimental&lt;br&gt;Simulation visuelle &amp;amp; géomatique pour QGIS&lt;br&gt;Développé par Fabrice Kerzerho — ArcTan°&lt;br&gt;© 2026 Fabrice Kerzerho — ArcTan°&lt;br&gt;GNU GPL v3 ou ultérieure&lt;br&gt;&lt;br&gt;&lt;a href='https://www.qcalview.com'&gt;qcalview.com&lt;/a&gt;</source>
+      <translation>&lt;b&gt;QCALVIEW&lt;/b&gt;&lt;br&gt;Version ALPHA-40.20.4 — experimental&lt;br&gt;Visual Simulation &amp;amp; Geomatics for QGIS&lt;br&gt;Developed by Fabrice Kerzerho — ArcTan°&lt;br&gt;© 2026 Fabrice Kerzerho — ArcTan°&lt;br&gt;GNU GPL v3 or later&lt;br&gt;&lt;br&gt;&lt;a href='https://www.qcalview.com'&gt;qcalview.com&lt;/a&gt;</translation>
     </message>
     <message>
       <source>&lt;b&gt;X : %1&lt;/b&gt;    &lt;b&gt;Y : %2&lt;/b&gt;%3&lt;br&gt;Z sol : —    Hauteur : %4 m</source>
@@ -173,8 +173,8 @@ Save “parameters + state” now before starting the export?</translation>
       <translation>&lt;unnamed&gt;</translation>
     </message>
     <message>
-      <source>ALPHA-40.20.3 — Ces outils sont encore en cours de développement. Leur comportement et leur interface peuvent évoluer dans les prochaines versions Alpha.</source>
-      <translation>ALPHA-40.20.3 — These tools are still under active development. Their behaviour and interface may change in future Alpha releases.</translation>
+      <source>ALPHA-40.20.4 — Ces outils sont encore en cours de développement. Leur comportement et leur interface peuvent évoluer dans les prochaines versions Alpha.</source>
+      <translation>ALPHA-40.20.4 — These tools are still under active development. Their behaviour and interface may change in future Alpha releases.</translation>
     </message>
     <message>
       <source>ATTENTION : le motif de haie n’est pas un ruban continu; l’occultation complète n’est pas garantie.</source>
@@ -661,7 +661,7 @@ Continue?</translation>
       <translation>Image field</translation>
     </message>
     <message>
-      <source>Champ image utilisé en mode automatique. Un PDV réglé sur « Vue schématique » ignore volontairement tous les chemins d'image historiques.</source>
+      <source>Champ image utilisé en mode automatique. En « Vue schématique », la photo associée est conservée mais n'est pas affichée.</source>
       <translation>Image field used in automatic mode. A viewpoint set to “Schematic view” deliberately ignores all historical image paths.</translation>
     </message>
     <message>
@@ -897,7 +897,7 @@ Continue?</translation>
       <translation>Move down in drawing order</translation>
     </message>
     <message>
-      <source>Dissocier la photographie pour ce point de vue et enregistrer une vue schématique.</source>
+      <source>Afficher et enregistrer une vue schématique sans supprimer la photographie associée au point de vue.</source>
       <translation>Detach the photograph for this viewpoint and save a schematic view.</translation>
     </message>
     <message>
@@ -2821,6 +2821,34 @@ Maximum calculated height:</translation>
     <message>
       <source>📊 Rapport perf</source>
       <translation>📊 Performance report</translation>
+    </message>
+    <message>
+      <source>— Sélectionner un MNT/MNS —</source>
+      <translation>— Select a DEM/DSM —</translation>
+    </message>
+    <message>
+      <source>MNT/MNS requis pour le rendu : sélectionnez un raster de topographie.</source>
+      <translation>DEM/DSM required for rendering: select a terrain raster.</translation>
+    </message>
+    <message>
+      <source>QCALVIEW nécessite un modèle numérique de terrain ou de surface explicitement sélectionné avant tout rendu.</source>
+      <translation>QCALVIEW requires an explicitly selected digital terrain or surface model before any rendering.</translation>
+    </message>
+    <message>
+      <source>QCALVIEW nécessite un modèle numérique de terrain (MNT/MNS). Sélectionnez un raster dans Relief &gt; Raster MNT/MNS avant tout rendu.</source>
+      <translation>QCALVIEW requires a digital terrain/surface model (DEM/DSM). Select a raster in Terrain &gt; DEM/DSM raster before rendering.</translation>
+    </message>
+    <message>
+      <source>QCALVIEW — MNT/MNS requis</source>
+      <translation>QCALVIEW — DEM/DSM required</translation>
+    </message>
+    <message>
+      <source>Export impossible : aucun MNT/MNS valide n’est sélectionné.
+
+Sélectionnez un raster de topographie dans l’onglet Relief, puis relancez l’export.</source>
+      <translation>Export unavailable: no valid DEM/DSM is selected.
+
+Select a terrain raster in the Terrain tab, then run the export again.</translation>
     </message>
   </context>
   <context>

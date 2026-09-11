@@ -295,12 +295,10 @@ def read_exif(path):
         
         
         
-        if "Projection" not in out and out.get("ImageWidth") and out.get("ImageHeight"):
-            w, h = int(out["ImageWidth"]), int(out["ImageHeight"])
-            ratio = (w / float(h)) if h else 0.0
-            if 1.98 <= ratio <= 2.02:
-                out["Projection"] = "equirectangular"
-                out["ProjectionSource"] = "ratio-2:1"
+        # A ~2:1 aspect ratio alone is not sufficient to identify a 360°
+        # equirectangular panorama. Ordinary PNG/JPEG exports can have the
+        # same ratio. Keep the current/manual projection unless explicit
+        # panorama metadata is available.
     except Exception as _qcv_exc:
         _qcv_suppress(_qcv_exc, "core/_utils_ops.py:303")
     
@@ -656,8 +654,6 @@ def load_photo(self):
         if is_equirect:
             iw = int(ex.get('ImageWidth') or 0)
             ih = int(ex.get('ImageHeight') or 0)
-            ratio_2_1 = bool(ih > 0 and 1.98 <= (iw / float(ih)) <= 2.02)
-
             fw = int(ex.get('FullPanoWidthPixels') or 0)
             fh = int(ex.get('FullPanoHeightPixels') or 0)
             cw = int(ex.get('CroppedAreaImageWidthPixels') or iw or 0)
@@ -669,7 +665,10 @@ def load_photo(self):
                 and cw == fw and ch == fh
                 and left == 0 and top == 0
             )
-            auto_full_equirect = bool(ratio_2_1 or gpano_full)
+            # Only explicit GPano full-frame metadata may arm 360°
+            # automatically. A 2:1 ratio is only a geometric hint and must
+            # not turn an ordinary or partial panorama into a full sphere.
+            auto_full_equirect = bool(gpano_full)
 
         self.cb_360.blockSignals(True)
         self.cb_360.setEnabled(is_equirect)
@@ -765,6 +764,15 @@ def load_photo(self):
         _qcv_suppress(_qcv_exc, "core/_utils_ops.py:762")
     finally:
         self._camera_loading_feature = prev_loading
+
+    # The photo-loading sequence changes projection/FOV widgets. Rebuild the
+    # PDV FOV only once those values are stable; doing it mid-load can enter
+    # QGIS geometry code with a transient state.
+    if not prev_loading:
+        try:
+            self._sync_pdv_qml()
+        except Exception as _qcv_exc:
+            _qcv_suppress(_qcv_exc, "core/_utils_ops.py:post_load_fov_sync")
 
     self.render_preview()
     try:
@@ -1174,11 +1182,14 @@ class _ImageViewer(QDialog):
             shot.save(path)
 
     def export_full_resolution(self):
+        owner = getattr(self, "_owner", None)
+        validator = getattr(owner, '_validate_terrain_layer', None) if owner is not None else None
+        if callable(validator) and not validator(notify=True, purpose='export'):
+            return
         path = self._save_image_dialog("Exporter image pleine résolution avec overlays", "qcalview_export.png")
         if not path:
             return
 
-        owner = getattr(self, "_owner", None)
         try:
             if owner is not None:
                 W = int(owner.spin_w.value())
@@ -1396,6 +1407,26 @@ def _normalize_qt_pen_style(val):
         return QC.Qt_PenStyle_SolidLine
 
 
+def _parse_qcolor_component(value):
+    """Parse a serialized QGIS color channel without using float().
+
+    QGIS normally serializes channels as integers, but some providers/styles may
+    expose decimal strings. Keeping this parser independent from PyFloat_FromString
+    avoids a fragile conversion path observed on QGIS 3.44/Qt5.
+    """
+    try:
+        txt = str(value).strip()
+        match = re.fullmatch(r"([+-]?)(\d+)(?:\.(\d*))?", txt)
+        if match is None:
+            return None
+        number = int(match.group(2))
+        if match.group(1) == "-":
+            number = -number
+        return max(0, min(255, number))
+    except Exception:
+        return None
+
+
 def _parse_qcolor_value(val, default=None):
     if isinstance(val, QColor):
         return QColor(val)
@@ -1406,16 +1437,17 @@ def _parse_qcolor_value(val, default=None):
         if not txt:
             return QColor(default) if default is not None else None
         txt = txt.split(',rgb:')[0]
-        parts = [p.strip() for p in txt.split(',') if p.strip() != '']
-        if len(parts) >= 4:
-            return QColor(int(float(parts[0])), int(float(parts[1])), int(float(parts[2])), int(float(parts[3])))
+        parts = [part.strip() for part in txt.split(',') if part.strip()]
         if len(parts) >= 3:
-            return QColor(int(float(parts[0])), int(float(parts[1])), int(float(parts[2])), 255)
+            channels = [_parse_qcolor_component(part) for part in parts[:4]]
+            if all(channel is not None for channel in channels[:3]):
+                alpha = channels[3] if len(channels) >= 4 and channels[3] is not None else 255
+                return QColor(channels[0], channels[1], channels[2], alpha)
         c = QColor(txt)
         if c.isValid():
             return c
     except Exception as _qcv_exc:
-        _qcv_suppress(_qcv_exc, "core/_utils_ops.py:1415")
+        _qcv_suppress(_qcv_exc, "core/_utils_ops.py:_parse_qcolor_value")
     return QColor(default) if default is not None else None
 
 
@@ -1622,17 +1654,57 @@ def _extract_qgis_fill_style_from_symbol(sym, default_fill, default_line, defaul
         lname = ((getattr(sl, 'layerType', lambda: '')() or '') + ' ' + sl.__class__.__name__).lower()
 
         if 'simplefill' in lname:
-            fc = _parse_qcolor_value(props.get('color'), fill_style.get('color'))
-            oc = _parse_qcolor_value(props.get('outline_color'), fill_style.get('outline_color'))
-            ow = _float_prop(props, ['outline_width', 'border_width', 'stroke_width'], fill_style.get('outline_width', default_width))
-            ps = _pen_style_from_text(_str_prop(props, ['outline_style', 'line_style'], 'solid'), QC.Qt_PenStyle_SolidLine)
+            # Prefer the typed QGIS API over parsing the serialized properties map.
+            # This avoids unnecessary string/float conversions in the live preview
+            # path and is supported by QgsSimpleFillSymbolLayer in QGIS 3.44+.
+            try:
+                fc = sl.color() if hasattr(sl, 'color') else None
+            except Exception:
+                fc = None
+            if fc is None or not fc.isValid():
+                fc = _parse_qcolor_value(props.get('color'), fill_style.get('color'))
+
+            try:
+                oc = sl.strokeColor() if hasattr(sl, 'strokeColor') else None
+            except Exception:
+                oc = None
+            if oc is None or not oc.isValid():
+                oc = _parse_qcolor_value(props.get('outline_color'), fill_style.get('outline_color'))
+
+            try:
+                ow = float(sl.strokeWidth()) if hasattr(sl, 'strokeWidth') else None
+            except Exception:
+                ow = None
+            if ow is None or (not math.isfinite(ow)) or ow < 0:
+                ow = _float_prop(
+                    props,
+                    ['outline_width', 'border_width', 'stroke_width'],
+                    fill_style.get('outline_width', default_width),
+                )
+
+            try:
+                ps = _normalize_qt_pen_style(sl.strokeStyle()) if hasattr(sl, 'strokeStyle') else None
+            except Exception:
+                ps = None
+            if ps is None:
+                ps = _pen_style_from_text(
+                    _str_prop(props, ['outline_style', 'line_style'], 'solid'),
+                    QC.Qt_PenStyle_SolidLine,
+                )
+
+            try:
+                brush_style = sl.brushStyle() if hasattr(sl, 'brushStyle') else None
+                style_name = 'nobrush' if brush_style == QC.Qt_BrushStyle_NoBrush else 'solid'
+            except Exception:
+                style_name = _str_prop(props, 'style', 'solid')
+
             fill_style = {
                 'kind': 'simple',
                 'color': QColor(fc or default_fill),
                 'outline_color': QColor(oc or default_line),
-                'outline_width': float(ow or default_width),
+                'outline_width': float(ow if ow is not None else default_width),
                 'pen_style': ps,
-                'style_name': _str_prop(props, 'style', 'solid'),
+                'style_name': style_name,
             }
             continue
 
@@ -1734,9 +1806,18 @@ def _renderer_name(renderer):
 
 
 def _safe_symbol_from_renderer(renderer, feat=None, layer=None):
-    
+    """Return ``(symbol, owner)`` while keeping the C++ symbol owner alive.
+
+    QgsRendererCategory.symbol() and QgsRendererRange.symbol() return symbols owned by
+    the category/range.  Returning only the symbol (or a SIP clone created from a
+    temporary wrapper) can leave a dangling C++ pointer once that temporary Python
+    wrapper is destroyed.  QGIS 3 / Qt5 can then terminate the process on the next
+    symbol method call instead of raising a Python exception.
+
+    The caller must keep ``owner`` referenced for as long as it reads ``symbol``.
+    """
     if renderer is None:
-        return None
+        return None, None
     try:
         name = _renderer_name(renderer)
 
@@ -1757,9 +1838,9 @@ def _safe_symbol_from_renderer(renderer, feat=None, layer=None):
                     cval = cat.value()
                     if val == cval or str(val) == str(cval):
                         sym = cat.symbol()
-                        return sym.clone() if sym is not None and hasattr(sym, 'clone') else sym
+                        return sym, cat
             except Exception as _qcv_exc:
-                _qcv_suppress(_qcv_exc, "core/_utils_ops.py:1759")
+                _qcv_suppress(_qcv_exc, "core/_utils_ops.py:safe_symbol_categorized")
 
         if feat is not None and ('graduated' in name or isinstance(renderer, QgsGraduatedSymbolRenderer)):
             attr = None
@@ -1780,22 +1861,22 @@ def _safe_symbol_from_renderer(renderer, feat=None, layer=None):
                         try:
                             if rng.lowerValue() <= fval <= rng.upperValue():
                                 sym = rng.symbol()
-                                return sym.clone() if sym is not None and hasattr(sym, 'clone') else sym
+                                return sym, rng
                         except Exception as _qcv_exc:
-                            _qcv_suppress(_qcv_exc, "core/_utils_ops.py:1782")
+                            _qcv_suppress(_qcv_exc, "core/_utils_ops.py:safe_symbol_graduated_range")
                             continue
                 except Exception as _qcv_exc:
-                    _qcv_suppress(_qcv_exc, "core/_utils_ops.py:1784")
+                    _qcv_suppress(_qcv_exc, "core/_utils_ops.py:safe_symbol_graduated")
 
         if hasattr(renderer, 'symbol'):
             try:
                 sym = renderer.symbol()
-                return sym.clone() if sym is not None and hasattr(sym, 'clone') else sym
+                return sym, renderer
             except Exception as _qcv_exc:
-                _qcv_suppress(_qcv_exc, "core/_utils_ops.py:1791")
+                _qcv_suppress(_qcv_exc, "core/_utils_ops.py:safe_symbol_single")
     except Exception as _qcv_exc:
-        _qcv_suppress(_qcv_exc, "core/_utils_ops.py:1793")
-    return None
+        _qcv_suppress(_qcv_exc, "core/_utils_ops.py:safe_symbol")
+    return None, None
 
 def _extract_qgis_layer_style(self, layer, feat=None, fallback=None):
     
@@ -1817,8 +1898,9 @@ def _extract_qgis_layer_style(self, layer, feat=None, fallback=None):
         renderer = None
 
     sym = None
+    symbol_owner = None
     if renderer is not None:
-        sym = _safe_symbol_from_renderer(renderer, feat=feat, layer=layer)
+        sym, symbol_owner = _safe_symbol_from_renderer(renderer, feat=feat, layer=layer)
 
     if sym is None:
         return dict(color=color, fill_color=fill_color, width=width, pen_style=pen_style, opacity=opacity, fill_polygons=fill_polygons, fill_style=fill_style)
@@ -1915,6 +1997,9 @@ def _extract_qgis_layer_style(self, layer, feat=None, fallback=None):
     except Exception as _qcv_exc:
         _qcv_suppress(_qcv_exc, "core/_utils_ops.py:1912")
 
+    # Keep the category/range/renderer wrapper alive until every native symbol read
+    # above has completed.  Do not remove this reference without changing ownership.
+    _ = symbol_owner
     return dict(color=color, fill_color=fill_color, width=width, pen_style=pen_style, opacity=opacity, fill_polygons=fill_polygons, fill_style=fill_style)
 
 

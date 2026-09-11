@@ -611,6 +611,9 @@ def _invalidate_render_caches(self):
 
 
 def _render_current_export_image(self, mode='composite', schematic_transparent=None):
+    validator = getattr(self, '_validate_terrain_layer', None)
+    if callable(validator) and not validator(notify=False, purpose='export'):
+        return None
     w = max(1, int(self.spin_w.value()))
     h = max(1, int(self.spin_h.value()))
     _invalidate_render_caches(self)
@@ -800,6 +803,9 @@ def export_camera_variables_csv(self):
 
 
 def export_current_composite(self):
+    validator = getattr(self, '_validate_terrain_layer', None)
+    if callable(validator) and not validator(notify=True, purpose='export'):
+        return
     
     layer = _camera_layer(self)
     feat = _camera_current_feature(self)
@@ -1206,6 +1212,9 @@ def export_batch_selected(self):
     return _run_batch_export(self, mode='selected')
 
 def _run_batch_export(self, mode='composite'):
+    validator = getattr(self, '_validate_terrain_layer', None)
+    if callable(validator) and not validator(notify=True, purpose='export'):
+        return
     layer = _camera_layer(self)
     if layer is None:
         QMessageBox.information(self, tr('QCALVIEW'), tr('Choisissez d’abord une couche caméra.'))

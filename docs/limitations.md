@@ -1,6 +1,6 @@
 # QCALVIEW — Current limitations
 
-This document describes the main technical constraints and known limitations of the current **ALPHA-40.20.3** release.
+This document describes the main technical constraints and known limitations of the current **ALPHA-40.20.4** release.
 
 QCALVIEW is under active development. These limitations may evolve as the rendering engine, panoramic projections, raster support and export workflows are consolidated.
 
