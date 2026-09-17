@@ -2,7 +2,7 @@
   <img src="docs/images/qcalview-banner.webp" alt="QCALVIEW - Overlay photos and vector data" width="100%">
 </p>
 
-# QCALVIEW — ALPHA-40.20.5
+# QCALVIEW | ALPHA-40.20.5
 
 **Visual Simulation & Geomatics for QGIS**
 
