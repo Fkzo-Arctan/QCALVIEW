@@ -1,5 +1,6 @@
 from .core._exceptions import qcv_suppress_exception as _qcv_suppress
 from .core._i18n import tr
+from .core._log import qcv_log
 from .core._compat import QC, dialog_exec
 import os, json, math, html
 from qgis.PyQt.QtCore import Qt, QSize, QPoint, QTimer, QElapsedTimer, QRect, pyqtSignal, QSettings
@@ -2077,7 +2078,6 @@ class QCalViewDock(QDockWidget):
 
     def _after_camera_layer_changed(self, layer):
 
-        from .core._log import qcv_log
         import traceback
 
         try:
