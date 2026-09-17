@@ -1,6 +1,3 @@
-
-
-
 from ._i18n import tr
 from ._compat import QC, dialog_exec
 from qgis.PyQt.QtWidgets import (

@@ -1,6 +1,3 @@
-
-
-
 from ._exceptions import qcv_suppress_exception as _qcv_suppress
 from ._i18n import tr
 from ._compat import QC, dialog_exec
@@ -54,12 +51,8 @@ from ._memory_guard import (
     memory_snapshot,
 )
 
-
-
-
-
 def _effective_curvature_radius(self, curvature_enabled=None, earth_radius_m=None, k_refraction=0.0):
-    
+
     if curvature_enabled is None:
         try:
             curvature_enabled = bool(getattr(self, 'cb_curvature', None).isChecked())
@@ -87,7 +80,7 @@ def _effective_curvature_radius(self, curvature_enabled=None, earth_radius_m=Non
 
 
 def _curvature_drop_from_cam_xy(self, pts_xy, cam_pt, curvature_enabled=None, earth_radius_m=None, k_refraction=0.0):
-    
+
     pts = np.asarray(pts_xy, dtype=np.float64)
     if pts.ndim == 1:
         pts = pts.reshape(1, -1)
@@ -106,9 +99,8 @@ def _curvature_drop_from_cam_xy(self, pts_xy, cam_pt, curvature_enabled=None, ea
     d2 = dx * dx + dy * dy
     return d2 / (2.0 * R_eff)
 
-
 def _apply_pov_curvature_to_z(self, pts_xy, z_values, cam_pt, curvature_enabled=None, earth_radius_m=None, k_refraction=0.0):
-    
+
     pts = np.asarray(pts_xy, dtype=np.float64)
     if pts.ndim == 1:
         pts = pts.reshape(1, -1)
@@ -120,9 +112,8 @@ def _apply_pov_curvature_to_z(self, pts_xy, z_values, cam_pt, curvature_enabled=
     drops = _curvature_drop_from_cam_xy(self, pts, cam_pt, curvature_enabled=curvature_enabled, earth_radius_m=earth_radius_m, k_refraction=k_refraction)
     return z - drops
 
-
 def _make_pov_curved_sampler(self, z_sampler, cam_pt, curvature_enabled=None, earth_radius_m=None, k_refraction=0.0):
-    
+
     if z_sampler is None:
         return None
     if curvature_enabled is None:
@@ -198,11 +189,11 @@ def _proj_key(projection: str) -> str:
     pj = (projection or "").strip().lower()
     if "equirect" in pj or "sph" in pj: return "equirect"
     if "cyl"     in pj:                 return "cylindrical"
-    
+
     return "rectilinear"
 
 def _unwrap_az_for_range(az_deg: float, az_min: float, az_max: float) -> float:
-    
+
     az = float(az_deg)
     center = 0.5 * (float(az_min) + float(az_max))
     while az - center > 180.0:
@@ -213,27 +204,22 @@ def _unwrap_az_for_range(az_deg: float, az_min: float, az_max: float) -> float:
 
 def _az_to_x_proj(W: int, yaw_deg: float, az_deg: float,
                   hfov_deg: float, projection: str, full360: bool=False):
-    
+
     pj = _proj_key(projection)
     cx = W * 0.5
 
-    
-    
-    
     if (pj == "equirect" and full360) or (pj == "cylindrical" and full360):
         ddeg = _wrap180_deg(float(az_deg) - float(yaw_deg))
         scale = float(W) / 360.0
         return int(round((W * 0.5) + scale * ddeg))
-    
-    
+
+
     if pj == "equirect" and not full360:
         ddeg = _wrap180_deg(float(az_deg) - float(yaw_deg))  
         if abs(ddeg) > 0.5 * float(hfov_deg):
             return None  
         scale = float(W) / float(hfov_deg)  
         return int(round((W * 0.5) + scale * ddeg))
-
-    
     hfov_rad = _math.radians(float(hfov_deg))
     theta_cyl = _math.radians(_wrap180_deg(float(yaw_deg) - float(az_deg)))
 
@@ -243,16 +229,11 @@ def _az_to_x_proj(W: int, yaw_deg: float, az_deg: float,
         f_cyl = W / hfov_rad
         return int(round(cx + f_cyl * theta_cyl))
 
-    
-    
     theta_rect = _math.radians(_wrap180_deg(float(az_deg) - float(yaw_deg)))
     if abs(theta_rect) > 0.5 * hfov_rad:
         return None
     f_rect = (W * 0.5) / _math.tan(0.5 * hfov_rad)
     return int(round(cx + f_rect * _math.tan(theta_rect)))
-
-
-
 
 def _normalize_ruler_x(x: int, width: int, full360: bool=False):
     try:
@@ -267,7 +248,6 @@ def _normalize_ruler_x(x: int, width: int, full360: bool=False):
     if xi < 0 or xi >= W:
         return None
     return xi
-
 
 def _draw_azimuth_rule(self, painter, width: int, height: int, yaw_deg: float, hfov_deg: float, projection: str, full360: bool=False):
     if not (getattr(self, 'cb_az_rule_enable', None) and self.cb_az_rule_enable.isChecked()):
@@ -288,18 +268,15 @@ def _draw_azimuth_rule(self, painter, width: int, height: int, yaw_deg: float, h
         text_pct = 38.0
     text_pct = max(20.0, min(80.0, text_pct))
     font_px = max(8, int(round(band_h * (text_pct / 100.0))))
-
     rect = QRect(0, 0, W, band_h)
     painter.save()
     painter.setCompositionMode(QC.QPainter_CompositionMode_CompositionMode_SourceOver)
     painter.fillRect(rect, QColor(255, 255, 255, 128))
     painter.setRenderHint(QC.QPainter_RenderHint_TextAntialiasing, True)
-
     y_base = band_h - 1
     y_short = max(3, int(round(band_h * 0.68)))
     y_long = max(2, int(round(band_h * 0.50)))
     text_y = max(font_px + 1, int(round(band_h * 0.42)))
-
     font = QFont('Arial')
     try:
         font.setPixelSize(font_px)
@@ -311,10 +288,8 @@ def _draw_azimuth_rule(self, painter, width: int, height: int, yaw_deg: float, h
     pen_long = QPen(QColor(0, 0, 0, 220)); pen_long.setWidthF(1.2)
     pen_base = QPen(QColor(0, 0, 0, 140)); pen_base.setWidthF(1.0)
     pen_north = QPen(QColor(220, 20, 20, 235)); pen_north.setWidthF(1.4)
-
     painter.setPen(pen_base)
     painter.drawLine(0, y_base, W - 1, y_base)
-
     cardinals = {0: 'N', 90: 'E', 180: 'S', 270: 'O'}
     seen_x = set()
     for deg in range(0, 360, 5):
@@ -353,7 +328,6 @@ def _draw_azimuth_rule(self, painter, width: int, height: int, yaw_deg: float, h
 
     painter.restore()
 
-
 def _style_opacity_factor(sty):
     try:
         v = float(getattr(sty, 'opacity', 1.0))
@@ -365,7 +339,6 @@ def _style_opacity_factor(sty):
     except Exception:
         return 1.0
 
-
 def _color_with_opacity(color, opacity_factor=1.0):
     c = QColor(color)
     try:
@@ -374,7 +347,6 @@ def _color_with_opacity(color, opacity_factor=1.0):
     except Exception as _qcv_exc:
         _qcv_suppress(_qcv_exc, "core/_render_ops.py:373")
     return c
-
 
 def _style_has_transparency(sty):
     if _style_opacity_factor(sty) < 0.999:
@@ -396,7 +368,6 @@ def _style_has_transparency(sty):
     except Exception as _qcv_exc:
         _qcv_suppress(_qcv_exc, "core/_render_ops.py:395")
     return False
-
 
 def _make_pen_for_style(color, width_value, scale_factor, pen_style=QC.Qt_PenStyle_SolidLine, opacity_factor=1.0):
     try:
@@ -456,22 +427,21 @@ def _draw_label(self, painter, text, anchor_uv, sty):
     painter.restore()
 
 def _schedule_deferred_hq_render(self, scheduler):
-    
+
     try:
         if scheduler is None or not bool(getattr(self,'cb_lowlat',None) and self.cb_lowlat.isChecked()):
             return
         if _is_panorama_ui(self):
             state=getattr(self,'_memory_guard_last_state',None)
             if isinstance(state,dict) and str(state.get('level','normal')) in ('critical','dangerous'):
-                
+
                 return
         scheduler.schedule_render(quality='high')
     except Exception:
         return
 
-
 def _render_debounce_timeout(self):
-    
+
     try:
         if bool(getattr(self, '_render_edit_widgets', set())):
             self._render_edit_pending = True
@@ -479,15 +449,14 @@ def _render_debounce_timeout(self):
         scheduled = int(getattr(self, '_render_scheduled_generation', 0) or 0)
         current = int(getattr(self, '_render_request_generation', 0) or 0)
         if scheduled != current:
-            
+
             return
     except Exception as _qcv_exc:
         _qcv_suppress(_qcv_exc, "core/_render_ops.py:483")
     self._render_preview_now()
 
-
 def _render_debounce_delay_ms(self, sender=None):
-    
+
     try:
         override = getattr(self, '_render_delay_override_ms', None)
         if override is not None:
@@ -499,9 +468,6 @@ def _render_debounce_delay_ms(self, sender=None):
         lowlat = bool(getattr(self, 'cb_lowlat', None) and self.cb_lowlat.isChecked())
     except Exception:
         lowlat = False
-
-    
-    
     expensive_names = (
         'd_yaw', 'd_yaw_offset', 'd_pitch', 'd_roll', 'd_camheight',
         'd_hfov', 'd_vfov', 'd_maxdist', 'd_focal', 'd_sensorw',
@@ -517,24 +483,17 @@ def _render_debounce_delay_ms(self, sender=None):
         return 180 if lowlat else 380
     if isinstance(sender, (QSpinBox, QDoubleSpinBox)):
         return 140 if lowlat else 260
-    
-    
+
+
     return 70 if lowlat else 120
 
-
 def render_preview(self):
-    
-    
-    
+
     if int(getattr(self, '_render_suspend_count', 0) or 0) > 0:
         self._render_resume_requested = True
         return
     if getattr(self, '_ui_initializing', False):
         return
-
-    
-    
-    
     try:
         if bool(getattr(self, '_render_edit_widgets', set())):
             self._render_edit_pending = True
@@ -545,10 +504,6 @@ def render_preview(self):
             return
     except Exception as _qcv_exc:
         _qcv_suppress(_qcv_exc, "core/_render_ops.py:545")
-
-    
-    
-    
     try:
         self._render_request_generation = int(getattr(self, '_render_request_generation', 0)) + 1
     except Exception:
@@ -557,7 +512,6 @@ def render_preview(self):
         self._render_scheduled_generation = int(self._render_request_generation)
     except Exception:
         self._render_scheduled_generation = 0
-
     scheduler = getattr(self, "render_scheduler", None)
     if scheduler is not None:
         try:
@@ -575,7 +529,6 @@ def render_preview(self):
             return
         except Exception as _qcv_exc:
             _qcv_suppress(_qcv_exc, "core/_render_ops.py:575")
-
     try:
         sender = self.sender()
     except Exception:
@@ -610,24 +563,18 @@ def _draw_axes_debug(self, p, W, H):
 def _draw_center_and_pdv_guides(self, painter, W: int, H: int,
                                 yaw_deg: float, hfov_deg: float,
                                 projection: str, is360: bool):
-    
-    
     painter.setRenderHint(QC.QPainter_RenderHint_Antialiasing, True)
     show_center = (getattr(self, "cb_show_center_axis", None).isChecked() if hasattr(self, "cb_show_center_axis")
                    else bool(getattr(self, "show_center_axis", True)))
     show_pdv    = (getattr(self, "cb_show_pdv_axis", None).isChecked() if hasattr(self, "cb_show_pdv_axis")
                    else bool(getattr(self, "show_pdv_axis", False)))
-    
+
     az_pdv_deg  = getattr(self, "current_pdv_azimuth", None)
     if az_pdv_deg is None:
         try:
             az_pdv_deg = float(self.d_yaw.value() + self.d_yaw_offset.value())
         except Exception:
             az_pdv_deg = None
-
-
-    
-    
     center_w = int(getattr(self, "center_axis_px", 2))  
     pdv_w    = int(getattr(self, "pdv_axis_px",    2))  
 
@@ -641,11 +588,9 @@ def _draw_center_and_pdv_guides(self, painter, W: int, H: int,
         _qcv_suppress(_qcv_exc, "core/_render_ops.py:639")
     pen_center = QPen(center_color); pen_center.setWidth(max(1, center_w))
     pen_pdv    = QPen(QColor(220,20,20,230));   pen_pdv.setWidth(max(1, pdv_w))
-
-
     painter.save()
     painter.setCompositionMode(QC.QPainter_CompositionMode_CompositionMode_SourceOver)
-    
+
     if show_center:
         painter.setPen(pen_center)
         x = int(W // 2)
@@ -654,14 +599,14 @@ def _draw_center_and_pdv_guides(self, painter, W: int, H: int,
     if show_pdv and (az_pdv_deg is not None):
         xpdv = _az_to_x_proj(W, yaw_deg, float(az_pdv_deg), float(hfov_deg), projection, bool(is360))
         if xpdv is None:
-            
+
             pj = (projection or "").strip().lower()
             full360 = (("equirect" in pj or "cyl" in pj) and bool(is360))
             if not full360:
-                
+
                 ddeg = ((float(az_pdv_deg) - float(yaw_deg) + 180.0) % 360.0) - 180.0
                 xpdv = 0 if ddeg < 0 else (W - 1)
-        
+
         if xpdv is not None:
             painter.setPen(pen_pdv)
             painter.drawLine(int(xpdv), 0, int(xpdv), H-1)
@@ -669,21 +614,18 @@ def _draw_center_and_pdv_guides(self, painter, W: int, H: int,
 
     painter.restore()
 
-
 def _is_panorama_ui(self):
     try:
         return str(self.cmb_proj.currentText()).strip().upper() in ('EQUIRECT', 'EQUIRECTANGULAR', 'CYLINDRICAL')
     except Exception:
         return False
 
-
 def _active_panorama_guard(self):
-    
+
     if not bool(getattr(self, '_memory_guard_in_preview', False)):
         return {}
     state = getattr(self, '_memory_guard_runtime', None)
     return state if isinstance(state, dict) and bool(state.get('safe_mode', False)) else {}
-
 
 def _render_preview_now(self):
     if int(getattr(self, '_render_suspend_count', 0) or 0) > 0:
@@ -694,17 +636,12 @@ def _render_preview_now(self):
         return
     requested_generation = int(getattr(self, '_render_request_generation', 0))
     if getattr(self, '_rendering_now', False):
-        
+
         self._render_pending_generation = max(int(getattr(self, '_render_pending_generation', 0)), requested_generation)
         return
     self._rendering_now = True
     self._render_active_generation = requested_generation
     try:
-        
-        
-        
-
-        
         render_quality = getattr(self, '_current_render_quality', 'high')
         scale = {0:0.25, 1:0.5, 2:1.0}.get(self.cmb_quality.currentIndex(), 0.25)
         W_full, H_full = self.spin_w.value(), self.spin_h.value()
@@ -714,11 +651,6 @@ def _render_preview_now(self):
             scale = min(scale, 0.35)
         W = max(192 if render_quality == 'low' else 256, int(W_full * scale))
         H = max(128 if render_quality == 'low' else 256, int(H_full * scale))
-
-        
-        
-        
-        
         panorama_ui = _is_panorama_ui(self)
         self._memory_guard_in_preview = bool(panorama_ui)
         if panorama_ui:
@@ -736,17 +668,12 @@ def _render_preview_now(self):
                 prune_base_cache_for_size(self, W, H)
             except Exception as _qcv_exc:
                 _qcv_suppress(_qcv_exc, "core/_render_ops.py:733")
-            
-            
             try:
                 self.preview.setPixmap(QPixmap())
             except Exception as _qcv_exc:
                 _qcv_suppress(_qcv_exc, "core/_render_ops.py:739")
         else:
             self._memory_guard_runtime = {'active': False, 'safe_mode': False, 'level': 'normal'}
-
-        
-        
         if panorama_ui:
             self._suppress_overlay_viewer_sync = True
             try:
@@ -761,7 +688,7 @@ def _render_preview_now(self):
             if overlay is None or overlay.isNull():
                 overlay = self._render_overlay(width=W, height=H)
                 self._overlay_cache[preview_key] = overlay
-                
+
                 if len(self._overlay_cache) > 8:
                     try:
                         oldest_key = next(iter(self._overlay_cache.keys()))
@@ -783,7 +710,6 @@ def _render_preview_now(self):
         except Exception as _qcv_exc:
             _qcv_suppress(_qcv_exc, "core/_render_ops.py:779")
 
-        
         if self.viewer is not None and self.viewer.isVisible():
             prev_pm = self.viewer._pix.pixmap() if hasattr(self.viewer, "_pix") else QPixmap()
             viewer_full_res = bool(getattr(self, '_viewer_full_res', False)) and render_quality == 'high'
@@ -794,8 +720,6 @@ def _render_preview_now(self):
                 base_view = self._get_base_scaled(W_full, H_full)
                 vw, vh = base_view.width(), base_view.height()
                 if panorama_ui:
-                    
-                    
                     if vw == W and vh == H:
                         ov_view = overlay
                     else:
@@ -819,10 +743,8 @@ def _render_preview_now(self):
                 vw, vh = max(1, int(target_w)), max(1, int(target_h))
                 base_view = None
                 ov_view = overlay
-                
-                
                 if prev_pm.isNull() or prev_pm.width() != vw or prev_pm.height() != vh:
-                    
+
                     try:
                         if self.image is not None and not self.image.isNull():
                             self.viewer.update_image(self.image)
@@ -838,7 +760,6 @@ def _render_preview_now(self):
             else:
                 self.viewer.clear_overlay()
 
-
     except Exception as e:
         err = QImage(820, 60, QC.QImage_Format_Format_ARGB32_Premultiplied)
         err.fill(QColor(0,0,0,0))
@@ -846,8 +767,7 @@ def _render_preview_now(self):
         p.drawText(10, 35, f"Erreur rendu: {e}"); p.end()
         self.preview.setPixmap(QPixmap.fromImage(err))
     finally:
-        
-        
+
         self._memory_guard_in_preview = False
         active_generation = int(getattr(self, '_render_active_generation', requested_generation))
         pending_generation = max(
@@ -856,10 +776,6 @@ def _render_preview_now(self):
         )
         self._rendering_now = False
         self._render_pending_generation = 0
-        
-        
-        
-        
         if pending_generation > active_generation:
             try:
                 self._render_scheduled_generation = int(getattr(self, '_render_request_generation', pending_generation))
@@ -869,7 +785,6 @@ def _render_preview_now(self):
                 self.debounce.start()
             except Exception as _qcv_exc:
                 _qcv_suppress(_qcv_exc, "core/_render_ops.py:866")
-
 
 def _render_overlay(self, width, height):
     try:
@@ -881,7 +796,7 @@ def _render_overlay(self, width, height):
         _qcv_suppress(_qcv_exc, "core/_render_ops.py:876")
     _panorama_depth_error = None
     overlay = QImage(width, height, QC.QImage_Format_Format_ARGB32_Premultiplied)
-        
+
     try:
         self._overlay_w = int(width)
         self._overlay_h = int(height)
@@ -905,11 +820,11 @@ def _render_overlay(self, width, height):
     _begin_feature_feedback(self)
     self._budget_snapshots = []
     self._feature_style_cache = {}
-    
+
     try:
         cam_layer = self.cmb_camera.currentLayer()
         if not cam_layer or cam_layer.featureCount() < 1:
-            
+
             try:
                 yaw_eff = self.d_yaw.value() + self.d_yaw_offset.value()
                 HFOV    = self.d_hfov.value()
@@ -936,9 +851,6 @@ def _render_overlay(self, width, height):
                 cam_feat = None
         if cam_feat is None or (not cam_feat.isValid()) or cam_feat.geometry() is None or cam_feat.geometry().isEmpty():
             raise RuntimeError("Aucun point caméra valide pour le rendu")
-        
-        
-        
         try:
             cam_pt, cam_crs = self._camera_point_in_work_crs(cam_feat)
         except Exception:
@@ -960,7 +872,7 @@ def _render_overlay(self, width, height):
         )
         is360 = full_equirect
         maxdist = self.d_maxdist.value(); maxdist = None if maxdist <= 0.0 else maxdist
-        
+
         if not hasattr(self, "show_center_axis"): self.show_center_axis = True
         if not hasattr(self, "show_pdv_axis"):    self.show_pdv_axis    = True
 
@@ -971,16 +883,9 @@ def _render_overlay(self, width, height):
             vfov = vfov_from_hfov_ratio(hfov, width, height)
             self.d_vfov.blockSignals(True); self.d_vfov.setValue(vfov); self.d_vfov.blockSignals(False)
         HFOV = self.d_hfov.value(); VFOV = self.d_vfov.value()
-        
-        self._last_overlay_w, self._last_overlay_h = int(width), int(height)
 
-        
-        
-        
+        self._last_overlay_w, self._last_overlay_h = int(width), int(height)
         panoramic_proj = proj_upper in ('EQUIRECT', 'EQUIRECTANGULAR', 'CYLINDRICAL')
-        
-        
-        
         if panoramic_proj:
             _guard = _active_panorama_guard(self)
             try:
@@ -989,10 +894,7 @@ def _render_overlay(self, width, height):
                     maxdist = float(_cap) if maxdist is None else min(float(maxdist), float(_cap))
             except Exception as _qcv_exc:
                 _qcv_suppress(_qcv_exc, "core/_render_ops.py:986")
-        
-        
-        
-        
+
         is360 = bool(
             full_equirect
             or (proj_upper == 'CYLINDRICAL' and float(HFOV) >= 359.999)
@@ -1012,16 +914,9 @@ def _render_overlay(self, width, height):
             except Exception as _qcv_exc:
                 _qcv_suppress(_qcv_exc, "core/_render_ops.py:1008")
 
-        
         z_sampler = None; cam_ground_z = 0.0
-        
-        
         dem_group_ok = True
-        
-        
-        
         occ_group_ok = True
-        
         relief_mode = self._relief_mode_id() if hasattr(self, '_relief_mode_id') else ('wireframe' if self.cb_show_dem.isChecked() else ('skyline' if self.cb_draw_skyline.isChecked() else 'none'))
         relief_active = relief_mode != 'none'
         need_dem = (
@@ -1043,11 +938,7 @@ def _render_overlay(self, width, height):
         cam_z = cam_ground_z + cam_height
         vector_z_sampler_raw = z_sampler if bool(getattr(self, "cb_use_dem_z", None) and self.cb_use_dem_z.isChecked()) else None
         vector_z_sampler = _make_pov_curved_sampler(self, vector_z_sampler_raw, cam_pt, k_refraction=0.0)
-
-        
         self._draw_gcps_overlay(p, width, height)
-
-        
         need_horizon_for_anything = bool(relief_active and z_sampler is not None and not cam_crs.isGeographic())
         if need_horizon_for_anything:
             curvature_enabled = bool(getattr(self, 'cb_curvature', None).isChecked()) if hasattr(self, 'cb_curvature') else True
@@ -1078,8 +969,7 @@ def _render_overlay(self, width, height):
             )
             existing = getattr(self, "_horizon", None) or {}
             if existing.get("view_key") != horizon_view_key or existing.get("occ_key") != horizon_occ_key:
-                
-                
+
                 if panoramic_proj:
                     try:
                         self._horizon = None
@@ -1094,27 +984,15 @@ def _render_overlay(self, width, height):
         else:
             self._horizon = None
 
-        
-        
-        
         occ_relief = (relief_active
                       and self._horizon is not None
                       and not (self.cb_debug_no_occ.isChecked()))
         eps = float(self.d_eps.value())
-        
-        
-        
         occ_objects = True
         transparent_objects = bool(getattr(self, "cb_transparent_objects", None) and self.cb_transparent_objects.isChecked())
         force_horizontal_25d = bool(getattr(self, 'cb_force_horizontal_25d', None) and self.cb_force_horizontal_25d.isChecked())
-
-        
         topo_draw_before_vectors = True
         panoramic_overlay_mode = str(proj).upper() in ('EQUIRECT', 'EQUIRECTANGULAR', 'CYLINDRICAL')
-        
-        
-        
-        
         _pano_zbuffer_enabled = bool(panoramic_overlay_mode)
         _pano_deferred_edges = []
         _pano_deferred_labels = []
@@ -1143,14 +1021,7 @@ def _render_overlay(self, width, height):
                 return True
             except Exception:
                 return False
-
-        
-        
         _pano_frame_budget = {'remaining': (45000 if render_quality == 'low' else 90000 if render_quality == 'normal' else 140000)} if panoramic_overlay_mode else None
-        
-        
-        
-        
         _pano_schematic_budget = None
         if panoramic_overlay_mode and bool(getattr(self, '_memory_guard_in_preview', False)):
             _base_instances = 14000 if render_quality == 'low' else 35000 if render_quality == 'normal' else 60000
@@ -1188,15 +1059,10 @@ def _render_overlay(self, width, height):
         if topo_draw_before_vectors and not _pano_zbuffer_enabled:
             _draw_topography_group()
 
-        
-        
-        
         if not _pano_defer_calib_grid:
             self._draw_calib_grid(p, cam_pt, cam_z, cam_crs, proj, width, height,
                                   yaw_eff, pitch, roll, HFOV, VFOV, is360, z_sampler)
-        
 
-        
         labels_hidden = (not self.cb_show_labels.isChecked()) or (render_quality == 'low')
         budget_notes = []
         height_field = (self.txt_hfield.text().strip() or None)
@@ -1219,8 +1085,6 @@ def _render_overlay(self, width, height):
                 vis = self._is_visible_by_horizon(az, el, eps, r)
             return vis, az, el
 
-        
-        
         _pano_terrain_cull_stats = {
             'objects_tested': 0, 'objects_culled': 0, 'objects_mixed': 0,
             'objects_visible': 0, 'schematic_preculled': 0, 'edge_segments_culled': 0
@@ -1229,9 +1093,6 @@ def _render_overlay(self, width, height):
         def draw_polyline(points_cam, z_mode, pen, is_top_edge=False, label_text=None, label_sty=None, pre_densified=False):
             if len(points_cam) < 2: return
             p.setPen(pen)
-            
-            
-            
             base_samples = 1 if pre_densified else (6 if (occ_relief or panoramic_overlay_mode) else 1)
             prev_uv = None; prev_vis = None; prev_az = None; prev_el = None
             label_uv = None
@@ -1265,16 +1126,9 @@ def _render_overlay(self, width, height):
                     prev_uv, prev_vis, prev_az, prev_el = uv, vis, az, el
             if (not labels_hidden) and label_text and label_sty and label_uv:
                 _emit_feature_label(label_text, label_uv, label_sty)
-
-        
-        
-        
         _pano_ctx_common = (build_camera_context(cam_pt, cam_z, proj, width, height, yaw_eff, pitch, roll, HFOV, VFOV, is360)
                             if panoramic_overlay_mode else None)
-        
         _pano_zfaces = []
-        
-        
         if panoramic_overlay_mode:
             _extra = 3000 if render_quality == 'low' else 8000 if render_quality == 'normal' else 16000
             if not bool(getattr(self,'_memory_guard_in_preview',False)):
@@ -1283,10 +1137,6 @@ def _render_overlay(self, width, height):
         else:
             _pano_surface_extra_budget = None
 
-        
-        
-        
-        
         if _pano_zbuffer_enabled and isinstance(_pano_schematic_budget, dict):
             _zb_cap = 4000 if render_quality == 'low' else 9000 if render_quality == 'normal' else 18000
             try:
@@ -1352,9 +1202,6 @@ def _render_overlay(self, width, height):
                 except Exception as _qcv_exc:
                     _qcv_suppress(_qcv_exc, "core/_render_ops.py:1348")
 
-                
-                
-                
                 for feat in _features:
                     geom = feat.geometry()
                     sty_eff = _feature_local_style(self, sty, feat)
@@ -1382,8 +1229,8 @@ def _render_overlay(self, width, height):
 
                     if style_uses_schematic(sty_eff):
                         _schematic_parts = geometry_parts_in_camera_crs(geom, gtype, tr)
-                        
-                        
+
+
                         def _schematic_visibility(x, y, z):
                             try:
                                 v, _az, _el = point_visibility(QgsPointXY(float(x), float(y)), float(z))
@@ -1421,8 +1268,8 @@ def _render_overlay(self, width, height):
                             except Exception as _exc:
                                 try: qcv_log(f"{lyr.name()} | FID {feat.id()} | PANORAMA z-buffer AVR : {_exc}",'SCHEMATIC/RENDER','WARNING')
                                 except Exception as _qcv_exc: _qcv_suppress(_qcv_exc, "core/_render_ops.py:1419")
-                                
-                                
+
+
                                 handled=True
                         else:
                             handled = render_schematic_feature(
@@ -1528,8 +1375,8 @@ def _render_overlay(self, width, height):
                                     wrap_width=wrap_width,max_points=(1000 if render_quality=='low' else 2200),
                                     budget_state=_pano_frame_budget,pole_guard_px=2.5
                                 )
-                                
-                                
+
+
                                 n=int(xyz_base.shape[0]); wall_xyz=np.vstack([xyz_base,xyz_top]); wall_tri=[]
                                 for ii in range(n-1):
                                     jj=ii+1; wall_tri.append((ii,jj,n+jj)); wall_tri.append((ii,n+jj,n+ii))
@@ -1575,10 +1422,7 @@ def _render_overlay(self, width, height):
                                 _emit_feature_label(text_global,anchor_uv_global,sty_eff)
 
                     elif gtype == QC.QgsWkbTypes_GeometryType_PolygonGeometry:
-                        
-                        
-                        
-                        
+
                         _cached_parts=list(_panorama_feature_parts_cached(
                             self,lyr,feat,gtype,tr,fast_preview=(render_quality=='low' or bool(self.cb_lowlat.isChecked())),
                             simplify_geometry=decision.simplify_geometry
@@ -1662,9 +1506,9 @@ def _render_overlay(self, width, height):
                             else:
                                 _draw_panorama_polygon_faces(self,p,sty_eff,surface_faces,wall_faces,transparent_objects=transparent_objects)
 
-                            
-                            
-                            
+
+
+
                             _outline_base=project_panorama_path_safe(
                                 ctx_poly,xyz_base,effective_maxdist,closed=True,render_quality=render_quality,
                                 wrap_width=(wrap_width or 0.0),max_points=(1200 if render_quality=='low' else 2400),
@@ -1688,7 +1532,7 @@ def _render_overlay(self, width, height):
                                     _queue_physical_edge(pen, _outline_top, (wrap_width or 0.0))
                                 else:
                                     p.setPen(pen); _draw_uv_segments(self,p,_outline_top.uv)
-                                
+
                                 edge_step=1 if transparent_objects else max(1,int(len(arr_ring)/32))
                                 for i in range(0,len(arr_ring),edge_step):
                                     try:
@@ -1708,14 +1552,6 @@ def _render_overlay(self, width, height):
                             if (not layer_labels_hidden) and sty.show_labels and (anchor_uv_global is not None) and text_global:
                                 _emit_feature_label(text_global,anchor_uv_global,sty_eff)
 
-
-        
-        
-        
-        
-        
-        
-        
         if _pano_zbuffer_enabled and (_pano_zfaces or _pano_deferred_edges):
             try:
                 _has_tex=any(bool((f.get('fill_spec') or {}).get('schematic_billboard_texture',False)) for f in _pano_zfaces)
@@ -1747,16 +1583,13 @@ def _render_overlay(self, width, height):
             except Exception as _exc:
                 try: qcv_log(f"PANORAMA z-buffer 40.19.2 : {_exc}",'PANORAMA/ZBUFFER','WARNING')
                 except Exception as _qcv_exc: _qcv_suppress(_qcv_exc, "core/_render_ops.py:1745")
-                
+
                 _panorama_depth_error = _exc
                 raise RuntimeError("PANORAMA depth composition failed") from _exc
             finally:
                 try: _pano_zfaces.clear()
                 except Exception as _qcv_exc: _qcv_suppress(_qcv_exc, "core/_render_ops.py:1751")
 
-        
-        
-        
         if topo_draw_before_vectors and _pano_zbuffer_enabled:
             p.save()
             try:
@@ -1764,12 +1597,8 @@ def _render_overlay(self, width, height):
                 _draw_topography_group()
             finally:
                 p.restore()
-
-        
-        
         _pano_deferred_edges.clear()
 
-        
         for _ltxt,_luv,_lsty in _pano_deferred_labels:
             try: self._draw_label(p,_ltxt,_luv,_lsty)
             except Exception as _qcv_exc: _qcv_suppress(_qcv_exc, "core/_render_ops.py:1771")
@@ -1857,12 +1686,12 @@ def _render_overlay(self, width, height):
         if not topo_draw_before_vectors:
             _draw_topography_group()
 
-        
+
         if self.cb_show_guides.isChecked():
             self._draw_fov_frame(p, width, height)
             self._draw_axes_debug(p, width, height)
 
-        
+
         try:
             p.setCompositionMode(QC.QPainter_CompositionMode_CompositionMode_SourceOver)
             self._draw_center_and_pdv_guides(
@@ -1897,13 +1726,13 @@ def _render_overlay(self, width, height):
 
     p.end()
     if _panorama_depth_error is not None:
-        
+
         raise RuntimeError("PANORAMA depth composition failed; render cancelled") from _panorama_depth_error
     overlay = _shift_overlay_image(self, overlay)
     self.overlay_image = overlay
-    
-    
-    
+
+
+
     if getattr(self, "viewer", None) and not bool(getattr(self, '_suppress_overlay_viewer_sync', False)):
         try:
             if (self.overlay_image is not None) and (not self.overlay_image.isNull()):
@@ -1916,7 +1745,7 @@ def _render_overlay(self, width, height):
     return overlay
 
 def _overlay_params_key(self, width: int, height: int):
-    
+
     yaw_eff = self.d_yaw.value() + self.d_yaw_offset.value()
     cam_fid = None
     cam_xy = (None, None)
@@ -1936,7 +1765,7 @@ def _overlay_params_key(self, width: int, height: int):
         round(self.d_hfov.value(), 6), round(self.d_vfov.value(), 6),
         round(yaw_eff, 6), round(self.d_pitch.value(), 6), round(self.d_roll.value(), 6),
         round(float(self.d_camheight.value()), 3),
-        
+
         self.cmb_proj.currentText(), bool(self._is360_mode()) if hasattr(self, '_is360_mode') else bool(self.cb_360.isChecked()),
         round(max(0.0, self.d_maxdist.value()), 3),
         bool(getattr(self, "cb_auto_depth", None) and self.cb_auto_depth.isChecked()),
@@ -1998,11 +1827,11 @@ def _overlay_params_key(self, width: int, height: int):
         round(float(getattr(self, 'd_az_rule_band_pct', None).value()) if hasattr(self, 'd_az_rule_band_pct') else 4.0, 3),
         round(float(getattr(self, 'd_az_rule_text_pct', None).value()) if hasattr(self, 'd_az_rule_text_pct') else 38.0, 3),
         str(getattr(self, '_current_render_quality', 'high')),
-        
+
         (int(self.cmb_off_mode.currentIndex()) if hasattr(self, 'cmb_off_mode') else 0),
         round(float(self.spin_off_h.value()), 6) if hasattr(self, 'spin_off_h') else 0.0,
         round(float(self.spin_off_v.value()), 6) if hasattr(self, 'spin_off_v') else 0.0,
-        
+
         tuple(
             (
                 getattr(sty.layer, 'id', lambda: None)() if sty.layer else None,
@@ -2038,15 +1867,11 @@ def _overlay_params_key(self, width: int, height: int):
         )
     )
 
-
-
-
 def _ensure_fast_render_caches(self):
     if not hasattr(self, '_geom_cache') or self._geom_cache is None:
         self._geom_cache = {}
     if not hasattr(self, '_layer_cache_versions') or self._layer_cache_versions is None:
         self._layer_cache_versions = {}
-
 
 def _perf_profile_name(self):
     try:
@@ -2058,7 +1883,6 @@ def _perf_profile_name(self):
     if 'max' in txt or 'détail' in txt or 'detail' in txt:
         return 'detail'
     return 'balanced'
-
 
 def _label_budget_text(self, text):
     try:
@@ -2073,14 +1897,10 @@ def _requested_maxdist_for_layer(self, sty, gtype):
     except Exception:
         requested = 0.0
     draw_25d = bool(getattr(self, 'cb_draw_2p5d', None) and self.cb_draw_2p5d.isChecked())
-    
-    
-    
     extruded = bool((not style_uses_schematic(sty)) and draw_25d and getattr(sty, 'enable_25d', True))
     if requested <= 0.0:
         requested = default_interactive_distance(gtype, draw_25d=extruded)
-    
-    
+
     try:
         _cap = _active_panorama_guard(self).get('maxdist_cap')
         if _cap is not None and float(_cap) > 0.0:
@@ -2269,8 +2089,8 @@ def _estimate_layer_cost(self, layer, sty, cam_pt, cam_crs, maxdist, yaw_deg, hf
     draw_25d = bool(getattr(self, 'cb_draw_2p5d', None) and self.cb_draw_2p5d.isChecked())
     is_schematic = style_uses_schematic(sty)
     extrusion_factor = extrusion_factor_for_style(sty, gtype, draw_25d=(draw_25d and not is_schematic))
-    
-    
+
+
     transparency_factor = 1.0 if is_schematic else (1.15 if bool(getattr(self, 'cb_transparent_objects', None) and self.cb_transparent_objects.isChecked()) else 1.0)
 
     hard_probe = max(120, int(profile.hard_features * 1.6))
@@ -2566,9 +2386,9 @@ def _geometry_depth_key(geom, tr, cam_pt):
         if arr.shape[0] == 0:
             return (0.0, 0.0)
         cx, cy = float(cam_pt.x()), float(cam_pt.y())
-        
-        
-        
+
+
+
         _min_d2 = math.inf; _sum_d2 = 0.0; _n_d2 = 0
         for _q in range(int(arr.shape[0])):
             try:
@@ -2616,17 +2436,17 @@ def _uv_runs_array(uvs, min_len=2):
 
 
 def _unwrap_x_for_wrap(pts, wrap_width):
-    
+
     return unwrap_x_continuous(pts, wrap_width)
 
 
 def _iter_wrap_shifted_pts(pts, wrap_width, margin_px=2.0):
-    
+
     yield from iter_viewport_copies(pts, wrap_width, margin_px=margin_px, closed=False)
 
 
 def _polygon_paths_from_uvs(uvs, wrap_width=None):
-    
+
     for pts in _uv_runs_array(uvs, min_len=3):
         if wrap_width and float(wrap_width) > 1.0:
             shifted_runs = iter_viewport_copies(pts, wrap_width, margin_px=2.0, closed=True)
@@ -2636,7 +2456,7 @@ def _polygon_paths_from_uvs(uvs, wrap_width=None):
             run = np.asarray(run, dtype=np.float64)
             if run.ndim != 2 or run.shape[0] < 3:
                 continue
-            
+
             if not wrap_width and run.shape[0] >= 4:
                 try:
                     if np.linalg.norm(run[0] - run[-1]) <= 1e-6:
@@ -2646,8 +2466,8 @@ def _polygon_paths_from_uvs(uvs, wrap_width=None):
             if run.shape[0] < 3:
                 continue
             poly = QPolygonF([QPointF(float(x), float(y)) for x, y in run])
-            
-            
+
+
             if poly.first() != poly.last():
                 poly.append(poly.first())
             yield poly
@@ -2682,7 +2502,7 @@ def _wall_quads_from_uvs(base_uv, top_uv, wrap_width=None):
 
 
 def _project_uv_depth_small(ctx, pts_xy, z_tgt, dist_max=None):
-    
+
     try:
         n = len(pts_xy)
     except Exception:
@@ -2739,8 +2559,8 @@ def _project_uv_depth_small(ctx, pts_xy, z_tgt, dist_max=None):
         xc = dx * rx + dy * ry + dz * rz
         yc = dx * fxv + dy * fyv + dz * fzv
         zc = dx * ux + dy * uy + dz * uz
-        
-        
+
+
         depth_rows.append(yc if proj == 'PINHOLE' else math.sqrt(dx * dx + dy * dy + dz * dz))
         if not all(math.isfinite(v) for v in (dx, dy, dz, xc, yc, zc)):
             uv_rows.append((float('nan'), float('nan')))
@@ -2784,7 +2604,7 @@ def _project_uv_depth_small(ctx, pts_xy, z_tgt, dist_max=None):
     return np.asarray(uv_rows, dtype=np.float64), np.asarray(depth_rows, dtype=np.float64)
 
 def _project_uv_depth_batch(ctx, pts_xy, z_tgt, dist_max=None):
-    
+
     try:
         _n_hint = len(pts_xy)
     except Exception:
@@ -2820,8 +2640,8 @@ def _project_uv_depth_batch(ctx, pts_xy, z_tgt, dist_max=None):
     xc = dx * r[0] + dy * r[1] + dz * r[2]
     yc = dx * f[0] + dy * f[1] + dz * f[2]
     zc = dx * u[0] + dy * u[1] + dz * u[2]
-    
-    
+
+
     if str(ctx.get('proj', '') or '').upper() == 'PINHOLE':
         depths[:] = yc
     else:
@@ -2919,7 +2739,7 @@ def _point_line_distance_px(p, a, b):
     return math.hypot(px - qx, py - qy)
 
 def _project_panorama_scalar_with_depth(ctx, x, y, z, dist_max=None):
-    
+
     try:
         x = float(x); y = float(y); z = float(z)
         dx = x - float(ctx['cx']); dy = y - float(ctx['cy']); dz = z - float(ctx['cam_z'])
@@ -2966,7 +2786,7 @@ def _project_panorama_scalar_with_depth(ctx, x, y, z, dist_max=None):
 def _densify_projected_segment(ctx, p0, z0, p1, z1, dist_max=None, wrap_width=None,
                                max_seg_px=40.0, curve_tol_px=0.75, max_depth=6,
                                max_output_points=96):
-    
+
     try:
         x0, y0 = float(p0[0]), float(p0[1]); x1, y1 = float(p1[0]), float(p1[1])
         z0 = float(z0); z1 = float(z1)
@@ -2974,7 +2794,7 @@ def _densify_projected_segment(ctx, p0, z0, p1, z1, dist_max=None, wrap_width=No
         return []
     max_depth = max(0, min(10, int(max_depth)))
     max_output_points = max(2, min(512, int(max_output_points)))
-    
+
     stack = [(x0, y0, z0, x1, y1, z1, 0)]
     _global_end = (x1, y1, z1)
     out = []
@@ -2985,8 +2805,8 @@ def _densify_projected_segment(ctx, p0, z0, p1, z1, dist_max=None, wrap_width=No
         ax, ay, az, bx, by, bz, depth = stack.pop()
         nodes += 1
         if nodes > max_nodes or len(out) >= max_output_points - 1:
-            
-            
+
+
             gx, gy, gz = _global_end
             out.append((np.asarray([gx, gy], dtype=np.float64), float(gz)))
             stack.clear()
@@ -3004,8 +2824,8 @@ def _densify_projected_segment(ctx, p0, z0, p1, z1, dist_max=None, wrap_width=No
             dev = _point_line_distance_px((um, vm), (ua, va), (ub, vb))
             split = (seg_len > float(max_seg_px)) or (dev > float(curve_tol_px))
         else:
-            
-            
+
+
             split = True
         if split and depth < max_depth and (len(out) + len(stack) + 2) < max_output_points:
             nd = depth + 1
@@ -3024,9 +2844,6 @@ def _densify_path_for_projection(ctx, arr_xy, z_vals, dist_max=None, closed=Fals
     proj = str(ctx.get('proj', '') or '').upper()
     if proj not in ('EQUIRECT', 'EQUIRECTANGULAR', 'CYLINDRICAL'):
         return arr, z
-
-    
-    
     q = str(render_quality or 'high').lower()
     if q == 'low':
         max_seg_px, curve_tol_px, max_depth, path_budget = 92.0, 1.55, 4, 2400
@@ -3034,10 +2851,6 @@ def _densify_path_for_projection(ctx, arr_xy, z_vals, dist_max=None, closed=Fals
         max_seg_px, curve_tol_px, max_depth, path_budget = 70.0, 1.15, 5, 4800
     else:
         max_seg_px, curve_tol_px, max_depth, path_budget = 54.0, 0.88, 5, 7200
-
-    
-    
-    
     if isinstance(budget_state, dict):
         try:
             global_remaining = max(0, int(budget_state.get('remaining', 0)))
@@ -3053,7 +2866,6 @@ def _densify_path_for_projection(ctx, arr_xy, z_vals, dist_max=None, closed=Fals
         arr0 = arr0[:-1]; z0 = z0[:-1]
     if arr0.shape[0] < 2:
         return arr, z
-
     out_pts = [arr0[0].copy()]; out_z = [float(z0[0])]
     n = arr0.shape[0]; seg_count = n if closed else (n - 1)
     budget_hit = False
@@ -3077,8 +2889,6 @@ def _densify_path_for_projection(ctx, arr_xy, z_vals, dist_max=None, closed=Fals
                     budget_hit = True
                     break
         if budget_hit:
-            
-            
             if not closed:
                 source_ids = list(range(i + 1, n))
             else:
@@ -3123,7 +2933,7 @@ def _uv_runs_with_depth(uvs, depths, min_len=2):
 
 
 def _uv_runs_with_depth_xyz_40192(uvs, depths, xyzs, min_len=2):
-    
+
     cur_uv=[]; cur_d=[]; cur_xyz=[]
     try:
         n=min(len(uvs),len(depths),len(xyzs))
@@ -3157,7 +2967,7 @@ def _iter_wrapped_runs_with_depth_xyz_40192(uvs, depths, xyzs, wrap_width=None, 
 
 
 def _terrain_segment_any_visible_40192(horizon, xyz0, xyz1, cam_xyz, eps_deg):
-    
+
     if not horizon or xyz0 is None or xyz1 is None:
         return True
     try:
@@ -3173,7 +2983,7 @@ def _terrain_segment_any_visible_40192(horizon, xyz0, xyz1, cam_xyz, eps_deg):
 
 
 def _zbuffer_scale_for_preview(self, width, height):
-    
+
     q = str(getattr(self, '_current_render_quality', 'high')).lower()
     lowlat = bool(getattr(self, 'cb_lowlat', None) and self.cb_lowlat.isChecked())
     maxdim = max(int(width), int(height))
@@ -3186,7 +2996,7 @@ def _zbuffer_scale_for_preview(self, width, height):
     return 1.0
 
 def _qimage_rgba_owned_array(img):
-    
+
     try:
         if img is None or img.isNull():
             return None
@@ -3199,7 +3009,7 @@ def _qimage_rgba_owned_array(img):
         if hasattr(ptr, 'asstring'):
             raw = ptr.asstring(nbytes)
         else:
-            
+
             if hasattr(ptr, 'setsize'):
                 ptr.setsize(nbytes)
             raw = bytes(ptr)
@@ -3210,7 +3020,7 @@ def _qimage_rgba_owned_array(img):
         return None
 
 def _rgba_owned_array_to_qimage(rgba):
-    
+
     try:
         arr = np.ascontiguousarray(rgba, dtype=np.uint8)
         if arr.ndim != 3 or arr.shape[2] != 4:
@@ -3224,7 +3034,7 @@ def _rgba_owned_array_to_qimage(rgba):
         return QImage()
 
 def _finite_bbox_xy_scalar(pts):
-    
+
     try:
         n = len(pts)
     except Exception:
@@ -3269,16 +3079,10 @@ def _overlay_offset_pixels(self, width=None, height=None):
         H = int(height or 0)
 
     if mode == 1:
-        
+
         dx *= max(1, W)
         dy *= max(1, H)
     else:
-        
-        
-        
-        
-        
-        
         try:
             full_w = max(1.0, float(getattr(self, 'spin_w', None).value())) if getattr(self, 'spin_w', None) else float(max(1, W))
         except Exception:
@@ -3307,7 +3111,6 @@ def _shift_overlay_image(self, img):
         is360 = bool(self._is360_mode()) if hasattr(self, '_is360_mode') else (bool(getattr(self, 'cb_360', None) and self.cb_360.isChecked()) and proj_txt in ('EQUIRECT', 'EQUIRECTANGULAR', 'CYLINDRICAL'))
     except Exception:
         is360 = False
-
     ix = int(round(dx))
     iy = int(round(dy))
     if is360:
@@ -3412,8 +3215,6 @@ def _background_fill_color_from_spec(spec, fallback=QColor(225,225,225,255)):
     c.setAlpha(255)
     return c
 
-
-
 def _alpha_from_fill_spec(spec, fallback_alpha=255):
     try:
         spec = dict(spec or {})
@@ -3511,7 +3312,6 @@ def _normalized_fill_spec_for_sty(sty, transparent_objects=False):
         if transparent_objects:
             cc.setAlpha(min(max(40, cc.alpha()), 110))
         return cc
-
     target_alpha = 110 if transparent_objects else 255
     if kind == 'simple':
         spec['color'] = _alpha_adj(spec.get('color', getattr(sty, 'fill_color', getattr(sty, 'color', QColor(0,255,0,180)))))
@@ -3613,11 +3413,10 @@ def _qt_brush_from_fill_spec(fill_spec, poly=None):
 
 
 def _sample_rgba_from_fill_spec(fill_spec, xs, ys, bbox, texture_uv=None):
-    
+
     kind = str((fill_spec or {}).get('kind', 'simple')).lower()
     h, w = xs.shape
     rgba = np.zeros((h, w, 4), dtype=np.uint8)
-
     def _apply_target_alpha(arr):
         ta = int((fill_spec or {}).get('target_alpha', 255) or 255)
         if ta < 255:
@@ -3660,9 +3459,6 @@ def _sample_rgba_from_fill_spec(fill_spec, xs, ys, bbox, texture_uv=None):
             tx = np.mod(np.floor(xs - float(bx0)).astype(np.int64), tw)
             ty = np.mod(np.floor(ys - float(by0)).astype(np.int64), th)
         sampled = tex_rgba[ty, tx].copy()
-        
-        
-        
         preserve_alpha = bool((fill_spec or {}).get('preserve_texture_alpha', False))
         if (not preserve_alpha) and sampled[:, :, 3].min() < 250:
             bg = _color_to_rgba_arr(_background_fill_color_from_spec(fill_spec or {}, fallback=QColor(225,225,225,255))).astype(np.float32)
@@ -3735,7 +3531,7 @@ def _sample_rgba_from_fill_spec(fill_spec, xs, ys, bbox, texture_uv=None):
 
 
 def _signed_area_2d(pts):
-    
+
     try:
         n = len(pts)
     except Exception:
@@ -3756,7 +3552,7 @@ def _signed_area_2d(pts):
     return 0.5 * area2
 
 def _point_in_triangle_2d(p, a, b, c, eps=1e-9):
-    
+
     try:
         px, py = float(p[0]), float(p[1])
         ax, ay = float(a[0]), float(a[1])
@@ -3773,7 +3569,7 @@ def _point_in_triangle_2d(p, a, b, c, eps=1e-9):
     return (u >= -eps) and (v >= -eps) and (w >= -eps)
 
 def _clean_polygon_ring_pts_dep(pts, dep, eps=1e-6):
-    
+
     keep_pts = []
     keep_dep = []
     try:
@@ -3798,7 +3594,7 @@ def _clean_polygon_ring_pts_dep(pts, dep, eps=1e-6):
     return np.asarray(keep_pts, dtype=np.float64), np.asarray(keep_dep, dtype=np.float64)
 
 def _earclip_triangulation_indices(pts, eps=1e-9):
-    
+
     try:
         seq = [(float(p[0]), float(p[1])) for p in pts]
     except Exception:
@@ -3829,7 +3625,7 @@ def _earclip_triangulation_indices(pts, eps=1e-9):
     return tris
 
 def _triangulate_polygon_run(pts, dep, fill_spec, pattern_bbox=None):
-    
+
     pts, dep = _clean_polygon_ring_pts_dep(pts, dep)
     if pts.ndim != 2 or pts.shape[0] < 3 or pts.shape[1] != 2 or dep.ndim != 1:
         return []
@@ -3849,7 +3645,7 @@ def _triangulate_polygon_run(pts, dep, fill_spec, pattern_bbox=None):
     return tris
 
 def _clip_triangle_to_viewport(pts, dep, sw, sh):
-    
+
     try:
         poly = [(float(pts[k][0]), float(pts[k][1]), float(dep[k])) for k in range(3)]
     except Exception:
@@ -3890,7 +3686,7 @@ def _clip_triangle_to_viewport(pts, dep, sw, sh):
     return out
 
 def _merge_panorama_stroke_tile(rgba, depth, cols, xx, yy, p0, p1, d0, d1):
-    
+
     vx = float(p1[0]) - float(p0[0]); vy = float(p1[1]) - float(p0[1])
     length2 = vx*vx + vy*vy
     t = np.clip(((xx-p0[0])*vx + (yy-p0[1])*vy) / max(length2, 1e-20), 0.0, 1.0)
@@ -3901,7 +3697,7 @@ def _merge_panorama_stroke_tile(rgba, depth, cols, xx, yy, p0, p1, d0, d1):
 
 
 def _compose_panorama_strokes_zbuffer(rgba, depth, scale, edges):
-    
+
     sh, sw = depth.shape
     sc = max(1e-9, float(scale))
     tile = 160
@@ -3917,8 +3713,6 @@ def _compose_panorama_strokes_zbuffer(rgba, depth, scale, edges):
                 d0, d1 = float(dep[i]), float(dep[i+1])
                 if not all(math.isfinite(v) for v in (*p0, *p1, d0, d1)) or min(d0,d1) <= 0:
                     continue
-                
-                
                 clipped = _clip_zsegment_to_viewport(
                     p0[0]+radius, p0[1]+radius, d0,
                     p1[0]+radius, p1[1]+radius, d1,
@@ -3958,23 +3752,18 @@ def _compose_panorama_strokes_zbuffer(rgba, depth, scale, edges):
 
 
 def _compose_panorama_faces_zbuffer_40191(width, height, faces, scale=1.0, owner=None):
-    
+
     sw = max(1, int(round(float(width) * float(scale))))
     sh = max(1, int(round(float(height) * float(scale))))
     depth = np.full((sh, sw), np.inf, dtype=np.float32)
     rgba = np.zeros((sh, sw, 4), dtype=np.uint8)
     sc = float(scale)
     tile_px = 160
-
-    
-    
     A = np.empty((tile_px, tile_px), dtype=np.float32)
     B = np.empty((tile_px, tile_px), dtype=np.float32)
     C = np.empty((tile_px, tile_px), dtype=np.float32)
     Z = np.empty((tile_px, tile_px), dtype=np.float32)
     T = np.empty((tile_px, tile_px), dtype=np.float32)
-    
-    
     U = np.empty((tile_px, tile_px), dtype=np.float32)
     V = np.empty((tile_px, tile_px), dtype=np.float32)
     N = np.empty((tile_px, tile_px), dtype=np.float32)
@@ -3984,8 +3773,6 @@ def _compose_panorama_faces_zbuffer_40191(width, height, faces, scale=1.0, owner
     xbase = np.arange(tile_px, dtype=np.float32) + np.float32(0.5)
     ybase = np.arange(tile_px, dtype=np.float32) + np.float32(0.5)
 
-    
-    
     try:
         work_faces = sorted(
             list(faces or ()),
@@ -4000,9 +3787,6 @@ def _compose_panorama_faces_zbuffer_40191(width, height, faces, scale=1.0, owner
     _MIB_local = 1024 * 1024
 
     for face_index, face in enumerate(work_faces):
-        
-        
-        
         if owner is not None and face_index and (face_index % 512) == 0:
             try:
                 snap = memory_snapshot()
@@ -4038,7 +3822,6 @@ def _compose_panorama_faces_zbuffer_40191(width, height, faces, scale=1.0, owner
             except Exception: pb_scaled = None
         else:
             pb_scaled = None
-
         tex_denom = None
         tex_coeff = None
         if texture_uv_vertices is not None:
@@ -4062,7 +3845,7 @@ def _compose_panorama_faces_zbuffer_40191(width, height, faces, scale=1.0, owner
                 tex_denom = None
                 tex_coeff = None
 
-        
+
         kind = str(fill_spec.get('kind', 'simple') or 'simple').lower()
         fast_simple = (kind == 'simple' and fill_spec.get('texture_img', None) is None)
         simple_rgba = None
@@ -4101,8 +3884,6 @@ def _compose_panorama_faces_zbuffer_40191(width, height, faces, scale=1.0, owner
                 for tx0 in range(minx,maxx+1,tile_px):
                     tx1=min(maxx,tx0+tile_px-1); nx=tx1-tx0+1
                     sl_depth=depth[ty0:ty1+1,tx0:tx1+1]
-                    
-                    
                     try:
                         if np.all(sl_depth < min_face_depth):
                             skipped_depth_tiles += 1
@@ -4116,36 +3897,20 @@ def _compose_panorama_faces_zbuffer_40191(width, height, faces, scale=1.0, owner
                     av=A[:ny,:nx]; bv=B[:ny,:nx]; cv=C[:ny,:nx]; zv=Z[:ny,:nx]; tv=T[:ny,:nx]
                     uv_u=U[:ny,:nx]; uv_v=V[:ny,:nx]; nv=N[:ny,:nx]
                     mv=M[:ny,:nx]; m2=M2[:ny,:nx]; m3=M3[:ny,:nx]
-
-                    
-                    
-                    
                     np.multiply(XX,a_x,out=av); np.multiply(YY,a_y,out=tv); np.add(av,tv,out=av); av += a_c
                     np.multiply(XX,b_x,out=bv); np.multiply(YY,b_y,out=tv); np.add(bv,tv,out=bv); bv += b_c
                     np.add(av,bv,out=cv); np.subtract(np.float32(1.0),cv,out=cv)
-
                     epsb=np.float32(1e-6)
                     np.greater_equal(av,-epsb,out=mv)
                     np.greater_equal(bv,-epsb,out=m2); np.logical_and(mv,m2,out=mv)
                     np.greater_equal(cv,-epsb,out=m2); np.logical_and(mv,m2,out=mv)
-                    
-                    
-                    
                     if not np.any(mv): continue
-
                     np.multiply(av,np.float32(dep_s[0]-dep_s[2]),out=zv)
                     zv += np.float32(dep_s[2])
                     np.multiply(bv,np.float32(dep_s[1]-dep_s[2]),out=tv)
                     zv += tv
-
                     mapped_texture_uv=None
                     if texture_uv_vertices is not None and tex_denom is not None and tex_coeff is not None:
-                        
-                        
-                        
-                        
-                        
-                        
                         tax,tay,tac,tbx,tby,tbc = tex_coeff
                         np.multiply(XX,tax,out=av); np.multiply(YY,tay,out=tv); np.add(av,tv,out=av); av += tac
                         np.multiply(XX,tbx,out=bv); np.multiply(YY,tby,out=tv); np.add(bv,tv,out=bv); bv += tbc
@@ -4153,25 +3918,20 @@ def _compose_panorama_faces_zbuffer_40191(width, height, faces, scale=1.0, owner
                         (u0,v0),(u1,v1),(u2,v2)=texture_uv_vertices
                         if dep[0]>1e-9 and dep[1]>1e-9 and dep[2]>1e-9:
                             iz0=np.float32(1.0/dep[0]); iz1=np.float32(1.0/dep[1]); iz2=np.float32(1.0/dep[2])
-                            
                             np.multiply(av,iz0,out=tv)
                             np.multiply(bv,iz1,out=nv); np.add(tv,nv,out=tv)
                             np.multiply(cv,iz2,out=nv); np.add(tv,nv,out=tv)
                             np.isfinite(tv,out=m2)
                             np.absolute(tv,out=nv)
                             np.greater(nv,np.float32(1.0e-15),out=m3); np.logical_and(m2,m3,out=m2)
-                            
                             np.multiply(av,np.float32(u0)*iz0,out=uv_u)
                             np.multiply(bv,np.float32(u1)*iz1,out=nv); np.add(uv_u,nv,out=uv_u)
                             np.multiply(cv,np.float32(u2)*iz2,out=nv); np.add(uv_u,nv,out=uv_u)
                             np.divide(uv_u,tv,out=uv_u,where=m2)
-                            
                             np.multiply(av,np.float32(v0)*iz0,out=uv_v)
                             np.multiply(bv,np.float32(v1)*iz1,out=nv); np.add(uv_v,nv,out=uv_v)
                             np.multiply(cv,np.float32(v2)*iz2,out=nv); np.add(uv_v,nv,out=uv_v)
                             np.divide(uv_v,tv,out=uv_v,where=m2)
-                            
-                            
                             np.logical_not(m2,out=m3)
                             np.copyto(uv_u,np.float32(0.0),where=m3)
                             np.copyto(uv_v,np.float32(0.0),where=m3)
@@ -4229,7 +3989,7 @@ def _compose_panorama_faces_zbuffer_40191(width, height, faces, scale=1.0, owner
 
 
 def _compose_faces_zbuffer(width, height, faces, scale=1.0):
-    
+
     sw = max(1, int(round(float(width) * float(scale))))
     sh = max(1, int(round(float(height) * float(scale))))
     depth = np.full((sh, sw), np.inf, dtype=np.float32)
@@ -4265,13 +4025,6 @@ def _compose_faces_zbuffer(width, height, faces, scale=1.0):
         else:
             pb_scaled = None
 
-        
-        
-        
-        
-        
-        
-        
         tex_denom = None
         if texture_uv_vertices is not None:
             try:
@@ -4312,13 +4065,8 @@ def _compose_faces_zbuffer(width, height, faces, scale=1.0):
                         continue
                     z=(a*dep_s[0]+b*dep_s[1]+c*dep_s[2]).astype(np.float32)
                     sl_depth=depth[ty0:ty1+1,tx0:tx1+1]
-
                     mapped_texture_uv = None
                     if texture_uv_vertices is not None and tex_denom is not None:
-                        
-                        
-                        
-                        
                         ta=((ty1s-ty2s)*(XX-tx2s)+(tx2s-tx1s)*(YY-ty2s))/tex_denom
                         tb=((ty2s-ty0s)*(XX-tx2s)+(tx0s-tx2s)*(YY-ty2s))/tex_denom
                         tc=1.0-ta-tb
@@ -4449,7 +4197,7 @@ def _append_line_walls_for_zbuffer(faces, sty, uv_base, depth_base, uv_top, dept
 
 
 def _xy_points_scalar(arr_xy):
-    
+
     try:
         n = len(arr_xy)
     except Exception:
@@ -4465,7 +4213,6 @@ def _xy_points_scalar(arr_xy):
         out.append((x, y))
     return out
 
-
 def _xy_points_close(a, b):
     try:
         return (math.isclose(float(a[0]), float(b[0]), rel_tol=1e-12, abs_tol=1e-9)
@@ -4474,7 +4221,7 @@ def _xy_points_close(a, b):
         return False
 
 def _significant_ring_vertex_indices(arr_xy, closed=True, angle_tol_deg=2.0, min_seg_len=0.05):
-    
+
     pts = _xy_points_scalar(arr_xy)
     if not pts:
         return []
@@ -4507,7 +4254,7 @@ def _significant_ring_vertex_indices(arr_xy, closed=True, angle_tol_deg=2.0, min
     return keep if keep else list(range(n))
 
 def _wall_visibility_flags_xy(arr_xy, cam_pt_xy, closed=True, min_seg_len=0.05):
-    
+
     pts = _xy_points_scalar(arr_xy)
     if len(pts) < 2:
         return []
@@ -4535,7 +4282,7 @@ def _wall_visibility_flags_xy(arr_xy, cam_pt_xy, closed=True, min_seg_len=0.05):
     return flags
 
 def _opaque_vertical_corner_indices(arr_xy, cam_pt_xy, angle_tol_deg=2.0, min_seg_len=0.05):
-    
+
     ring = _xy_points_scalar(arr_xy)
     if not ring:
         return []
@@ -4586,7 +4333,7 @@ def _select_uv_depth_by_indices(uvs, depths, indices, closed=True):
 
 
 def _prepare_pinhole_screen_metrics(ctx):
-    
+
     cached=ctx.get('_qcal_pinhole_metrics') if isinstance(ctx,dict) else None
     if cached is not None: return cached
     try:
@@ -4601,7 +4348,7 @@ def _prepare_pinhole_screen_metrics(ctx):
 
 
 def _pinhole_screen_depth_metrics(ctx, x, y, depth_yc):
-    
+
     try:
         d=float(depth_yc)
         if not math.isfinite(d) or d<=1e-9: return None
@@ -4616,7 +4363,7 @@ def _pinhole_screen_depth_metrics(ctx, x, y, depth_yc):
     except Exception: return None
 
 def _horizon_distance_index_python(d_values, dist_m):
-    
+
     try:
         n = int(getattr(d_values, 'size', 0) or len(d_values))
         if n <= 0:
@@ -4635,7 +4382,7 @@ def _horizon_distance_index_python(d_values, dist_m):
 
 
 def _prepare_horizon_fast_distance_lut_40192(horizon):
-    
+
     if not isinstance(horizon, dict):
         return None
     cached = horizon.get('_qcv_dist_lut_40192')
@@ -4647,8 +4394,6 @@ def _prepare_horizon_fast_distance_lut_40192(horizon):
         if dv is None or nd <= 0:
             return None
         maxd = max(1.0, float(dv[nd-1]))
-        
-        
         step = max(2.0, min(20.0, maxd / 2048.0))
         count = max(2, int(math.ceil(maxd / step)) + 2)
         lut = [-1] * count
@@ -4666,7 +4411,7 @@ def _prepare_horizon_fast_distance_lut_40192(horizon):
 
 
 def _horizon_distance_index_fast_40192(horizon, dist_m, *, exact=True):
-    
+
     try:
         dv = horizon.get('d_values') if isinstance(horizon, dict) else None
         nd = int(getattr(dv, 'size', 0) or len(dv))
@@ -4687,7 +4432,7 @@ def _horizon_distance_index_fast_40192(horizon, dist_m, *, exact=True):
         j = int(vals[k])
         if not exact:
             return min(j, nd - 1)
-        
+
         while (j + 1) < nd and float(dv[j + 1]) < d:
             j += 1
         while j >= 0 and float(dv[j]) >= d:
@@ -4718,7 +4463,7 @@ def _horizon_azimuth_index_fast_40192(horizon, az_deg):
 
 
 def _terrain_point_visible_fast_40192(horizon, x, y, z, cam_x, cam_y, cam_z, eps_deg):
-    
+
     if not horizon:
         return True
     try:
@@ -4751,7 +4496,7 @@ def _terrain_point_visible_fast_40192(horizon, x, y, z, cam_x, cam_y, cam_z, eps
 
 
 def _terrain_object_classify_xyz_40192(horizon, xyz, cam_x, cam_y, cam_z, eps_deg, *, max_samples=24, max_span_m=850.0):
-    
+
     if not horizon or xyz is None:
         return 2
     try:
@@ -4774,7 +4519,7 @@ def _terrain_object_classify_xyz_40192(horizon, xyz, cam_x, cam_y, cam_z, eps_de
         if n <= 0:
             return 2
         span = math.hypot(maxx-minx, maxy-miny)
-        
+
         if math.isfinite(span) and span > float(max_span_m):
             return 1
         want = min(max(4, int(max_samples)), n)
@@ -4793,7 +4538,7 @@ def _terrain_object_classify_xyz_40192(horizon, xyz, cam_x, cam_y, cam_z, eps_de
             x,y,z = valid_rows[ii]; sx+=x; sy+=y; sz+=z; sc+=1
             if _terrain_point_visible_fast_40192(horizon,x,y,z,cam_x,cam_y,cam_z,eps_deg): visible += 1
             else: hidden += 1
-        
+
         if sc > 1:
             cx=sx/sc; cy=sy/sc; cz=sz/sc
             if _terrain_point_visible_fast_40192(horizon,cx,cy,cz,cam_x,cam_y,cam_z,eps_deg): visible += 1
@@ -4808,7 +4553,7 @@ def _terrain_object_classify_xyz_40192(horizon, xyz, cam_x, cam_y, cam_z, eps_de
 
 
 def _terrain_probe_xyz_from_xy_parts_40192(parts, z_sampler, top_height_m, *, max_samples=24):
-    
+
     if not parts or z_sampler is None:
         return None
     try:
@@ -4836,7 +4581,7 @@ def _terrain_probe_xyz_from_xy_parts_40192(parts, z_sampler, top_height_m, *, ma
 
 
 def _pinhole_fragment_visible_by_horizon(ctx, horizon, eps_deg, x, y, depth_yc):
-    
+
     if not horizon:
         return True
     metrics = _pinhole_screen_depth_metrics(ctx, x, y, depth_yc)
@@ -4851,7 +4596,6 @@ def _pinhole_fragment_visible_by_horizon(ctx, horizon, eps_deg, x, y, depth_yc):
         az_min = float(horizon.get('az_min', 0.0))
         az_max = float(horizon.get('az_max', az_min))
         center = 0.5 * (az_min + az_max)
-        
         az_val = center + (((float(az_deg) - center + 180.0) % 360.0) - 180.0)
         if az_max <= az_min or n_bins == 1:
             idx = 0
@@ -4880,7 +4624,7 @@ def _pinhole_fragment_visible_by_horizon(ctx, horizon, eps_deg, x, y, depth_yc):
 
 
 def _mask_pinhole_zbuffer_by_horizon(rgba, depth_buf, depth_scale, ctx, horizon, eps_deg):
-    
+
     if rgba is None or depth_buf is None or not horizon or str(ctx.get('proj','')).upper()!='PINHOLE':
         return rgba
     try:
@@ -4931,7 +4675,7 @@ def _mask_pinhole_zbuffer_by_horizon(rgba, depth_buf, depth_scale, ctx, horizon,
         return rgba
 
 def _panorama_fragment_visible_by_horizon(ctx, horizon, eps_deg, x, y, radial_depth):
-    
+
     if not horizon or ctx is None:
         return True
     try:
@@ -4996,7 +4740,7 @@ def _panorama_fragment_visible_by_horizon(ctx, horizon, eps_deg, x, y, radial_de
 
 
 def _mask_panorama_zbuffer_by_horizon(rgba, depth_buf, depth_scale, ctx, horizon, eps_deg):
-    
+
     if rgba is None or depth_buf is None or not horizon or ctx is None:
         return rgba
     try:
@@ -5098,7 +4842,7 @@ def _mask_panorama_zbuffer_by_horizon(rgba, depth_buf, depth_scale, ctx, horizon
 
 
 def _clip_zsegment_to_viewport(x0,y0,d0,x1,y1,d1,xmax,ymax):
-    
+
     dx=x1-x0; dy=y1-y0; t0=0.0; t1=1.0
     for p,q in ((-dx,x0),(dx,xmax-x0),(-dy,y0),(dy,ymax-y0)):
         if abs(p)<=1e-15:
@@ -5118,7 +4862,7 @@ def _clip_zsegment_to_viewport(x0,y0,d0,x1,y1,d1,xmax,ymax):
 
 
 def _draw_panorama_ztested_segment_4019(self, painter, uv0, uv1, d0, d1, depth_buf, scale, terrain_test=None):
-    
+
     try:
         x0,y0=float(uv0[0]),float(uv0[1]); x1,y1=float(uv1[0]),float(uv1[1])
         d0=float(d0); d1=float(d1)
@@ -5135,8 +4879,8 @@ def _draw_panorama_ztested_segment_4019(self, painter, uv0, uv1, d0, d1, depth_b
     if clipped is None:
         return
     x0,y0,d0,x1,y1,d1=clipped
-    
-    
+
+
     steps=max(2,int(math.ceil(max(abs(x1-x0),abs(y1-y0))*sc/1.0)))
     prev_pt=None; prev_vis=False
     for i in range(steps+1):
@@ -5144,9 +4888,6 @@ def _draw_panorama_ztested_segment_4019(self, painter, uv0, uv1, d0, d1, depth_b
         x=x0+(x1-x0)*t; y=y0+(y1-y0)*t; d=d0+(d1-d0)*t
         sx=int(round(x*sc)); sy=int(round(y*sc)); vis=False
         if 0<=sx<w and 0<=sy<h:
-            
-            
-            
             eps=max(0.75,min(4.0,0.75+abs(d)*0.00035))
             try:
                 zc=float(depth_buf[sy,sx])
@@ -5155,10 +4896,6 @@ def _draw_panorama_ztested_segment_4019(self, painter, uv0, uv1, d0, d1, depth_b
             if math.isfinite(zc) and zc>0.0:
                 vis=(d<=zc+eps)
             else:
-                
-                
-                
-                
                 xa=max(0,sx-1); xb=min(w,sx+2); ya=max(0,sy-1); yb=min(h,sy+2)
                 zmin=math.inf
                 try:
@@ -5183,7 +4920,7 @@ def _draw_panorama_ztested_segment_4019(self, painter, uv0, uv1, d0, d1, depth_b
 def _draw_panorama_uv_segments_ztested_4019(self, painter, uvs, depths, depth_buf, scale, wrap_width=0.0,
                                                world_xyz=None, terrain_horizon=None, terrain_cam=None, terrain_eps=0.0,
                                                terrain_ctx=None):
-    
+
     try:
         W=float(wrap_width or 0.0)
     except Exception:
@@ -5311,7 +5048,7 @@ def _draw_filled_projected_polygon(self, painter, sty, uv_base, uv_top=None, tra
     pen = _make_pen_for_style(edge_col, getattr(sty, 'width', 0.0), 1.0, getattr(sty, 'pen_style', QC.Qt_PenStyle_SolidLine), _style_opacity_factor(sty))
     wrap_width = _wrap_width_from_painter(self, painter)
     painter.save()
-    
+
     if uv_top is not None and bool(getattr(sty, 'fill_walls', True)):
         wall_col = _wall_color_from_fill_spec(top_fill, fallback=getattr(sty, 'fill_color', getattr(sty, 'color', QColor(180,180,180,255))), transparent_objects=transparent_objects)
         painter.setPen(QC.Qt_PenStyle_NoPen)
@@ -5326,11 +5063,8 @@ def _draw_filled_projected_polygon(self, painter, sty, uv_base, uv_top=None, tra
         painter.drawPolygon(poly)
     painter.restore()
 
-
-
-
 def _pano_face_uv3_scalar(face):
-    
+
     try:
         uv = face.uv if hasattr(face, 'uv') else face.get('uv')
         if uv is None or len(uv) != 3:
@@ -5374,7 +5108,7 @@ def _pano_qpolygon_from_uv3(uv3):
 
 
 def _paint_fill_spec_on_panorama_faces(painter, faces, fill_spec):
-    
+
     polys = []
     path = QPainterPath()
     for face in faces or ():
@@ -5434,7 +5168,7 @@ def _paint_fill_spec_on_panorama_faces(painter, faces, fill_spec):
 
 
 def _fill_panorama_wall_faces(painter, faces, color):
-    
+
     brush = QBrush(QColor(color))
     painter.setBrush(brush)
     for face in faces or ():
@@ -5446,7 +5180,7 @@ def _fill_panorama_wall_faces(painter, faces, color):
             painter.drawPolygon(poly)
 
 def _draw_panorama_polygon_faces(self, painter, sty, surface_faces, wall_faces=None, transparent_objects=False):
-    
+
     if not bool(getattr(sty, 'fill_polygons', True)):
         return
     top_fill = _normalized_fill_spec_for_sty(sty, transparent_objects=transparent_objects)
@@ -5458,7 +5192,6 @@ def _draw_panorama_polygon_faces(self, painter, sty, surface_faces, wall_faces=N
             fallback=getattr(sty, 'fill_color', getattr(sty, 'color', QColor(180,180,180,255))),
             transparent_objects=transparent_objects
         )
-
     queue = []
     for face in surface_faces or ():
         d = _pano_face_mean_depth_scalar(face)
@@ -5471,10 +5204,7 @@ def _draw_panorama_polygon_faces(self, painter, sty, surface_faces, wall_faces=N
                 queue.append((d, 0, face))  
     if not queue:
         return
-    
-    
     queue.sort(key=lambda item: item[0], reverse=True)
-
     kind = str((top_fill or {}).get('kind', 'simple') or 'simple').lower()
     top_col = None
     if kind == 'simple':
@@ -5484,7 +5214,6 @@ def _draw_panorama_polygon_faces(self, painter, sty, surface_faces, wall_faces=N
             top_col.setAlpha(max(0, min(255, ta)))
         except Exception as _qcv_exc:
             _qcv_suppress(_qcv_exc, "core/_render_ops.py:5471")
-
     painter.save()
     painter.setPen(QC.Qt_PenStyle_NoPen)
     for _depth, role_code, face in queue:
@@ -5507,15 +5236,13 @@ def _draw_panorama_polygon_faces(self, painter, sty, surface_faces, wall_faces=N
             painter.setBrush(QBrush(QColor(top_col)))
             painter.drawPolygon(poly)
         else:
-            
-            
+
             _paint_fill_spec_on_panorama_faces(painter, (face,), top_fill)
     painter.restore()
 
 
-
 def _panorama_feature_parts_cached(self, layer, feat, gtype, tr, fast_preview=False, simplify_geometry=False):
-    
+
     try:
         cache=getattr(self,'_panorama_feature_parts_cache',None)
         if not isinstance(cache,dict): cache={}; self._panorama_feature_parts_cache=cache
@@ -5558,7 +5285,7 @@ def _panorama_feature_parts_cached(self, layer, feat, gtype, tr, fast_preview=Fa
         return ()
 
 def _panorama_tri_indices_cached(self, layer, feat, part_index, arr_ring):
-    
+
     try:
         cache=getattr(self,'_panorama_mesh_cache',None)
         if not isinstance(cache,dict):
@@ -5569,8 +5296,8 @@ def _panorama_tri_indices_cached(self, layer, feat, part_index, arr_ring):
         a=np.asarray(arr_ring,dtype=np.float64)
         n=int(a.shape[0])
         if n<3: return []
-        
-        
+
+
         key=(lid,rev,fid,int(part_index),n)
         hit=cache.get(key)
         if hit is not None: return hit
@@ -5583,7 +5310,7 @@ def _panorama_tri_indices_cached(self, layer, feat, part_index, arr_ring):
         return _earclip_triangulation_indices(arr_ring) or []
 
 def _clean_world_polygon_ring(arr_xy, z_vals, eps=1e-7):
-    
+
     arr = np.asarray(arr_xy, dtype=np.float64)
     z = np.asarray(z_vals, dtype=np.float64)
     if arr.ndim != 2 or arr.shape[1] != 2 or z.ndim != 1 or len(arr) != len(z):
@@ -5628,7 +5355,7 @@ def _draw_line_walls(self, painter, sty, uv_base, uv_top, transparent_objects=Fa
 
 
 def _draw_uv_segments(self, painter, uvs):
-    
+
     wrap_width = _wrap_width_from_painter(self, painter)
     if not wrap_width:
         for a, b in _iter_uv_segments(uvs):
@@ -5642,7 +5369,6 @@ def _draw_uv_segments(self, painter, uvs):
                     (float(run[i, 0]), float(run[i, 1])),
                     (float(run[i + 1, 0]), float(run[i + 1, 1]))
                 )
-
 
 def _sample_z_array(z_sampler, arr_xy):
     if z_sampler is None:
@@ -5660,7 +5386,7 @@ def _sample_z_array(z_sampler, arr_xy):
 
 
 def _effective_base_z_array(self, arr_xy, z_sampler, geometry_kind='polygon', force_horizontal=False):
-    
+
     arr_xy = np.asarray(arr_xy, dtype=np.float64)
     raw = _sample_z_array(z_sampler, arr_xy)
     if raw.ndim == 0:
@@ -5683,17 +5409,14 @@ def _effective_base_z_array(self, arr_xy, z_sampler, geometry_kind='polygon', fo
     kind = str(geometry_kind or '').lower()
     if kind == 'polygon' and bool(force_horizontal):
         return np.full(arr_xy.shape[0], mean_z, dtype=np.float64), mean_z, raw
-    
-    
+
+
     return safe_raw, mean_z, raw
-
-
 
 _SCHEMATIC_SVG_TEXTURE_CACHE = {}
 
-
 def _schematic_svg_texture(primitive, target_w_px=256, target_h_px=None):
-    
+
     target_w_px = max(16, min(1536, int(round(target_w_px))))
     if target_h_px is None:
         target_h_px = target_w_px
@@ -5708,8 +5431,6 @@ def _schematic_svg_texture(primitive, target_w_px=256, target_h_px=None):
     cached = _SCHEMATIC_SVG_TEXTURE_CACHE.get(key)
     if cached is not None and not cached.isNull():
         return cached
-
-    
     img = QImage(target_w_px, target_h_px, QC.QImage_Format_Format_ARGB32_Premultiplied)
     img.fill(QColor(0, 0, 0, 0))
     ok = False
@@ -5740,9 +5461,6 @@ def _schematic_svg_texture(primitive, target_w_px=256, target_h_px=None):
                     try:
                         qp.setRenderHint(QC.QPainter_RenderHint_Antialiasing, True)
                         qp.setRenderHint(QC.QPainter_RenderHint_SmoothPixmapTransform, True)
-                        
-                        
-                        
                         guard = max(1.0, min(3.0, 0.015 * float(min(target_w_px, target_h_px))))
                         bounds = QRectF(
                             guard, guard,
@@ -5757,9 +5475,7 @@ def _schematic_svg_texture(primitive, target_w_px=256, target_h_px=None):
             ok = False
 
     if not ok:
-        
-        
-        
+
         qp = QPainter(img)
         try:
             qp.setRenderHint(QC.QPainter_RenderHint_Antialiasing, True)
@@ -5789,7 +5505,7 @@ def _schematic_svg_texture(primitive, target_w_px=256, target_h_px=None):
             qp.end()
 
     _SCHEMATIC_SVG_TEXTURE_CACHE[key] = img
-    
+
     if len(_SCHEMATIC_SVG_TEXTURE_CACHE) > 128:
         for k in list(_SCHEMATIC_SVG_TEXTURE_CACHE.keys())[:40]:
             _SCHEMATIC_SVG_TEXTURE_CACHE.pop(k, None)
@@ -5815,7 +5531,7 @@ def _panorama_face_fill_dict_419(face, fill_spec, pattern_bbox=None):
 
 
 def _append_panorama_faces_for_zbuffer_419(dst, faces, fill_spec, terrain_culler=None):
-    
+
     added=0
     for face in faces or ():
         if terrain_culler is not None:
@@ -5842,7 +5558,7 @@ def _panorama_wall_fill_spec_419(sty, top_fill, transparent_objects=False):
 
 
 def _draw_panorama_zfaces_fallback_419(painter, faces):
-    
+
     queue=[]
     for f in faces or ():
         try:
@@ -5865,7 +5581,7 @@ def _draw_panorama_zfaces_fallback_419(painter, faces):
         painter.restore()
 
 def _panorama_zbuffer_scale_for_preview_419(self,width,height,has_texture=False):
-    
+
     pixels=max(1,int(width))*max(1,int(height))
     q=str(getattr(self,'_current_render_quality','high') or 'high').lower()
     preview=bool(getattr(self,'_memory_guard_in_preview',False))
@@ -5873,9 +5589,6 @@ def _panorama_zbuffer_scale_for_preview_419(self,width,height,has_texture=False)
         target=3_000_000 if q=='low' else 7_000_000 if q=='normal' else 24_000_000
         if has_texture and q=='high': target=26_000_000
     else:
-        
-        
-        
         target=56_000_000 if has_texture else 72_000_000
     try:
         st=getattr(self,'_memory_guard_runtime',None)
@@ -5912,7 +5625,7 @@ def _append_schematic_primitives_for_panorama_zbuffer_419(faces, primitives, sty
                                                             extra_budget=None, visibility_test=None,
                                                             painter=None, terrain_face_culler=None,
                                                             deferred_edges=None):
-    
+
     if not primitives: return False
     handled=False; W=float(width) if bool(ctx.get('is360',False)) else 0.0
     appearance=(definition or {}).get('appearance',{}) or {}; lod=(definition or {}).get('lod',{}) or {}
@@ -5925,7 +5638,7 @@ def _append_schematic_primitives_for_panorama_zbuffer_419(faces, primitives, sty
                 try:
                     if not any(bool(visibility_test(float(r[0]),float(r[1]),float(r[2]))) for r in xyz): handled=True; continue
                 except Exception as _qcv_exc: _qcv_suppress(_qcv_exc, "core/_render_ops.py:5912")
-            
+
             try:
                 dx=float(pr.x)-float(camera_xy[0]); dy=float(pr.y)-float(camera_xy[1]); dz=float(pr.z)-float(ctx['cam_z'])
                 dd=max(0.5,math.sqrt(dx*dx+dy*dy+dz*dz)); vf=math.radians(max(1e-6,float(ctx.get('VFOV',180.0))))
@@ -6014,7 +5727,7 @@ def _append_schematic_primitives_for_panorama_zbuffer_419(faces, primitives, sty
 def _append_schematic_primitives_for_zbuffer(faces, deferred_edges, primitives, style, definition,
                                               ctx, maxdist, camera_xy, width, fast_preview=False,
                                               transparent_objects=False):
-    
+
     if not primitives:
         return False
     handled = False
@@ -6055,17 +5768,15 @@ def _append_schematic_primitives_for_zbuffer(faces, deferred_edges, primitives, 
             top, bottom = min(p[1] for p in uv_vals), max(p[1] for p in uv_vals)
             if right <= left or bottom <= top:
                 continue
-            
-            
-            
+
+
+
             bw = max(1.0, float(right - left))
             bh = max(1.0, float(bottom - top))
             tex_quality = 1.35 if fast_preview else 1.75
 
             def _texture_bucket(px):
-                
-                
-                
+
                 need = max(24.0, min(1536.0, float(px)))
                 for bucket in (32, 48, 64, 96, 128, 192, 256, 384, 512, 768, 1024, 1536):
                     if need <= bucket:
@@ -6076,13 +5787,7 @@ def _append_schematic_primitives_for_zbuffer(faces, deferred_edges, primitives, 
             tex_h = _texture_bucket(bh * tex_quality)
             tex = _schematic_svg_texture(pr, tex_w, tex_h)
             fill, _line = schematic_role_colors(style, definition, pr.role)
-            
-            
-            
-            
-            
-            
-            
+
             try:
                 if 'fill_alpha' in appearance:
                     nominal_alpha = int(appearance.get('fill_alpha', 255))
@@ -6102,22 +5807,14 @@ def _append_schematic_primitives_for_zbuffer(faces, deferred_edges, primitives, 
                     'texture_mode': 'stretch',
                     'preserve_texture_alpha': True,
                     'target_alpha': int(target_alpha),
-                    
                     'depth_alpha_threshold': 10,
                     'depth_uses_intrinsic_alpha': True,
-                    
-                    
                     'schematic_billboard_texture': True,
                 }
                 billboard_specs[spec_key] = spec
             bbox = (left, right, top, bottom)
-            
-            
             quad_texture_uv = ((0.0, 1.0), (1.0, 1.0), (1.0, 0.0), (0.0, 0.0))
-            
-            
-            
-            
+
             for tri_idx in ((0,1,2),(0,2,3)):
                 tri = np.asarray([uv[i] for i in tri_idx], dtype=np.float64)
                 dtri = np.asarray([dep[i] for i in tri_idx], dtype=np.float64)
@@ -6148,8 +5845,8 @@ def _append_schematic_primitives_for_zbuffer(faces, deferred_edges, primitives, 
             if pr.role == 'wall' and not bool(getattr(style, 'fill_walls', True)):
                 do_fill = False
             if do_fill:
-                
-                
+
+
                 spec = {'kind': 'simple', 'color': fill, 'target_alpha': 255, 'depth_alpha_threshold': 1}
                 for pts, dps in _iter_wrapped_runs_with_depth(uv, dep, wrap_width=wrap_width, min_len=3):
                     bbox = _finite_bbox_xy_scalar(pts)
@@ -6196,16 +5893,11 @@ def _render_vector_layers_fast(self, painter, cam_pt, cam_z, cam_crs, proj, widt
             return _pinhole_fragment_visible_by_horizon(
                 ctx, terrain_horizon, terrain_eps, x, y, d
             )
-
         terrain_test = _terrain_test
     global_draw_2p5d = bool(self.cb_draw_2p5d.isChecked())
     panoramic_overlay_mode = str(proj).upper() in ('EQUIRECT', 'EQUIRECTANGULAR', 'CYLINDRICAL')
     force_horizontal_25d = bool(getattr(self, 'cb_force_horizontal_25d', None) and self.cb_force_horizontal_25d.isChecked())
-    
-    
-    
     use_object_zbuffer = (str(proj).upper() == 'PINHOLE') and (not panoramic_overlay_mode)
-
     face_primitives = []
     deferred_edges = []
     deferred_points = []
@@ -6273,7 +5965,6 @@ def _render_vector_layers_fast(self, painter, cam_pt, cam_z, cam_crs, proj, widt
                     h = None
             if h is None:
                 h = sty_h_default
-
             anchor_uv_global = None
             text_global = None
             if sty_eff.show_labels and not layer_labels_hidden:
@@ -6286,29 +5977,16 @@ def _render_vector_layers_fast(self, painter, cam_pt, cam_z, cam_crs, proj, widt
                     anchor_uv_global, text_global = None, None
 
             if style_uses_schematic(sty_eff):
-                
-                
-                
-                
-                
                 _plugin_dir = os.path.dirname(os.path.dirname(__file__))
                 handled = False
                 definition = None
                 try:
                     camera_xy = (float(cam_pt.x()), float(cam_pt.y()))
-                    
-                    
-                    
-                    
-                    
                     _ground_contract = []
                     for _arr_src in parts:
                         _arr_contract = np.asarray(_arr_src, dtype=np.float64)
                         if _arr_contract.ndim != 2 or _arr_contract.shape[0] <= 0:
                             continue
-                        
-                        
-                        
                         _force_horizontal_obj = bool(
                             global_draw_2p5d and bool(getattr(sty_eff, 'enable_25d', True))
                             and force_horizontal_25d
@@ -6487,17 +6165,7 @@ def _render_vector_layers_fast(self, painter, cam_pt, cam_z, cam_crs, proj, widt
     depth_buf = None
     depth_scale = 1.0
     if use_object_zbuffer and face_primitives:
-        
-        
-        
-        
         depth_scale = _zbuffer_scale_for_preview(self, width, height)
-        
-        
-        
-        
-        
-        
         has_schematic_texture = any(
             bool((face.get('fill_spec') or {}).get('schematic_billboard_texture', False))
             for face in face_primitives
@@ -6559,7 +6227,7 @@ def export_overlay(self):
     validator = getattr(self, '_validate_terrain_layer', None)
     if callable(validator) and not validator(notify=True, purpose='export'):
         return
-    
+
     try:
         from ._export_ops import _default_export_dir
         _d = _default_export_dir(self)
@@ -6580,7 +6248,6 @@ def export_overlay(self):
         _qcv_suppress(_qcv_exc, "core/_render_ops.py:6555")
 
 
-
 def _pick_dem_color(self):
     base = QColor(getattr(self, "_dem_color", QColor(255,255,0,160)))
     dlg = QColorDialog(base, self)
@@ -6593,8 +6260,8 @@ def _pick_dem_color(self):
         c = dlg.selectedColor()
         if c.isValid():
             self._dem_color = QColor(c)
-            
-            
+
+
             self._sky_color = QColor(c)
             try:
                 if hasattr(self, 'spin_dem_alpha'):
@@ -6608,15 +6275,8 @@ def _pick_dem_color(self):
             except Exception as _qcv_exc:
                 _qcv_suppress(_qcv_exc, "core/_render_ops.py:6584")
 
-
-
-
-
-
-
-
 def _build_horizon_cache(self, *args, **kwargs):
-    
+
     try:
         proj  = self.cmb_proj.currentText()
     except Exception:
@@ -6738,13 +6398,6 @@ def _build_horizon_cache(self, *args, **kwargs):
         d_values = np.asarray([maxdist], dtype=np.float64)
     d_values = np.asarray(d_values, dtype=np.float64)
     n_dist = int(d_values.size)
-
-    
-    
-    
-    
-    
-    
     try:
         _dem = self.cmb_dem.currentLayer() if hasattr(self, 'cmb_dem') else None
         _dem_token = (
@@ -6807,13 +6460,13 @@ def _build_horizon_cache(self, *args, **kwargs):
                 _zs[~np.isfinite(_zs)] = 0.0
                 z_raw[_i0:_i1, :] = _zs.astype(np.float32, copy=False)
             except Exception:
-                
-                
+
+
                 z_raw[_i0:_i1, :] = 0.0
         self._horizon_dem_sample_cache = {'key': _terrain_sample_key, 'z_raw': z_raw}
 
-    
-    
+
+
     if math.isfinite(R_eff):
         _drop = (d_values * d_values) / (2.0 * float(R_eff))
         z_corr = z_raw.astype(np.float64) - _drop.reshape(1, -1)
@@ -6823,14 +6476,14 @@ def _build_horizon_cache(self, *args, **kwargs):
     _elev[~np.isfinite(_elev)] = -1e9
     el_profile = _elev.astype(np.float32, copy=False)
     el_cummax = np.maximum.accumulate(el_profile, axis=1).astype(np.float32, copy=False)
-    
-    
+
+
     _best_j = (n_dist - 1 - np.argmax(el_profile[:, ::-1], axis=1)).astype(np.int64, copy=False)
     _rows = np.arange(n_bins, dtype=np.int64)
     el_bins[:] = el_profile[_rows, _best_j]
 
-    
-    
+
+
     _best_d = d_values[_best_j]
     _azr = np.radians(np.asarray(az_bins, dtype=np.float64))
     _best_xy = np.column_stack((
@@ -6880,19 +6533,19 @@ def _build_horizon_cache(self, *args, **kwargs):
         "el_profile": el_profile,
         "el_cummax": el_cummax,
     }
-    
-    
+
+
     if str(proj).upper() in ('EQUIRECT','EQUIRECTANGULAR','CYLINDRICAL'):
         try:
             _prepare_horizon_fast_distance_lut_40192(self._horizon)
         except Exception as _qcv_exc:
             _qcv_suppress(_qcv_exc, "core/_render_ops.py:6864")
-    
+
     self._horizon_params = occ_key
 
 
 def _is_visible_by_horizon(self, az_deg, el_deg, eps_deg, dist_m=None):
-    
+
     H = getattr(self, "_horizon", None)
     if not H or ("el_bins" not in H):
         return True
@@ -6943,7 +6596,7 @@ def _is_visible_by_horizon(self, az_deg, el_deg, eps_deg, dist_m=None):
 
 
 def _update_horizon_by_segment(self, az1_deg, az2_deg, el_deg):
-    
+
     H = getattr(self, "_horizon", None)
     if not H or ("el_bins" not in H):
         return
@@ -6975,7 +6628,7 @@ def _update_horizon_by_segment(self, az1_deg, az2_deg, el_deg):
     except Exception:
         return
 def _terrain_visibility_test(self, cam_pt, cam_z, eps_deg):
-    
+
     try:
         cx = float(cam_pt.x()); cy = float(cam_pt.y()); cz = float(cam_z)
         eps = float(eps_deg)
@@ -6999,7 +6652,7 @@ def _terrain_visibility_test(self, cam_pt, cam_z, eps_deg):
                 return False
             return bool(self._is_visible_by_horizon(az, el, eps, r))
         except Exception:
-            
+
             return True
     return _tester
 
@@ -7029,8 +6682,6 @@ def _draw_dem_opaque(self, painter, cam_pt, cam_z, cam_crs, proj, width, height,
     if width <= 1 or height <= 1:
         return
 
-    
-    
     down = max(1, int(math.ceil(max(width, height) / 1600.0)))
     Wm = max(1, int(math.ceil(width / float(down))))
     Hm = max(1, int(math.ceil(height / float(down))))
@@ -7146,7 +6797,7 @@ def _draw_dem_wireframe(self, painter, cam_pt, cam_z, cam_crs, proj, width, heig
                 base_spacing = max(base_spacing, float(_guard_step))
         except Exception as _qcv_exc:
             _qcv_suppress(_qcv_exc, "core/_render_ops.py:7123")
-    
+
     if float(maxdist or 0.0) > 10000.0:
         far_factor = min(3.0, 1.0 + ((float(maxdist) - 10000.0) / 15000.0))
         base_spacing *= far_factor
@@ -7157,11 +6808,6 @@ def _draw_dem_wireframe(self, painter, cam_pt, cam_z, cam_crs, proj, width, heig
     curvature_enabled = bool(getattr(self, 'cb_curvature', None).isChecked()) if hasattr(self, 'cb_curvature') else True
     k_ref = 0.0
 
-    
-    
-    
-    
-    
     vis_test = None
     wire_mode = int(self.combo_wire_mode.currentData()) if hasattr(self, 'combo_wire_mode') and self.combo_wire_mode.currentData() is not None else (int(self.combo_wire_mode.currentIndex()) if hasattr(self, 'combo_wire_mode') else 2)
     horizon_data = (getattr(self, '_horizon', None) if wire_mode != 0 else None)
@@ -7181,8 +6827,6 @@ def _draw_dem_wireframe(self, painter, cam_pt, cam_z, cam_crs, proj, width, heig
         horizon_data=horizon_data, visibility_eps_deg=float(eps),
         curvature_enabled=curvature_enabled, R_earth=float(getattr(self, 'd_earth_radius_km', None).value() * 1000.0) if hasattr(self, 'd_earth_radius_km') else 6370000.0, k_refraction=k_ref
     )
-
-    
     color = QColor(getattr(self, "_dem_color", QColor(255,255,0,160)))
     pen = QPen(color)
     pen.setWidth(int(self.spin_dem_width.value()) if hasattr(self, 'spin_dem_width') else 1)
@@ -7243,7 +6887,7 @@ def _draw_skyline(self, painter, cam_pt, cam_z, cam_crs, proj, width, height, ya
             self._safe_line(painter, (float(a[0]), float(a[1])), (float(b[0]), float(b[1])))
 
 def _draw_dem_ridgelines(self, painter, cam_pt, cam_z, cam_crs, proj, width, height, yaw, pitch, roll, HFOV, VFOV, is360, maxdist, z_sampler, eps=0.2):
-    
+
     H = getattr(self, "_horizon", None)
     if not H:
         return
@@ -7387,12 +7031,12 @@ def _draw_dem_ridgelines(self, painter, cam_pt, cam_z, cam_crs, proj, width, hei
 
 
 def set_pdv_azimuth(self, az_deg: float):
-    
+
     try:
         self.current_pdv_azimuth = float(az_deg) % 360.0
     except Exception:
         self.current_pdv_azimuth = None
-    
+
     try:
         self.render_preview()
     except Exception as _qcv_exc:

@@ -1,13 +1,7 @@
-
-
-
-
 from __future__ import annotations
 from ._exceptions import qcv_suppress_exception as _qcv_suppress
-
 import os
 import re
-
 from qgis.PyQt.QtCore import QByteArray, QCoreApplication, QLocale, QSettings, QTranslator, QXmlStreamReader
 
 _PLUGIN_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -27,7 +21,7 @@ def _normalise_locale(value):
 
 
 def resolve_language():
-    
+
     locale_name = ""
     try:
         locale_name = _normalise_locale(QSettings().value("locale/userLocale", ""))
@@ -46,7 +40,7 @@ def current_language():
 
 
 def _placeholder_pattern(source):
-    
+
     matches = list(re.finditer(r"%([1-9][0-9]*)", source))
     if not matches:
         return None, []
@@ -66,7 +60,7 @@ def _placeholder_pattern(source):
 
 
 class _TsRuntimeTranslator(QTranslator):
-    
+
 
     def __init__(self, ts_path, parent=None):
         super().__init__(parent)
@@ -171,7 +165,7 @@ class _TsRuntimeTranslator(QTranslator):
         return out
 
     def lookup_text(self, sourceText, context=_CONTEXT):
-        
+
         if sourceText is None:
             return ""
         source = str(sourceText)
@@ -184,7 +178,7 @@ class _TsRuntimeTranslator(QTranslator):
             m = pattern.match(source)
             if m:
                 return self._apply_groups(translation, groups, m)
-        
+
         out = source
         changed = False
         for src, dst in self._phrases:
@@ -198,7 +192,7 @@ class _TsRuntimeTranslator(QTranslator):
 
 
 def install_qcalview_translator(parent=None):
-    
+
     global _active_translator, _translation_memory, _active_language
     if _active_translator is not None:
         return _active_translator
@@ -246,7 +240,7 @@ def remove_qcalview_translator():
 
 
 def tr(value, context=_CONTEXT):
-    
+
     if isinstance(value, list):
         return [tr(v, context) for v in value]
     if isinstance(value, tuple):
@@ -260,9 +254,9 @@ def tr(value, context=_CONTEXT):
         translated = QCoreApplication.translate(context, value)
     except Exception:
         translated = value
-    
-    
-    
+
+
+
     if translated == value and _translation_memory is not None:
         try:
             translated = _translation_memory.lookup_text(value, context)

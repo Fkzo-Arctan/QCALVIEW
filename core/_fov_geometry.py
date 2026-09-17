@@ -1,17 +1,7 @@
-"""Lightweight precomputed FOV geometry for QCALVIEW camera layers.
-
-The visible camera layer and its QML style remain unchanged from the user's
-point of view. QCALVIEW stores precomputed FOV geometries in QGIS auxiliary
-storage and only replaces the five heavy GeometryGenerator expressions after
-that cache has been created and validated successfully.
-"""
-
 import math
 import os
 import uuid
-
 from qgis.PyQt.QtXml import QDomDocument
-
 from qgis.core import (
     QgsCoordinateTransform,
     QgsFeature,
@@ -22,11 +12,9 @@ from qgis.core import (
     QgsProject,
     QgsVectorLayer,
 )
-
 from ._compat import QC
 from ._exceptions import qcv_suppress_exception as _qcv_suppress
 from ._log import qcv_log
-
 
 FOV_CACHE_VERSION = 2
 FOV_READY_PROPERTY = "QCALVIEW/fov_cache_version"
@@ -59,7 +47,7 @@ FOV_SOURCE_FIELDS = {
 
 
 def _layer_field_name(layer, canonical_name):
-    """Return a field name from the layer, case-insensitively."""
+
     try:
         layer.updateFields()
     except Exception as exc:
@@ -73,7 +61,7 @@ def _layer_field_name(layer, canonical_name):
 
 
 def _provider_field_name(layer, canonical_name):
-    """Return a source-provider field name, case-insensitively."""
+
     try:
         provider = layer.dataProvider()
         names = provider.fields().names() if provider is not None else []
@@ -101,7 +89,7 @@ def _new_uid():
 
 
 def _hide_internal_fields(layer):
-    """Hide QCALVIEW internal fields from the normal attribute table."""
+
     try:
         config = layer.attributeTableConfig()
         config.update(layer.fields())
@@ -118,12 +106,9 @@ def _hide_internal_fields(layer):
 
 
 def _ensure_uid_field(layer):
-    """Create qcv_uid once and initialise stable unique values safely."""
+
     if not isinstance(layer, QgsVectorLayer):
         return None
-
-    # A previous DEV may already have created the source field while the layer
-    # field cache is stale. Check both views before any OGR schema write.
     try:
         layer.updateFields()
     except Exception as exc:
@@ -169,8 +154,6 @@ def _ensure_uid_field(layer):
     if uid_name is None:
         return None
 
-    # Use the source provider index for non-editable layers. This avoids
-    # starting/committing an edit session solely to initialise the cache key.
     provider = layer.dataProvider()
     provider_uid = _provider_field_name(layer, uid_name)
     provider_index = -1
@@ -252,7 +235,7 @@ def _joined_aux_name(auxiliary, field_name):
 
 
 def _ensure_auxiliary_layer(layer, uid_name):
-    """Create/reuse one auxiliary layer and add the five WKT cache fields."""
+
     try:
         auxiliary = layer.auxiliaryLayer()
     except Exception:
@@ -294,7 +277,7 @@ def _ensure_auxiliary_layer(layer, uid_name):
         if name.lower() in existing:
             continue
         field = QgsField(name, QC.QMetaType_Type_QString)
-        # SQLite/OGR TEXT field: no artificial 50-character limit for WKT.
+
         try:
             field.setTypeName("TEXT")
         except Exception as exc:
@@ -337,7 +320,7 @@ def _ensure_auxiliary_layer(layer, uid_name):
         layer.updateFields()
     except Exception as exc:
         _qcv_suppress(exc, "core/_fov_geometry.py:suppressed")
-    # Do not patch a renderer unless QGIS actually exposes every joined field.
+
     missing = []
     layer_names = {str(name) for name in layer.fields().names()}
     for name in AUX_FIELDS:
@@ -437,7 +420,7 @@ def _normalise_yaw(value):
 
 
 def _finite_center_xy(center):
-    """Return finite center coordinates, or None for an invalid PDV."""
+
     try:
         x = float(center.x())
         y = float(center.y())
@@ -449,7 +432,7 @@ def _finite_center_xy(center):
 
 
 def _arc_points(center, start_deg, sweep_deg, radius, max_segment_length):
-    """Return a clockwise azimuth arc (0° north) as map-coordinate points."""
+
     center_xy = _finite_center_xy(center)
     if center_xy is None:
         return []
@@ -483,7 +466,7 @@ def _arc_points(center, start_deg, sweep_deg, radius, max_segment_length):
 
 
 def _full_circle_geometry(center, outer_radius, inner_radius=0.0):
-    """Build a full circle/ring without a Python-generated point loop."""
+
     center_xy = _finite_center_xy(center)
     if center_xy is None:
         return QgsGeometry()
@@ -506,7 +489,7 @@ def _full_circle_geometry(center, outer_radius, inner_radius=0.0):
 
 
 def _sector_geometry(center, yaw, hfov, outer_radius, inner_radius=0.0):
-    """Build a straight-segment sector/ring, including exact 180° and 360°."""
+
     outer_radius = max(0.01, float(outer_radius))
     inner_radius = max(0.0, min(float(inner_radius), outer_radius))
     hfov = _normalise_hfov(hfov)
@@ -694,7 +677,7 @@ def _clear_live_variables(layer):
     except Exception as exc:
         _qcv_suppress(exc, "core/_fov_geometry.py:suppressed")
 def _validate_cache(layer, auxiliary):
-    """Validate joined fields and at least one cached geometry before patching."""
+
     try:
         layer.updateFields()
     except Exception as exc:
@@ -731,7 +714,7 @@ def _validate_cache(layer, auxiliary):
 
 
 def qcv_fov_layer_ready(layer):
-    """Fast readiness check; full WKT validation is done during preparation."""
+
     if not isinstance(layer, QgsVectorLayer):
         return False
     try:
@@ -809,7 +792,7 @@ def _rebuild_layer(self, layer, auxiliary, work_crs, symbol_range, save=True):
 
 
 def qcv_fov_prepare_layer(self, layer, rebuild=True):
-    """Prepare/reuse a cache without altering the active renderer on failure."""
+
     if not isinstance(layer, QgsVectorLayer):
         return False
     work_crs = _work_crs(self)
@@ -874,7 +857,7 @@ def _geometry_expression(live_variable, joined_field):
 
 
 def _renderer_generators(layer):
-    """Return top-level GeometryGenerator symbol layers from the renderer."""
+
     try:
         renderer = layer.renderer()
         symbol = renderer.symbol() if renderer is not None else None
@@ -895,19 +878,19 @@ def _renderer_generators(layer):
 
 
 def _generator_slot(generator):
-    """Identify a QCALVIEW FOV generator without relying on layer count/order."""
+
     try:
         expression = str(generator.geometryExpression() or "")
     except Exception:
         expression = ""
     lowered = expression.lower()
 
-    # Lightweight expressions are unambiguous.
+
     for field_name, live_variable in LIVE_VARIABLES.items():
         if live_variable.lower() in lowered:
             return field_name
 
-    # Legacy 40.20.3 expressions: identify them by their specific operation.
+
     if "make_line(" in lowered:
         return "qcv_fov_axis"
     if "equirectangular" in lowered and "0.11" in lowered:
@@ -922,7 +905,7 @@ def _generator_slot(generator):
 
 
 def _renderer_generator_map(layer):
-    """Map known QCALVIEW FOV roles to the active generator symbol layers."""
+
     mapped = {}
     unknown = 0
     for generator in _renderer_generators(layer):
@@ -935,7 +918,7 @@ def _renderer_generator_map(layer):
 
 
 def _legacy_geometry_expressions(automatic=True):
-    """Read original 40.20.3 geometry expressions, keyed by FOV role."""
+
     qml_name = "STYLE-PDV.qml" if bool(automatic) else "STYLE-MOD.qml"
     qml_path = os.path.join(os.path.dirname(__file__), "style", qml_name)
     try:
@@ -973,7 +956,7 @@ def _legacy_geometry_expressions(automatic=True):
         if expression is None:
             continue
 
-        # The same recognition rules can be used on the QML text itself.
+
         text = str(expression)
         lowered = text.lower()
         if "make_line(" in lowered:
@@ -994,7 +977,7 @@ def _legacy_geometry_expressions(automatic=True):
 
 
 def qcv_fov_restore_legacy_renderer(self, layer, automatic=True):
-    """Restore available 40.20.3 FOV expressions, preserving visual styling."""
+
     if not isinstance(layer, QgsVectorLayer):
         return False
     generators, unknown = _renderer_generator_map(layer)
@@ -1042,7 +1025,7 @@ def qcv_fov_restore_legacy_renderer(self, layer, automatic=True):
 
 
 def qcv_fov_patch_renderer(self, layer):
-    """Patch existing QCALVIEW generators after cache validation."""
+
     if not qcv_fov_layer_ready(layer):
         return False
     auxiliary = layer.auxiliaryLayer()
@@ -1176,7 +1159,7 @@ def qcv_fov_sync_live(
     projection,
     is360=False,
 ):
-    """Update precomputed WKT variables for the current feature only."""
+
     if not qcv_fov_layer_ready(layer):
         return False
 

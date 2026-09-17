@@ -1,15 +1,8 @@
-
-
-
 from ._compat import QC, dialog_exec
-"""SPLIT-ONLY extracted implementations from qcalview_window.QCalViewDock.
-Attached to the class via setattr after class definition.
-"""
 import os, sys, math, json, re, pathlib, functools, itertools, typing
 from qgis.PyQt import QtCore, QtGui, QtWidgets
 from qgis.core import QgsExpression, QgsExpressionContext, QgsExpressionContextUtils, QgsWkbTypes
 from ..projector import project_point
-
 
 try:
     from qgis.PyQt.QtGui import QImage, QPainter, QPen, QColor, QFont, QPixmap, QTransform
@@ -62,7 +55,7 @@ def _resolve_label_text(self, sty, feat):
                     fld = getattr(sty, 'label_field', None) or expr_txt
                     if fld and (fld in feat.fields().names()):
                         return str(feat[fld])
-            
+
         text = sty.label_text.strip() if getattr(sty, 'label_text', '') else None
         if not text and getattr(sty, 'label_field', None) and (sty.label_field in feat.fields().names()):
             text = str(feat[sty.label_field])

@@ -1,17 +1,9 @@
-
-
-
 from ._exceptions import qcv_suppress_exception as _qcv_suppress
 from ._i18n import tr
 from ._compat import QC, dialog_exec
-"""SPLIT-ONLY extracted implementations from qcalview_window.QCalViewDock.
-Attached to the class via setattr after class definition.
-"""
 import os, sys, math, json, re, pathlib, functools, itertools, typing, csv, shutil, subprocess, tempfile
 from qgis.PyQt import QtCore, QtGui, QtWidgets
 from qgis.core import QgsCoordinateReferenceSystem, QgsCoordinateTransform, QgsPointXY, QgsProject
-
-
 try:
     from qgis.PyQt.QtGui import QImage, QPainter, QPen, QColor, QFont, QPixmap, QTransform
 except Exception:
@@ -30,7 +22,6 @@ except Exception:
     QFileDialog = QtWidgets.QFileDialog; QMessageBox = QtWidgets.QMessageBox
 
 
-
 def _bool_export_metadata_enabled(self):
     try:
         cb = getattr(self, 'cb_export_metadata', None)
@@ -47,7 +38,7 @@ def _plugin_root_dir(self):
 
 
 def _get_embedded_piexif(self):
-    
+
     plugin_root = _plugin_root_dir(self)
     vendor_dir = os.path.join(plugin_root, 'vendor')
     if vendor_dir not in sys.path:
@@ -105,9 +96,9 @@ def _fmt_num(value, decimals=1, strip_zero=False):
 
 
 def _camera_datetime_candidates(layer, feat, img_path):
-    
+
     vals = []
-    
+
     try:
         from PIL import Image, ExifTags
         with Image.open(img_path) as img:
@@ -123,7 +114,7 @@ def _camera_datetime_candidates(layer, feat, img_path):
                     vals.append(val)
     except Exception as _qcv_exc:
         _qcv_suppress(_qcv_exc, "core/_export_ops.py:123")
-    
+
     try:
         if img_path and os.path.exists(img_path):
             dt = QtCore.QDateTime.fromSecsSinceEpoch(int(os.path.getmtime(img_path)))
@@ -131,7 +122,7 @@ def _camera_datetime_candidates(layer, feat, img_path):
                 vals.append(dt.toString('yyyy:MM:dd HH:mm:ss'))
     except Exception as _qcv_exc:
         _qcv_suppress(_qcv_exc, "core/_export_ops.py:131")
-    
+
     try:
         field_map = {str(n).lower(): n for n in layer.fields().names()}
     except Exception:
@@ -153,7 +144,7 @@ def _coerce_exif_datetime(value):
         return None
     if hasattr(value, 'toString'):
         try:
-            
+
             if hasattr(value, 'date') and hasattr(value, 'time'):
                 try:
                     return value.toString('yyyy:MM:dd HH:mm:ss')
@@ -299,7 +290,7 @@ def _ascii_safe_text(value, keep_newlines=False):
 
 
 def _xml_text(value):
-    
+
     text = '' if value is None else str(value)
     return (text.replace('&', '&amp;')
                 .replace('<', '&lt;')
@@ -447,7 +438,7 @@ def _write_metadata_with_exiftool(self, out_path, layer, feat):
         from PIL import Image
         img = Image.open(out_path)
         exif_dict = {'0th': {}, 'Exif': {}, 'GPS': {}}
-        
+
         exif_dict['0th'][piexif.ImageIFD.ImageDescription] = payload['description']
         exif_dict['0th'][piexif.ImageIFD.Artist] = payload['author']
         exif_dict['0th'][piexif.ImageIFD.Copyright] = payload['copyright']
@@ -456,7 +447,7 @@ def _write_metadata_with_exiftool(self, out_path, layer, feat):
             exif_dict['Exif'][piexif.ExifIFD.DateTimeOriginal] = payload['datetime']
             exif_dict['Exif'][piexif.ExifIFD.DateTimeDigitized] = payload['datetime']
         exif_dict['Exif'][piexif.ExifIFD.UserComment] = piexif.helper.UserComment.dump(payload['comment'], encoding='ascii')
-        
+
         exif_dict['GPS'][piexif.GPSIFD.GPSLatitudeRef] = 'N' if payload['lat'] >= 0 else 'S'
         exif_dict['GPS'][piexif.GPSIFD.GPSLatitude] = _deg_to_dms_rationals(payload['lat'])
         exif_dict['GPS'][piexif.GPSIFD.GPSLongitudeRef] = 'E' if payload['lon'] >= 0 else 'W'
@@ -659,8 +650,8 @@ def _render_current_export_image(self, mode='composite', schematic_transparent=N
 
 def _batch_render_feature_to_file(self, out_dir, mode, stem, layer=None, feat=None):
     is_schematic = (getattr(self, 'image', None) is None or self.image.isNull())
-    
-    
+
+
     schematic_alpha = bool(is_schematic and getattr(self, '_schematic_background_transparent', lambda: False)())
     img = _render_current_export_image(self, mode=mode, schematic_transparent=schematic_alpha)
     if img is None or img.isNull():
@@ -806,7 +797,7 @@ def export_current_composite(self):
     validator = getattr(self, '_validate_terrain_layer', None)
     if callable(validator) and not validator(notify=True, purpose='export'):
         return
-    
+
     layer = _camera_layer(self)
     feat = _camera_current_feature(self)
     is_schematic = (getattr(self, 'image', None) is None or self.image.isNull())
@@ -826,8 +817,8 @@ def export_current_composite(self):
         path += '.png' if ('PNG' in str(selected) or is_schematic) else '.jpg'
         low = path.lower()
 
-    
-    
+
+
     use_alpha = bool(is_schematic and low.endswith('.png') and
                      getattr(self, '_schematic_background_transparent', lambda: False)())
     img = _render_current_export_image(self, mode='composite', schematic_transparent=use_alpha)
@@ -865,7 +856,7 @@ def export_current_composite(self):
     QMessageBox.information(self, tr('QCALVIEW'), tr(msg))
 
 def _batch_checked_row_brush(table):
-    
+
     try:
         pal = table.palette()
         base = pal.color(QtGui.QPalette.ColorRole.Base)
@@ -877,7 +868,7 @@ def _batch_checked_row_brush(table):
         except Exception:
             base = QColor(255, 255, 255)
             hi = QColor(70, 150, 110)
-    
+
     t = 0.16
     c = QColor(
         int(round(base.red()   * (1.0 - t) + hi.red()   * t)),
@@ -908,7 +899,7 @@ def _apply_batch_row_highlight(self, row):
 
 
 def _on_batch_table_item_changed(self, item):
-    
+
     table = getattr(self, 'tbl_export_pdv', None)
     if table is None or item is None:
         return
@@ -927,7 +918,7 @@ def _on_batch_table_item_changed(self, item):
 
 
 def _set_all_batch_rows_checked(self, checked=True):
-    
+
     table = getattr(self, 'tbl_export_pdv', None)
     if table is None:
         return
@@ -956,7 +947,7 @@ def _set_all_batch_rows_checked(self, checked=True):
 
 
 def _fit_export_table_height(self):
-    
+
     table = getattr(self, 'tbl_export_pdv', None)
     if table is None:
         return
@@ -966,8 +957,8 @@ def _fit_export_table_height(self):
         row_h = max(22, int(table.verticalHeader().defaultSectionSize()))
         content_h = header_h + max(1, rows) * row_h + 2 * int(table.frameWidth()) + 6
 
-        
-        
+
+
         sa = getattr(self, 'tab_export', None)
         viewport_h = 0
         try:
@@ -1017,7 +1008,7 @@ def _batch_has_unsaved_selected(self, fids):
 
 
 def _batch_preflight_save_current_visual_state(self, fids):
-    
+
     try:
         current_fid=getattr(self,'_camera_current_fid',None)
         current_fid=int(current_fid) if current_fid is not None else None
@@ -1066,7 +1057,7 @@ def _batch_preflight_save_current_visual_state(self, fids):
         QMessageBox.warning(self,tr('QCALVIEW'),tr(f"Impossible d’enregistrer l’état avant export :\n{exc}"))
         return False
 
-    
+
     try:
         still_param=current_fid in (getattr(self,'_camera_drafts',{}) or {})
     except Exception:
@@ -1091,7 +1082,7 @@ def _refresh_batch_pdv_table(self):
     layer = _camera_layer(self)
     if table is None:
         return
-    
+
     prev_checked = set()
     had_rows = False
     try:
@@ -1128,10 +1119,6 @@ def _refresh_batch_pdv_table(self):
             meta = _camera_read_photo_metadata(img_path) if img_path else {}
             state = dict(_camera_state_from_feature(self, layer, feat, photo_meta=meta) or {})
             draft = (getattr(self, '_camera_drafts', {}) or {}).get(fid)
-            
-            
-            
-            
             if draft:
                 state.update(draft)
             saved = 'Brouillon' if draft else 'OK'
@@ -1182,10 +1169,6 @@ def export_batch_selected(self):
         QMessageBox.information(self, tr('QCALVIEW'), tr('Cochez au moins un point de vue à exporter.'))
         return
     dirty = _batch_has_unsaved_selected(self, fids)
-    
-    
-    
-    
     try:
         _cur = int(getattr(self, '_camera_current_fid', -999999))
     except Exception:
@@ -1223,9 +1206,7 @@ def _run_batch_export(self, mode='composite'):
     if not fids:
         QMessageBox.information(self, tr('QCALVIEW'), tr('Aucun point de vue visible à exporter.'))
         return
-    
-    
-    
+
     if not _batch_preflight_save_current_visual_state(self, fids):
         return
     out_dir = QFileDialog.getExistingDirectory(self, tr('Choisir le dossier de sortie'), _default_export_dir(self))
@@ -1245,9 +1226,7 @@ def _run_batch_export(self, mode='composite'):
     original_fid = getattr(self, '_camera_current_fid', None)
     saved_drafts = dict(getattr(self, '_camera_drafts', {}) or {})
     try:
-        
-        
-        
+
         names_seen = set()
         prog = QtWidgets.QProgressDialog(tr('Export batch QCALVIEW…'), tr('Annuler'), 0, len(fids), self)
         prog.setWindowTitle(tr('QCALVIEW'))

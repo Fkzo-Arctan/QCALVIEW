@@ -2,11 +2,11 @@
   <img src="docs/images/qcalview-banner.webp" alt="QCALVIEW - Overlay photos and vector data" width="100%">
 </p>
 
-# QCALVIEW — ALPHA-40.20.4
+# QCALVIEW — ALPHA-40.20.5
 
 **Visual Simulation & Geomatics for QGIS**
 
-QCALVIEW is an open-source QGIS plugin developed by **Fabrice Kerzerho — ArcTan°** for photographic viewpoint calibration, visual simulation, projected GIS overlays and rapid landscape representations directly inside QGIS.
+QCALVIEW is an open-source QGIS plugin developed by **Fabrice Kerzerho - ArcTan°** for photographic viewpoint calibration, visual simulation, projected GIS overlays and rapid landscape representations directly inside QGIS.
 
 - Project: https://qcalview.com
 - ArcTan°: https://arctan.fr
@@ -24,7 +24,7 @@ QCALVIEW is an open-source QGIS plugin developed by **Fabrice Kerzerho — ArcTa
 
 ## Experimental status
 
-ALPHA-40.20.4 is an **experimental QGIS plugin**. Interfaces and rendering behaviour may still change. Results should be checked on representative projects before production use.
+ALPHA-40.20.5 is an **experimental QGIS plugin**. Interfaces and rendering behaviour may still change. Results should be checked on representative projects before production use.
 
 For public testing, the Experimental Tools tab exposes only:
 
@@ -50,6 +50,6 @@ See `docs/`  or https://qcalview.com/DOCS/#/ for the user manuals, current limit
 
 ## Licence
 
-QCALVIEW is licensed under the [GNU GPL v3.0 or later](LICENSE). Copyright © 2026 Fabrice Kerzerho — ArcTan°.
+QCALVIEW is licensed under the [GNU GPL v3.0 or later](LICENSE). Copyright © 2026 Fabrice Kerzerho - ArcTan°.
 
 Redistributions should retain the applicable attribution described in [NOTICE](NOTICE). QCALVIEW, ArcTan° and their associated logos/visual identity are subject to the [trademark policy](TRADEMARKS.md).

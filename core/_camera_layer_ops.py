@@ -1,20 +1,14 @@
-
-
-
 from ._exceptions import qcv_suppress_exception as _qcv_suppress
 from ._i18n import tr
 from ._compat import QC
 import os, json
 from datetime import datetime
-
 from qgis.PyQt.QtGui import QImage, QColor
 from qgis.PyQt.QtCore import QPoint
 from qgis.PyQt.QtWidgets import QMessageBox
 from qgis.core import QgsProject, QgsField, QgsVectorLayer, QgsMapLayerStyle, QgsMapThemeCollection, QgsCoordinateTransform, QgsPointXY, Qgis, NULL
 from ._log import qcv_log
 from ._image_io import load_working_image, probe_image
-
-
 
 QCV_CAMERA_FIELDS = [
     ("qcv_id", QC.QMetaType_Type_QString, 64, 0, ["qcv_id"]),
@@ -56,7 +50,7 @@ def _qcv_color_hex(c):
         return '#ff00ff00'
 
 def _qcv_style_to_dict(sty):
-    
+
     keys = (
         'visible','opacity','width','show_labels','label_field','label_size','label_pos',
         'label_bg','label_bg_padding','label_bg_radius','label_halo','label_halo_width',
@@ -104,7 +98,7 @@ def _qcv_style_from_dict(sty, data):
 def _camera_visual_state_key(self, fid):
     layer=_camera_layer(self)
     if layer is None or fid is None: return ''
-    
+
     safe_layer=''.join(ch if (ch.isalnum() or ch in '_-') else '_' for ch in str(layer.id()))
     return f'/pdv_visual_state/{safe_layer}/{int(fid)}'
 
@@ -166,9 +160,7 @@ def _camera_restore_plugin_settings(self, data):
         if name in data:
             try: getattr(self,name).setChecked(bool(data[name]))
             except Exception as _qcv_exc: _qcv_suppress(_qcv_exc, "core/_camera_layer_ops.py:167")
-    
-    
-    
+
     try:
         self.cb_occ_objects.setChecked(True)
     except Exception as _qcv_exc:
@@ -188,8 +180,8 @@ def _camera_restore_plugin_settings(self, data):
         except Exception as _qcv_exc: _qcv_suppress(_qcv_exc, "core/_camera_layer_ops.py:187")
     mode=str(data.get('relief_mode') or '')
     if mode:
-        
-        
+
+
         try:
             if hasattr(self,'_set_relief_mode_id'): self._set_relief_mode_id(mode)
             elif hasattr(self,'combo_relief_mode'):
@@ -200,7 +192,7 @@ def _camera_restore_plugin_settings(self, data):
 
 
 def _camera_collect_visual_state_snapshot(self):
-    
+
     state={'version':3,'theme':'','overlays':[],'settings':_camera_capture_plugin_settings(self)}
     try:
         combo=getattr(self,'cmb_qgis_theme',None)
@@ -217,7 +209,7 @@ def _camera_collect_visual_state_snapshot(self):
 
 
 def _camera_visual_state_dirty(self, fid):
-    
+
     key=_camera_visual_state_key(self,fid)
     if not key:
         return False
@@ -232,12 +224,12 @@ def _camera_visual_state_dirty(self, fid):
         return a != b
     except Exception as exc:
         qcv_log(f"PDV {fid}: comparaison état visuel impossible: {exc}", 'EXPORT/PREFLIGHT', 'WARNING')
-        
+
         return True
 
 
 def _camera_capture_visual_state(self, fid):
-    
+
     key=_camera_visual_state_key(self,fid)
     if not key: return False
     project=QgsProject.instance()
@@ -276,7 +268,7 @@ def _camera_restore_visual_state(self, fid):
         self._camera_last_visual_restore_fid=int(fid); self._camera_last_visual_restore_summary='état QCALVIEW illisible'
         return False
 
-    
+
     theme=str(state.get('theme') or '')
     theme_applied=False
     if theme:
@@ -289,7 +281,7 @@ def _camera_restore_visual_state(self, fid):
         except Exception as exc:
             qcv_log(f"PDV {fid}: thème {theme} non appliqué: {exc}", 'PDV/LOAD', 'WARNING')
 
-    
+
     _camera_restore_plugin_settings(self,state.get('settings') or {})
     restored=[]
     try:
@@ -298,7 +290,7 @@ def _camera_restore_visual_state(self, fid):
             lyr=project.mapLayer(str(d.get('layer_id') or ''))
             if lyr is None: continue
             sty=LayerStyle(lyr); _qcv_style_from_dict(sty,d)
-            
+
             try:
                 if bool(getattr(sty, 'schematic_enabled', False)):
                     sid = str(getattr(sty, 'schematic_symbol_id', '') or '').strip()
@@ -345,13 +337,11 @@ def _camera_restore_visual_state(self, fid):
 
 
 def _camera_metric_project_crs(self):
-    
+
     try:
         crs = QgsProject.instance().crs()
         if crs is None or not crs.isValid() or crs.isGeographic():
             return None
-        
-        
         try:
             meters = getattr(getattr(Qgis, 'DistanceUnit', None), 'Meters', None)
             if meters is None:
@@ -447,11 +437,6 @@ def _camera_feature_value(layer, feat, canonical_name, default=None):
         return default
 
 
-
-
-
-
-
 def _camera_normalize_view_mode(value, default='AUTO'):
     raw = str(value or '').strip().upper()
     aliases = {
@@ -490,7 +475,7 @@ def _camera_read_photo_metadata(path):
         meta = dict(read_exif(path) or {})
     except Exception:
         meta = {}
-    
+
     try:
         inf = probe_image(str(path))
         meta.setdefault('ImageWidth', int(inf.get('width', 0) or 0))
@@ -781,7 +766,7 @@ def _camera_refresh_field_combos(self, layer=None):
     for combo in combos:
         combo.blockSignals(True)
         combo.clear()
-        
+
         if combo in (getattr(self, 'cmb_cam_label_field', None), getattr(self, 'cmb_cam_order_field', None)):
             combo.addItem(tr(''))
         combo.addItems(tr(names))
@@ -795,8 +780,8 @@ def _camera_refresh_field_combos(self, layer=None):
     label_name = prev_label if prev_label in names else default_label
     order_name = prev_order if prev_order in names else default_order
     img_name = prev_img if prev_img in names else default_img
-    
-    
+
+
     for combo, value in ((self.cmb_cam_id_field, id_name), (self.cmb_cam_label_field, label_name),
                          (self.cmb_cam_order_field, order_name), (self.cmb_cam_image_field, img_name)):
         if value:
@@ -906,9 +891,9 @@ def _camera_refresh_feature_list(self, autoload=None):
             self.viewer.update_info()
     except Exception as _qcv_exc:
         _qcv_suppress(_qcv_exc, "core/_camera_layer_ops.py:906")
-    
-    
-    
+
+
+
     try:
         if (not getattr(self, '_ui_initializing', False)
                 and bool(getattr(self, '_export_tab_loaded', False))
@@ -940,7 +925,7 @@ def _camera_select_combo_feature_by_fid(self, fid, autoload=True):
 
 
 def _camera_select_layer_feature(self, fid):
-    
+
     return
 
 
@@ -990,18 +975,15 @@ def _camera_on_layer_data_changed(self, *args):
     ):
         return
 
-    # Keep the auxiliary FOV cache in sync when saved camera parameters are
-    # edited directly in the attribute table. Failures never block the normal
-    # camera refresh or the legacy 40.20.3 renderer.
     try:
         layer = _camera_layer(self)
         if layer is not None and len(args) >= 2:
             fid = int(args[0])
             field_index = int(args[1])
             field_name = str(layer.fields().field(field_index).name()).lower()
-            # Auxiliary-cache writes can be delivered after the write guard has
-            # been released. They must never rebuild the PDV combo or alter the
-            # current viewpoint.
+
+
+
             if field_name == 'qcv_uid' or 'qcv_fov_' in field_name:
                 return
             if field_name in {'qcv_proj', 'qcv_360', 'qcv_yaw', 'qcv_hfov', 'qcv_mdst'}:
@@ -1040,8 +1022,6 @@ def _resolve_image_path(layer, raw_path):
         if candidate and os.path.exists(candidate):
             return os.path.normpath(candidate)
     return raw if os.path.exists(raw) else None
-
-
 
 
 def _camera_set_live_enabled(self, enabled):
@@ -1097,7 +1077,7 @@ def _camera_live_refresh_current(self):
 
 
 def _camera_refresh_current_view(self, force=False):
-    
+
     try:
         getattr(self, '_overlay_cache', {}).clear()
         getattr(self, '_geom_cache', {}).clear()
@@ -1107,8 +1087,8 @@ def _camera_refresh_current_view(self, force=False):
         _qcv_suppress(_qcv_exc, "core/_camera_layer_ops.py:1057")
     try: self._update_canvas_fov()
     except Exception as _qcv_exc: _qcv_suppress(_qcv_exc, "core/_camera_layer_ops.py:1060")
-    
-    
+
+
     try: self.render_preview()
     except Exception as _qcv_exc: _qcv_suppress(_qcv_exc, "core/_camera_layer_ops.py:1064")
     try:
@@ -1133,7 +1113,7 @@ def _camera_next_feature(self):
 
 
 def _camera_feature_image_path(self, layer, feat):
-    
+
     mode = _camera_feature_view_mode(self, layer, feat)
     if mode == 'SCHEMA':
         return None
@@ -1147,8 +1127,8 @@ def _camera_feature_image_path(self, layer, feat):
     except Exception:
         draft = None
 
-    
-    
+
+
     if isinstance(draft, dict) and draft.get('qcv_img') not in (None, ''):
         candidates.append(draft.get('qcv_img'))
 
@@ -1166,8 +1146,8 @@ def _camera_feature_image_path(self, layer, feat):
         except Exception as _qcv_exc:
             _qcv_suppress(_qcv_exc, "core/_camera_layer_ops.py:1117")
 
-    
-    
+
+
     for fld in ('photo', 'image', 'img', 'path', 'file'):
         if fld in names:
             try:
@@ -1251,7 +1231,7 @@ def _camera_load_photo_from_path(self, path):
         _qcv_suppress(_qcv_exc, "core/_camera_layer_ops.py:1201")
     try:
         if getattr(self, 'viewer', None):
-            
+
             self.viewer.update_image(self.image)
     except Exception as _qcv_exc:
         _qcv_suppress(_qcv_exc, "core/_camera_layer_ops.py:1207")
@@ -1259,7 +1239,7 @@ def _camera_load_photo_from_path(self, path):
 
 
 def _camera_state_from_feature(self, layer, feat, photo_meta=None):
-    
+
     defaults = _camera_default_state(self)
     photo_meta = photo_meta or {}
     z_geom = _camera_geom_z(feat)
@@ -1281,8 +1261,6 @@ def _camera_state_from_feature(self, layer, feat, photo_meta=None):
         except Exception:
             return False
 
-    
-    
     meta_foc = photo_meta.get('FocalLength')
     meta_sens = photo_meta.get('SensorWidthMM')
     meta_f35 = photo_meta.get('FocalLength35mmEq')
@@ -1293,7 +1271,7 @@ def _camera_state_from_feature(self, layer, feat, photo_meta=None):
         photo_foc, photo_sens = float(meta_f35), 36.0
 
     if auto_hfov and _pos(photo_foc) and _pos(photo_sens):
-        
+
         foc, sens = photo_foc, photo_sens
     else:
         foc = float(stored_foc) if _pos(stored_foc) else (photo_foc if _pos(photo_foc) else None)
@@ -1325,7 +1303,7 @@ def _camera_state_from_feature(self, layer, feat, photo_meta=None):
         state['qcv_sens'] = float(sens)
 
     if auto_hfov and (not _pos(foc) or not _pos(sens)):
-        
+
         state['qcv_ahf'] = 0
 
     img_path = _camera_feature_image_path(self, layer, feat)
@@ -1385,9 +1363,9 @@ def _camera_apply_state(self, state):
         self._toggle_hfov_enable(self.cb_auto_hfov.isChecked())
     except Exception as _qcv_exc:
         _qcv_suppress(_qcv_exc, "core/_camera_layer_ops.py:1337")
-    
-    
-    
+
+
+
     try:
         proj_upper = str(self.cmb_proj.currentText()).strip().upper()
         if proj_upper in ('EQUIRECT', 'EQUIRECTANGULAR'):
@@ -1425,10 +1403,7 @@ def _camera_collect_ui_state(self):
     if photo_path:
         state['qcv_img'] = photo_path
     elif mode == 'SCHEMA':
-        # The schematic/photo choice is a display mode, not a destructive
-        # association change. Keep any qcv_img already stored on the PDV so
-        # the user can return to the associated photograph without having to
-        # associate it again.
+
         try:
             layer = _camera_layer(self)
             feat = _camera_current_feature(self)
@@ -1489,9 +1464,9 @@ def _camera_load_current_feature(self, auto=False):
                 photo_meta = dict(getattr(self, '_camera_last_photo_meta', {}) or {})
             self._camera_current_photo_path = path
         else:
-            
-            
-            
+
+
+
             try:
                 self._activate_schematic_view()
             except Exception:
@@ -1522,9 +1497,6 @@ def _camera_load_current_feature(self, auto=False):
     finally:
         self._camera_loading_feature = False
 
-    
-    
-    
     try:
         self.render_preview()
     except Exception as _qcv_exc:
@@ -1611,7 +1583,7 @@ def _camera_assign_current_photo_path(self, path):
 
 
 def _camera_write_source_fields(self, mode, image_path=None, silent=False):
-    
+
     layer = _camera_layer(self)
     feat = _camera_current_feature(self)
     if layer is None or feat is None:
@@ -1625,8 +1597,8 @@ def _camera_write_source_fields(self, mode, image_path=None, silent=False):
     if mode == 'PHOTO' and image_path:
         stored = _camera_make_storable_image_path(layer, image_path)
 
-    # qcv_img is the persistent photograph association. Switching the PDV
-    # display mode to SCHEMA or AUTO must not erase that association.
+
+
     fields_to_write = [('qcv_mode', mode)]
     if mode == 'PHOTO':
         fields_to_write.append(('qcv_img', stored))
@@ -1651,8 +1623,8 @@ def _camera_write_source_fields(self, mode, image_path=None, silent=False):
             try:
                 ok = layer.changeAttributeValue(fid, idx, write_value)
             except Exception:
-                
-                
+
+
                 ok = layer.changeAttributeValue(fid, idx, '' if key == 'qcv_img' else value)
             changed = bool(ok) or changed
         if started:
@@ -1669,7 +1641,7 @@ def _camera_write_source_fields(self, mode, image_path=None, silent=False):
     if mode == 'PHOTO' and image_path:
         draft['qcv_img'] = image_path
     elif mode in ('SCHEMA', 'AUTO'):
-        # Preserve any image association already held by the draft/feature.
+
         existing = draft.get('qcv_img')
         if existing in (None, ''):
             existing = _camera_feature_value(layer, feat, 'qcv_img', None)
@@ -1687,13 +1659,11 @@ def _camera_write_source_fields(self, mode, image_path=None, silent=False):
 
 
 def _camera_set_current_schematic(self):
-    
+
     feat = _camera_current_feature(self)
     if feat is None:
         _camera_set_status(self, "Aucun point de vue actif.", "#aa6600")
         return
-    # Preserve the current photograph association before replacing the
-    # displayed image with the schematic background.
     layer = _camera_layer(self)
     fid = int(feat.id())
     associated_img = getattr(self, '_camera_current_photo_path', None)
@@ -1707,7 +1677,7 @@ def _camera_set_current_schematic(self):
         self.image = None
         self.photo_path = None
         self._camera_current_photo_path = None
-    
+
     self._camera_current_view_mode = 'SCHEMA'
     draft = _camera_capture_current_draft(self, feat.id()) or {}
     if associated_img not in (None, NULL, ''):
@@ -1729,7 +1699,7 @@ def _camera_set_current_schematic(self):
 
 
 def _camera_use_auto_image_source(self):
-    
+
     layer = _camera_layer(self)
     feat = _camera_current_feature(self)
     if layer is None or feat is None:
@@ -1750,7 +1720,7 @@ def _camera_use_auto_image_source(self):
 
 
 def _camera_associate_photo(self):
-    
+
     feat = _camera_current_feature(self)
     if feat is None:
         _camera_set_status(self, "Aucun point de vue actif.", "#aa6600")
@@ -1762,8 +1732,8 @@ def _camera_associate_photo(self):
         ok = False
     after = getattr(self, '_camera_current_photo_path', None)
     if ok is False or not after:
-        
-        
+
+
         if not after or after == before:
             return
     self._camera_current_view_mode = 'PHOTO'
@@ -1774,11 +1744,11 @@ def _camera_associate_photo(self):
 
 
 def _camera_schedule_autosave(self, *_args):
-    
+
     if getattr(self, '_camera_loading_feature', False):
         return
-    
-    
+
+
     if bool(getattr(self, '_render_edit_widgets', set())):
         self._camera_autosave_dirty = True
         return
@@ -1847,7 +1817,7 @@ def _camera_save_feature_by_fid(self, fid, silent=False):
         feat = None
     if feat is None or not feat.isValid():
         return False
-    
+
     if not _camera_ensure_fields(self):
         return False
 
@@ -1860,7 +1830,7 @@ def _camera_save_feature_by_fid(self, fid, silent=False):
     state['qcv_mode'] = mode
     img_path = state.get('qcv_img') or getattr(self, '_camera_current_photo_path', None)
     if mode == 'SCHEMA':
-        # Preserve the photo association while saving a schematic display mode.
+
         if not img_path:
             img_path = _camera_feature_value(layer, feat, 'qcv_img', None)
         if img_path not in (None, NULL, ''):
@@ -1903,9 +1873,6 @@ def _camera_save_feature_by_fid(self, fid, silent=False):
     finally:
         self._camera_internal_write = prev_write
 
-    
-    
-    
     drafts.pop(fid, None)
     self._camera_drafts = drafts
     if changed and not silent:

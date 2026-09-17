@@ -10,11 +10,11 @@ Type: %2 · Family: %3 · Geometry: %4 · Generator: %5</translation>
     </message>
     <message>
       <source>%1 NON appliqué — consulter les messages loadNamedStyle précédents</source>
-      <translation>%1 NON appliqué — consulter les messages loadNamedStyle précédents</translation>
+      <translation>%1 NOT applied — see previous loadNamedStyle messages</translation>
     </message>
     <message>
       <source>%1 appliqué avec succès</source>
-      <translation>%1 appliqué avec succès</translation>
+      <translation>%1 applied successfully</translation>
     </message>
     <message>
       <source>%1 objets AVR non générés</source>
@@ -142,11 +142,11 @@ Save “parameters + state” now before starting the export?</translation>
     </message>
     <message>
       <source>&lt;b&gt;Informations&lt;/b&gt;&lt;br&gt;%1&lt;br&gt;Hauteur caméra : %2 m&lt;br&gt;Azimut : %3°&lt;br&gt;Tangage : %4°&lt;br&gt;Roulis : %5°&lt;br&gt;HFOV : %6°&lt;br&gt;VFOV : %7°&lt;br&gt;Projection : %8&lt;br&gt;Image : %9&lt;br&gt;PDV : %10</source>
-      <translation>&lt;b&gt;Informations&lt;/b&gt;&lt;br&gt;%1&lt;br&gt;Height camera : %2 m&lt;br&gt;Azimuth : %3°&lt;br&gt;Pitch : %4°&lt;br&gt;Roll : %5°&lt;br&gt;HFOV : %6°&lt;br&gt;VFOV : %7°&lt;br&gt;Projection : %8&lt;br&gt;Image : %9&lt;br&gt;PDV : %10</translation>
+      <translation>&lt;b&gt;Information&lt;/b&gt;&lt;br&gt;%1&lt;br&gt;Camera height: %2 m&lt;br&gt;Azimuth: %3°&lt;br&gt;Pitch: %4°&lt;br&gt;Roll: %5°&lt;br&gt;HFOV: %6°&lt;br&gt;VFOV: %7°&lt;br&gt;Projection: %8&lt;br&gt;Image: %9&lt;br&gt;Viewpoint: %10</translation>
     </message>
     <message>
-      <source>&lt;b&gt;QCALVIEW&lt;/b&gt;&lt;br&gt;Version ALPHA-40.20.4 — expérimental&lt;br&gt;Simulation visuelle &amp;amp; géomatique pour QGIS&lt;br&gt;Développé par Fabrice Kerzerho — ArcTan°&lt;br&gt;© 2026 Fabrice Kerzerho — ArcTan°&lt;br&gt;GNU GPL v3 ou ultérieure&lt;br&gt;&lt;br&gt;&lt;a href='https://www.qcalview.com'&gt;qcalview.com&lt;/a&gt;</source>
-      <translation>&lt;b&gt;QCALVIEW&lt;/b&gt;&lt;br&gt;Version ALPHA-40.20.4 — experimental&lt;br&gt;Visual Simulation &amp;amp; Geomatics for QGIS&lt;br&gt;Developed by Fabrice Kerzerho — ArcTan°&lt;br&gt;© 2026 Fabrice Kerzerho — ArcTan°&lt;br&gt;GNU GPL v3 or later&lt;br&gt;&lt;br&gt;&lt;a href='https://www.qcalview.com'&gt;qcalview.com&lt;/a&gt;</translation>
+      <source>&lt;b&gt;QCALVIEW&lt;/b&gt;&lt;br&gt;Version ALPHA-40.20.5 — expérimental&lt;br&gt;Simulation visuelle &amp;amp; géomatique pour QGIS&lt;br&gt;Développé par Fabrice Kerzerho — ArcTan°&lt;br&gt;© 2026 Fabrice Kerzerho — ArcTan°&lt;br&gt;GNU GPL v3 ou ultérieure&lt;br&gt;&lt;br&gt;&lt;a href='https://www.qcalview.com'&gt;qcalview.com&lt;/a&gt;</source>
+      <translation>&lt;b&gt;QCALVIEW&lt;/b&gt;&lt;br&gt;Version ALPHA-40.20.5 — experimental&lt;br&gt;Visual Simulation &amp;amp; Geomatics for QGIS&lt;br&gt;Developed by Fabrice Kerzerho — ArcTan°&lt;br&gt;© 2026 Fabrice Kerzerho — ArcTan°&lt;br&gt;GNU GPL v3 or later&lt;br&gt;&lt;br&gt;&lt;a href='https://www.qcalview.com'&gt;qcalview.com&lt;/a&gt;</translation>
     </message>
     <message>
       <source>&lt;b&gt;X : %1&lt;/b&gt;    &lt;b&gt;Y : %2&lt;/b&gt;%3&lt;br&gt;Z sol : —    Hauteur : %4 m</source>
@@ -173,8 +173,8 @@ Save “parameters + state” now before starting the export?</translation>
       <translation>&lt;unnamed&gt;</translation>
     </message>
     <message>
-      <source>ALPHA-40.20.4 — Ces outils sont encore en cours de développement. Leur comportement et leur interface peuvent évoluer dans les prochaines versions Alpha.</source>
-      <translation>ALPHA-40.20.4 — These tools are still under active development. Their behaviour and interface may change in future Alpha releases.</translation>
+      <source>ALPHA-40.20.5 — Ces outils sont encore en cours de développement. Leur comportement et leur interface peuvent évoluer dans les prochaines versions Alpha.</source>
+      <translation>ALPHA-40.20.5 — These tools are still under active development. Their behaviour and interface may change in future Alpha releases.</translation>
     </message>
     <message>
       <source>ATTENTION : le motif de haie n’est pas un ruban continu; l’occultation complète n’est pas garantie.</source>
@@ -194,7 +194,7 @@ Save “parameters + state” now before starting the export?</translation>
     </message>
     <message>
       <source>Action contextuelle non installée : %1</source>
-      <translation>Context action not installed: %1</translation>
+      <translation>Context action could not be installed: %1</translation>
     </message>
     <message>
       <source>Activer la grille/cube de calibration</source>
@@ -354,7 +354,7 @@ Save “parameters + state” now before starting the export?</translation>
     </message>
     <message>
       <source>Application %1 demandée=%2</source>
-      <translation>Application %1 demandée=%2</translation>
+      <translation>Application %1 requested=%2</translation>
     </message>
     <message>
       <source>Appliquer le mode sécurisé</source>
@@ -926,7 +926,7 @@ Continue?</translation>
     </message>
     <message>
       <source>Déchargement du plugin</source>
-      <translation>Unloading plugin</translation>
+      <translation>Plugin unloaded</translation>
     </message>
     <message>
       <source>Décocher tous les points de vue du tableau</source>
@@ -978,15 +978,15 @@ Continue?</translation>
     </message>
     <message>
       <source>Erreur centre image :</source>
-      <translation>Error centre image :</translation>
+      <translation>Image-center error:</translation>
     </message>
     <message>
       <source>Erreur centre image : %1</source>
-      <translation>Error centre image : %1</translation>
+      <translation>Image-center error: %1</translation>
     </message>
     <message>
       <source>Erreur image → carte :</source>
-      <translation>Error image → carte :</translation>
+      <translation>Image → map error:</translation>
     </message>
     <message>
       <source>Erreur image → carte : %1</source>
@@ -994,7 +994,7 @@ Continue?</translation>
     </message>
     <message>
       <source>Erreur image → terrain :</source>
-      <translation>Error image → terrain :</translation>
+      <translation>Image → terrain error:</translation>
     </message>
     <message>
       <source>Erreur image → terrain : %1</source>
@@ -1152,7 +1152,7 @@ Reduces unnecessary recalculation and improves UI responsiveness.</translation>
     </message>
     <message>
       <source>Graduations (m)</source>
-      <translation>Graduations (m)</translation>
+      <translation>Ticks (m)</translation>
     </message>
     <message>
       <source>Grille / cube de calibration</source>
@@ -1216,11 +1216,11 @@ Reduces unnecessary recalculation and improves UI responsiveness.</translation>
     </message>
     <message>
       <source>Icône du menu QCALVIEW non appliquée :</source>
-      <translation>Icône du menu QCALVIEW non appliquée :</translation>
+      <translation>QCALVIEW menu icon could not be applied:</translation>
     </message>
     <message>
       <source>Icône du menu QCALVIEW non appliquée : %1</source>
-      <translation>Icône du menu QCALVIEW non appliquée : %1</translation>
+      <translation>QCALVIEW menu icon could not be applied: %1</translation>
     </message>
     <message>
       <source>Identifiant court du point de vue.</source>
@@ -1232,7 +1232,7 @@ Reduces unnecessary recalculation and improves UI responsiveness.</translation>
     </message>
     <message>
       <source>Images vectorielles ou PNG (*.svg *.png)</source>
-      <translation>Vector or PNG images (*.svg *.png)</translation>
+      <translation>Vector images or PNG (*.svg *.png)</translation>
     </message>
     <message>
       <source>Importer des modèles</source>
@@ -1418,7 +1418,7 @@ Enregistrer maintenant « paramètres + état » avant de lancer l’export ?</s
       <translation>The current viewpoint contains unsaved changes:
 • %1.
 
-Batch export reloads each viewpoint from its saved state. Without saving, the theme may revert to “none” and overlays may disappear from the export.
+A batch export reloads each viewpoint from its saved state. Without saving, the theme may revert to “none” and overlays may disappear from the export.
 
 Save “parameters + state” now before starting the export?</translation>
     </message>
@@ -1590,7 +1590,7 @@ Export was cancelled to avoid a result differing from the preview.</translation>
     </message>
     <message>
       <source>NON appliqué — consulter les messages loadNamedStyle précédents</source>
-      <translation>NON appliqué — consulter les messages loadNamedStyle précédents</translation>
+      <translation>NOT applied — see previous loadNamedStyle messages</translation>
     </message>
     <message>
       <source>Navigation PDV impossible :</source>
@@ -1734,11 +1734,11 @@ Export was cancelled to avoid a result differing from the preview.</translation>
     </message>
     <message>
       <source>Photo chargée:</source>
-      <translation>Photo loadede:</translation>
+      <translation>Photo loaded:</translation>
     </message>
     <message>
       <source>Photo chargée: %1×%2, fichier %3, QImage plein ~%4;</source>
-      <translation>Photo loadede: %1×%2, file %3, QImage plein ~%4;</translation>
+      <translation>Photo loaded: %1×%2, file %3, full QImage ~%4;</translation>
     </message>
     <message>
       <source>Photo du champ</source>
@@ -1782,11 +1782,11 @@ Export was cancelled to avoid a result differing from the preview.</translation>
     </message>
     <message>
       <source>Premier décodage photo échoué (%1); nouvel essai proxy %2×%3.</source>
-      <translation>Initial photo decode failed (%1); retrying with %2×%3 proxy.</translation>
+      <translation>Initial photo decode failed (%1); retrying with a %2×%3 proxy.</translation>
     </message>
     <message>
-      <source>Prendre en compte la courbure terrestre</source>
-      <translation>Account for Earth curvature</translation>
+      <source>Prendre en compte la courbure</source>
+      <translation>Account for curvature</translation>
     </message>
     <message>
       <source>Priorité hauteur : champ explicite &gt; motif AVR QCALVIEW &gt; valeur par défaut. Pour une éolienne AVR, la cible est le bout de pale théorique (hauteur moyeu + rayon). Si la compensation AVR est activée, qcv_h_req est augmenté pour que les creux de la cime irrégulière restent au-dessus de la ligne de visée. Le champ résultat reste une hauteur unique par entité de haie : si une longue entité intercepte plusieurs cibles, le maximum est appliqué à toute cette entité.</source>
@@ -1911,12 +1911,12 @@ Background preferences are global (QSettings), never stored per feature.</transl
       <translation>DEM/DSM raster</translation>
     </message>
     <message>
-      <source>Rayon terrestre</source>
-      <translation>Earth radius</translation>
+      <source>Rayon du corps</source>
+      <translation>Body radius</translation>
     </message>
     <message>
-      <source>Rayon terrestre utilisé pour la correction de courbure. Réglage avancé : Paramètres &gt; Variables.</source>
-      <translation>Earth radius used for curvature correction. Advanced setting: Settings &gt; Variables.</translation>
+      <source>Rayon du corps utilisé pour la correction de courbure. Réglage avancé : Paramètres &gt; Variables.</source>
+      <translation>Body radius used for curvature correction. Advanced setting: Settings &gt; Variables.</translation>
     </message>
     <message>
       <source>Recalage assisté</source>
@@ -2296,11 +2296,11 @@ Automatically adjusts delays and quality according to complexity.</translation>
     </message>
     <message>
       <source>[QCALVIEW][PDV-QML] Création style nommé impossible:</source>
-      <translation>[QCALVIEW][PDV-QML] Création style nommé impossible:</translation>
+      <translation>[QCALVIEW][VIEWPOINT-QML] Named style creation failed:</translation>
     </message>
     <message>
       <source>[QCALVIEW][PDV-QML] Création style nommé impossible: %1</source>
-      <translation>[QCALVIEW][PDV-QML] Création style nommé impossible: %1</translation>
+      <translation>[QCALVIEW][VIEWPOINT-QML] Named style creation failed: %1</translation>
     </message>
     <message>
       <source>[QCALVIEW][PDV-QML] Style chargé mais inspection renderer impossible:</source>
@@ -2344,7 +2344,7 @@ Automatically adjusts delays and quality according to complexity.</translation>
     </message>
     <message>
       <source>appliqué avec succès</source>
-      <translation>appliqué avec succès</translation>
+      <translation>applied successfully</translation>
     </message>
     <message>
       <source>aucun</source>
@@ -2412,7 +2412,7 @@ Automatically adjusts delays and quality according to complexity.</translation>
     </message>
     <message>
       <source>demandée=</source>
-      <translation>demandée=</translation>
+      <translation>requested=</translation>
     </message>
     <message>
       <source>décodage direct.</source>
@@ -2528,7 +2528,7 @@ Reduce the extent, apply a filter, or simplify the layer before adding it.</tran
     </message>
     <message>
       <source>pas de topographie pour ce point</source>
-      <translation>no topography for this point</translation>
+      <translation>no terrain data for this point</translation>
     </message>
     <message>
       <source>piexif embarqué introuvable ou non chargeable :</source>
@@ -2624,7 +2624,7 @@ Maximum calculated height:</translation>
     </message>
     <message>
       <source>Échec altitude : Z géométrique absent et aucun MNT/MNS actif.</source>
-      <translation>Elevation failure: no geometry Z and no active DEM/DSM.</translation>
+      <translation>Elevation failed: no geometry Z and no active DEM/DSM.</translation>
     </message>
     <message>
       <source>Échec chargement photo</source>
@@ -2849,6 +2849,634 @@ Sélectionnez un raster de topographie dans l’onglet Relief, puis relancez l�
       <translation>Export unavailable: no valid DEM/DSM is selected.
 
 Select a terrain raster in the Terrain tab, then run the export again.</translation>
+    </message>
+    <message>
+      <source>Symbole carte</source>
+      <translation>Map symbol</translation>
+    </message>
+    <message>
+      <source>Relief (MNT/MNS)</source>
+      <translation>Terrain (DEM/DSM)</translation>
+    </message>
+    <message>
+      <source> u.carte</source>
+      <translation> map units</translation>
+    </message>
+    <message>
+      <source>Activer profiling (debug)</source>
+      <translation>Enable profiling (debug)</translation>
+    </message>
+    <message>
+      <source>Couleur…</source>
+      <translation>Color…</translation>
+    </message>
+    <message>
+      <source> objets</source>
+      <translation> objects</translation>
+    </message>
+    <message>
+      <source>Couleur calibration</source>
+      <translation>Calibration color</translation>
+    </message>
+    <message>
+      <source>Preview jobs canevas suspendus pendant QCALVIEW (état initial=%1)</source>
+      <translation>Canvas preview jobs suspended while QCALVIEW is open (initial state=%1)</translation>
+    </message>
+    <message>
+      <source>Preview jobs canevas restaurés (état=%1)</source>
+      <translation>Canvas preview jobs restored (state=%1)</translation>
+    </message>
+    <message>
+      <source>%1 : preview jobs QGIS laissés dans leur état normal (previewJobsEnabled=%2)</source>
+      <translation>%1: QGIS preview jobs left in their normal state (previewJobsEnabled=%2)</translation>
+    </message>
+    <message>
+      <source>État des preview jobs QGIS non lisible : %1</source>
+      <translation>Unable to read QGIS preview-jobs state: %1</translation>
+    </message>
+    <message>
+      <source>Preview jobs canevas suspendus pendant QCALVIEW (état initial=</source>
+      <translation>Canvas preview jobs suspended while QCALVIEW is open (initial state=</translation>
+    </message>
+    <message>
+      <source>Preview jobs canevas restaurés (état=</source>
+      <translation>Canvas preview jobs restored (state=</translation>
+    </message>
+    <message>
+      <source>Impossible de suspendre les preview jobs : %1</source>
+      <translation>Unable to suspend preview jobs: %1</translation>
+    </message>
+    <message>
+      <source>Impossible de restaurer les preview jobs : %1</source>
+      <translation>Unable to restore preview jobs: %1</translation>
+    </message>
+    <message>
+      <source>[QCALVIEW][PDV-FOV] Cache FOV indisponible : renderer géométrique 40.20.3 restauré.</source>
+      <translation>[QCALVIEW][VIEWPOINT-FOV] FOV cache unavailable: geometric renderer restored.</translation>
+    </message>
+    <message>
+      <source>[QCALVIEW][PDV-FOV] Initialisation FOV impossible: %1. Renderer géométrique 40.20.3 restauré.</source>
+      <translation>[QCALVIEW][VIEWPOINT-FOV] FOV initialization failed: %1. Geometric renderer restored.</translation>
+    </message>
+    <message>
+      <source>Cache FOV validé pour %1 PDV.</source>
+      <translation>FOV cache validated for %1 viewpoint(s).</translation>
+    </message>
+    <message>
+      <source>Cache FOV créé mais non lisible depuis la couche; renderer 40.20.3 conservé.</source>
+      <translation>FOV cache created but unreadable from the layer; fallback renderer retained.</translation>
+    </message>
+    <message>
+      <source>Cache FOV existant réutilisé; aucune reconstruction nécessaire.</source>
+      <translation>Existing FOV cache reused; no rebuild required.</translation>
+    </message>
+    <message>
+      <source>Renderer géométrique 40.20.3 restauré (%1 GeometryGenerator).</source>
+      <translation>Geometric fallback renderer restored (%1 GeometryGenerator).</translation>
+    </message>
+    <message>
+      <source>Renderer PDV incompatible: %1 générateurs QCALVIEW reconnus, %2 inconnu(s); renderer 40.20.3 conservé.</source>
+      <translation>Incompatible viewpoint renderer: %1 recognized QCALVIEW generators, %2 unknown; fallback renderer retained.</translation>
+    </message>
+    <message>
+      <source>Renderer FOV allégé activé (%1 GeometryGenerator pré-calculés).</source>
+      <translation>Lightweight FOV renderer enabled (%1 precomputed GeometryGenerator items).</translation>
+    </message>
+    <message>
+      <source>Initialisation des qcv_uid impossible: %1; le style 40.20.3 sera conservé.</source>
+      <translation>qcv_uid initialization failed: %1; fallback style retained.</translation>
+    </message>
+    <message>
+      <source>Création du champ qcv_uid refusée par le provider; le style 40.20.3 sera conservé.</source>
+      <translation>qcv_uid field creation refused by the provider; fallback style retained.</translation>
+    </message>
+    <message>
+      <source>Création du champ qcv_uid impossible: %1</source>
+      <translation>qcv_uid field creation failed: %1</translation>
+    </message>
+    <message>
+      <source>Création du stockage auxiliaire FOV impossible: %1</source>
+      <translation>FOV auxiliary storage creation failed: %1</translation>
+    </message>
+    <message>
+      <source>Champ auxiliaire %1 non créé.</source>
+      <translation>Auxiliary field %1 was not created.</translation>
+    </message>
+    <message>
+      <source>Champ auxiliaire %1 non créé: %2</source>
+      <translation>Auxiliary field %1 was not created: %2</translation>
+    </message>
+    <message>
+      <source>Enregistrement du schéma auxiliaire FOV impossible.</source>
+      <translation>Unable to save the auxiliary FOV schema.</translation>
+    </message>
+    <message>
+      <source>Renderer FOV de secours incomplet; aucune modification appliquée.</source>
+      <translation>Fallback FOV renderer incomplete; no changes applied.</translation>
+    </message>
+    <message>
+      <source>Restauration du renderer 40.20.3 impossible: %1</source>
+      <translation>Fallback renderer restoration failed: %1</translation>
+    </message>
+    <message>
+      <source>Migration du renderer FOV impossible: %1</source>
+      <translation>FOV renderer migration failed: %1</translation>
+    </message>
+    <message>
+      <source>QCALVIEW - diagnostic occultation</source>
+      <translation>QCALVIEW - occlusion diagnostics</translation>
+    </message>
+    <message>
+      <source>Export bloqué : aucun MNT/MNS valide sélectionné.</source>
+      <translation>Export blocked: no valid DEM/DSM selected.</translation>
+    </message>
+    <message>
+      <source>Rendu suspendu : aucun MNT/MNS valide sélectionné.</source>
+      <translation>Rendering suspended: no valid DEM/DSM selected.</translation>
+    </message>
+    <message>
+      <source>Dossier : %1</source>
+      <translation>Folder: %1</translation>
+    </message>
+    <message>
+      <source>Point courant : %1 — %2.</source>
+      <translation>Current viewpoint: %1 — %2.</translation>
+    </message>
+    <message>
+      <source>photo introuvable</source>
+      <translation>photo not found</translation>
+    </message>
+    <message>
+      <source>Source enregistrée : vue schématique (photo associée conservée).</source>
+      <translation>Saved source: schematic view (associated photo retained).</translation>
+    </message>
+    <message>
+      <source>%1 — vue schématique enregistrée (photo associée conservée).</source>
+      <translation>%1 — schematic view saved (associated photo retained).</translation>
+    </message>
+    <message>
+      <source>Agriculture / mobilier / objets</source>
+      <translation>Agriculture / furniture / objects</translation>
+    </message>
+    <message>
+      <source>Tous objets / mobilier</source>
+      <translation>All objects / furniture</translation>
+    </message>
+    <message>
+      <source>Autres objets</source>
+      <translation>Other objects</translation>
+    </message>
+    <message>
+      <source> · tangage %1°</source>
+      <translation> · pitch %1°</translation>
+    </message>
+    <message>
+      <source>Champ hauteur (si existant) </source>
+      <translation>Height field (if available) </translation>
+    </message>
+    <message>
+      <source> m (0=∞)</source>
+      <translation> m (0=∞)</translation>
+    </message>
+    <message>
+      <source> % bandeau</source>
+      <translation> % banner</translation>
+    </message>
+    <message>
+      <source> couches</source>
+      <translation> layers</translation>
+    </message>
+    <message>
+      <source>QCALVIEW — CRS</source>
+      <translation>QCALVIEW — CRS</translation>
+    </message>
+    <message>
+      <source>Afficher le tube de torsion</source>
+      <translation>Show torque tube</translation>
+    </message>
+    <message>
+      <source>Afficher les pieds verticaux</source>
+      <translation>Show vertical supports</translation>
+    </message>
+    <message>
+      <source>Afficher les pieux centraux</source>
+      <translation>Show central posts</translation>
+    </message>
+    <message>
+      <source>Alignement d’individus</source>
+      <translation>Individual alignment</translation>
+    </message>
+    <message>
+      <source>Angle instantané du tracker (°)</source>
+      <translation>Current tracker angle (°)</translation>
+    </message>
+    <message>
+      <source>Animal — modèle personnalisé</source>
+      <translation>Animal — custom model</translation>
+    </message>
+    <message>
+      <source>Arbre feuillu schématique</source>
+      <translation>Schematic deciduous tree</translation>
+    </message>
+    <message>
+      <source>Autre animal — modèle personnalisé</source>
+      <translation>Other animal — custom model</translation>
+    </message>
+    <message>
+      <source>Autre objet — modèle personnalisé</source>
+      <translation>Other object — custom model</translation>
+    </message>
+    <message>
+      <source>Autre véhicule — modèle personnalisé</source>
+      <translation>Other vehicle — custom model</translation>
+    </message>
+    <message>
+      <source>Autre éolienne — silhouette personnalisée</source>
+      <translation>Other wind turbine — custom silhouette</translation>
+    </message>
+    <message>
+      <source>Azimut du côté haut (°)</source>
+      <translation>High-side azimuth (°)</translation>
+    </message>
+    <message>
+      <source>Bibliothèque personnalisée</source>
+      <translation>Custom library</translation>
+    </message>
+    <message>
+      <source>Botte de foin — modèle personnalisé</source>
+      <translation>Hay bale — custom model</translation>
+    </message>
+    <message>
+      <source>Bâtiment / ouvrage — modèle personnalisé</source>
+      <translation>Building / structure — custom model</translation>
+    </message>
+    <message>
+      <source>Clôture générique</source>
+      <translation>Generic fence</translation>
+    </message>
+    <message>
+      <source>Clôture le long d’une polyligne ou du périmètre extérieur d’un polygone. Aucune dispersion surfacique.</source>
+      <translation>Fence along a polyline or the outer perimeter of a polygon. No surface distribution.</translation>
+    </message>
+    <message>
+      <source>Conifère adaptatif : individu sur point, alignement/ruban sur ligne, massif ou peuplement sur polygone.</source>
+      <translation>Adaptive conifer: individual on point, alignment/strip on line, stand or population on polygon.</translation>
+    </message>
+    <message>
+      <source>Couleur clôture</source>
+      <translation>Fence color</translation>
+    </message>
+    <message>
+      <source>Diamètre rotor (m)</source>
+      <translation>Rotor diameter (m)</translation>
+    </message>
+    <message>
+      <source>Espacement des pieux (m)</source>
+      <translation>Post spacing (m)</translation>
+    </message>
+    <message>
+      <source>Espacement dispersion polygonale (m)</source>
+      <translation>Polygon distribution spacing (m)</translation>
+    </message>
+    <message>
+      <source>Espacement individus (m)</source>
+      <translation>Individual spacing (m)</translation>
+    </message>
+    <message>
+      <source>Espacement poteaux (m)</source>
+      <translation>Post spacing (m)</translation>
+    </message>
+    <message>
+      <source>Face caméra (défaut)</source>
+      <translation>Face camera (default)</translation>
+    </message>
+    <message>
+      <source>Faces pleines extrudées pour bâtiments, locaux techniques et volumes simples.</source>
+      <translation>Solid extruded faces for buildings, technical structures and simple volumes.</translation>
+    </message>
+    <message>
+      <source>Femme — modèle personnalisé</source>
+      <translation>Woman — custom model</translation>
+    </message>
+    <message>
+      <source>Groupe — modèle personnalisé</source>
+      <translation>Group — custom model</translation>
+    </message>
+    <message>
+      <source>Générateur générique pour un modèle SVG/PNG personnalisé de cette catégorie.</source>
+      <translation>Generic generator for a custom SVG/PNG model in this category.</translation>
+    </message>
+    <message>
+      <source>Générateur générique pour utiliser des SVG/PNG personnalisés de végétation sur points, lignes ou polygones.</source>
+      <translation>Generic generator for custom vegetation SVG/PNG assets on points, lines or polygons.</translation>
+    </message>
+    <message>
+      <source>Haie générique</source>
+      <translation>Generic hedge</translation>
+    </message>
+    <message>
+      <source>Hauteur (m)</source>
+      <translation>Height (m)</translation>
+    </message>
+    <message>
+      <source>Hauteur basse (m)</source>
+      <translation>Low-edge height (m)</translation>
+    </message>
+    <message>
+      <source>Hauteur de l’axe de rotation (m)</source>
+      <translation>Rotation-axis height (m)</translation>
+    </message>
+    <message>
+      <source>Hauteur du modèle (m)</source>
+      <translation>Model height (m)</translation>
+    </message>
+    <message>
+      <source>Hauteur moyeu (m)</source>
+      <translation>Hub height (m)</translation>
+    </message>
+    <message>
+      <source>Hauteur/largeur physique du panneau (m)</source>
+      <translation>Panel physical height/width (m)</translation>
+    </message>
+    <message>
+      <source>Homme — modèle personnalisé</source>
+      <translation>Man — custom model</translation>
+    </message>
+    <message>
+      <source>Irrégularité</source>
+      <translation>Irregularity</translation>
+    </message>
+    <message>
+      <source>Irrégularité couronne/masse</source>
+      <translation>Crown/mass irregularity</translation>
+    </message>
+    <message>
+      <source>Irrégularité position (0–0,45)</source>
+      <translation>Position irregularity (0–0.45)</translation>
+    </message>
+    <message>
+      <source>Irrégularité positions</source>
+      <translation>Position irregularity</translation>
+    </message>
+    <message>
+      <source>Irrégularité positions (0–0,45)</source>
+      <translation>Position irregularity (0–0.45)</translation>
+    </message>
+    <message>
+      <source>Largeur de la table (m)</source>
+      <translation>Table width (m)</translation>
+    </message>
+    <message>
+      <source>Largeur du modèle (m)</source>
+      <translation>Model width (m)</translation>
+    </message>
+    <message>
+      <source>Largeur individu (m)</source>
+      <translation>Individual width (m)</translation>
+    </message>
+    <message>
+      <source>Largeur mât base (m)</source>
+      <translation>Tower base width (m)</translation>
+    </message>
+    <message>
+      <source>Largeur mât sommet (m)</source>
+      <translation>Tower top width (m)</translation>
+    </message>
+    <message>
+      <source>Largeur pale bout (m)</source>
+      <translation>Blade tip width (m)</translation>
+    </message>
+    <message>
+      <source>Largeur pale racine (m)</source>
+      <translation>Blade root width (m)</translation>
+    </message>
+    <message>
+      <source>Largeur table (m)</source>
+      <translation>Table width (m)</translation>
+    </message>
+    <message>
+      <source>Ligne : représentation</source>
+      <translation>Line: representation</translation>
+    </message>
+    <message>
+      <source>Masse végétale</source>
+      <translation>Vegetation mass</translation>
+    </message>
+    <message>
+      <source>Matériel agricole — modèle personnalisé</source>
+      <translation>Farm equipment — custom model</translation>
+    </message>
+    <message>
+      <source>Mobilier / équipement — modèle personnalisé</source>
+      <translation>Furniture / equipment — custom model</translation>
+    </message>
+    <message>
+      <source>Mode photovoltaïque</source>
+      <translation>Photovoltaic mode</translation>
+    </message>
+    <message>
+      <source>Modèle SVG/PNG personnalisable.</source>
+      <translation>Customizable SVG/PNG model.</translation>
+    </message>
+    <message>
+      <source>Motif végétal adaptatif : arbre isolé sur point, alignement/ruban sur ligne, masse ou peuplement sur polygone.</source>
+      <translation>Adaptive vegetation symbol: isolated tree on point, alignment/strip on line, mass or population on polygon.</translation>
+    </message>
+    <message>
+      <source>Nombre maximum sur polygone</source>
+      <translation>Maximum count on polygon</translation>
+    </message>
+    <message>
+      <source>Objet / mobilier — modèle personnalisé</source>
+      <translation>Object / furniture — custom model</translation>
+    </message>
+    <message>
+      <source>Orientation du rotor</source>
+      <translation>Rotor orientation</translation>
+    </message>
+    <message>
+      <source>Panneau vertical (90°)</source>
+      <translation>Vertical panel (90°)</translation>
+    </message>
+    <message>
+      <source>Panneaux photovoltaïques verticaux</source>
+      <translation>Vertical photovoltaic panels</translation>
+    </message>
+    <message>
+      <source>Personnage — modèle personnalisé</source>
+      <translation>Person — custom model</translation>
+    </message>
+    <message>
+      <source>Personne — échelle</source>
+      <translation>Person — scale reference</translation>
+    </message>
+    <message>
+      <source>Pin adaptatif : individu sur point, alignement/ruban sur ligne, massif ou peuplement sur polygone.</source>
+      <translation>Adaptive pine: individual on point, alignment/strip on line, stand or population on polygon.</translation>
+    </message>
+    <message>
+      <source>Polygone : représentation</source>
+      <translation>Polygon: representation</translation>
+    </message>
+    <message>
+      <source>Rangée de tracker mono-axe : surface pivotant autour d’un tube de torsion longitudinal, porté par plusieurs pieux centraux espacés le long de la rangée.</source>
+      <translation>Single-axis tracker row: surface rotating around a longitudinal torque tube, supported by several central posts spaced along the row.</translation>
+    </message>
+    <message>
+      <source>Rangée photovoltaïque verticale (bifaciale possible en représentation schématique). Sur ligne, la surface s’élève verticalement depuis la ligne d’axe.</source>
+      <translation>Vertical photovoltaic row (bifacial representation supported in schematic mode). On a line, the surface rises vertically from the axis line.</translation>
+    </message>
+    <message>
+      <source>Ratio hauteur minimale</source>
+      <translation>Minimum height ratio</translation>
+    </message>
+    <message>
+      <source>Repères</source>
+      <translation>Scale references</translation>
+    </message>
+    <message>
+      <source>Ruban végétal continu</source>
+      <translation>Continuous vegetation strip</translation>
+    </message>
+    <message>
+      <source>Ruban végétal continu à sommet irrégulier, destiné aux AVR 0/1 et tests d'occultation.</source>
+      <translation>Continuous vegetation strip with an irregular top, intended for AVR 0/1 and occlusion tests.</translation>
+    </message>
+    <message>
+      <source>Résineux — pin</source>
+      <translation>Conifer — pine</translation>
+    </message>
+    <message>
+      <source>Résineux — épicéa/sapin</source>
+      <translation>Conifer — spruce/fir</translation>
+    </message>
+    <message>
+      <source>Silhouette SVG/PNG personnalisée. Sur polygone, instances réparties de façon déterministe dans la surface.</source>
+      <translation>Custom SVG/PNG silhouette. On polygons, instances are distributed deterministically within the surface.</translation>
+    </message>
+    <message>
+      <source>Silhouette de voiture pour donner une échelle ou représenter un véhicule léger.</source>
+      <translation>Car silhouette for scale reference or representation of a light vehicle.</translation>
+    </message>
+    <message>
+      <source>Silhouette humaine simple pour donner une échelle visuelle aux ouvrages.</source>
+      <translation>Simple human silhouette providing a visual scale reference for structures.</translation>
+    </message>
+    <message>
+      <source>Silhouette latérale schématique d’un tracteur, dimensionnable en mètres.</source>
+      <translation>Schematic side silhouette of a tractor, scalable in metres.</translation>
+    </message>
+    <message>
+      <source>Silhouette schématique de bovin pour projets agrivoltaïques et scènes agricoles.</source>
+      <translation>Schematic cattle silhouette for agrivoltaic projects and agricultural scenes.</translation>
+    </message>
+    <message>
+      <source>Silhouette schématique de cheval pour scènes agricoles ou équestres.</source>
+      <translation>Schematic horse silhouette for agricultural or equestrian scenes.</translation>
+    </message>
+    <message>
+      <source>Silhouette schématique de moissonneuse-batteuse pour mises en situation agricoles.</source>
+      <translation>Schematic combine-harvester silhouette for agricultural visualisations.</translation>
+    </message>
+    <message>
+      <source>Silhouette schématique de volaille pour élevage et agrivoltaïsme.</source>
+      <translation>Schematic poultry silhouette for farming and agrivoltaics.</translation>
+    </message>
+    <message>
+      <source>Silhouette schématique d’ovin pour pâturage et projets agrivoltaïques.</source>
+      <translation>Schematic sheep silhouette for grazing and agrivoltaic projects.</translation>
+    </message>
+    <message>
+      <source>Silhouette vectorielle paramétrique : mât conique, nacelle et rotor trois pales.</source>
+      <translation>Parametric vector silhouette: tapered tower, nacelle and three-blade rotor.</translation>
+    </message>
+    <message>
+      <source>Table fixe inclinée</source>
+      <translation>Fixed tilted table</translation>
+    </message>
+    <message>
+      <source>Table photovoltaïque fixe</source>
+      <translation>Fixed photovoltaic table</translation>
+    </message>
+    <message>
+      <source>Table photovoltaïque fixe inclinée. Le tilt peut atteindre 90°, mais le motif Panneaux verticaux fournit des réglages dédiés.</source>
+      <translation>Fixed tilted photovoltaic table. Tilt can reach 90°, but the Vertical panels symbol provides dedicated settings.</translation>
+    </message>
+    <message>
+      <source>Tracker photovoltaïque mono-axe</source>
+      <translation>Single-axis photovoltaic tracker</translation>
+    </message>
+    <message>
+      <source>Utilitaire — modèle personnalisé</source>
+      <translation>Utility vehicle — custom model</translation>
+    </message>
+    <message>
+      <source>Voiture — échelle</source>
+      <translation>Car — scale reference</translation>
+    </message>
+    <message>
+      <source>Volume / bâtiment</source>
+      <translation>Volume / building</translation>
+    </message>
+    <message>
+      <source>Végétation basse adaptative : arbuste sur point, ruban/alignement sur ligne, masse ou peuplement sur polygone.</source>
+      <translation>Adaptive low vegetation: shrub on point, strip/alignment on line, mass or population on polygon.</translation>
+    </message>
+    <message>
+      <source>Végétation — modèle personnalisé</source>
+      <translation>Vegetation — custom model</translation>
+    </message>
+    <message>
+      <source>Véhicule — modèle personnalisé</source>
+      <translation>Vehicle — custom model</translation>
+    </message>
+    <message>
+      <source>pv_table</source>
+      <translation>pv_table</translation>
+    </message>
+    <message>
+      <source>pv_tables</source>
+      <translation>pv_tables</translation>
+    </message>
+    <message>
+      <source>Énergie / ENR</source>
+      <translation>Energy / renewables</translation>
+    </message>
+    <message>
+      <source>Éolienne schématique</source>
+      <translation>Schematic wind turbine</translation>
+    </message>
+    <message>
+      <source>Éolienne — modèle graphique personnalisé</source>
+      <translation>Wind turbine — custom graphic model</translation>
+    </message>
+    <message>
+      <source>Éolienne — silhouette personnalisée</source>
+      <translation>Wind turbine — custom silhouette</translation>
+    </message>
+    <message>
+      <source>Épaisseur des pieds (m)</source>
+      <translation>Support thickness (m)</translation>
+    </message>
+    <message>
+      <source>Épaisseur des pieux centraux (m)</source>
+      <translation>Central-post thickness (m)</translation>
+    </message>
+    <message>
+      <source>Épaisseur poteaux (m)</source>
+      <translation>Post thickness (m)</translation>
+    </message>
+    <message>
+      <source>Équin / cheval</source>
+      <translation>Equine / horse</translation>
+    </message>
+    <message>
+      <source>Lecture du renderer de secours impossible: %1</source>
+      <translation>Unable to read the fallback renderer: %1</translation>
+    </message>
+    <message>
+      <source>Enregistrement du schéma auxiliaire FOV impossible: %1</source>
+      <translation>Unable to save the auxiliary FOV schema: %1</translation>
     </message>
   </context>
   <context>
@@ -3217,6 +3845,199 @@ HFOV : — · VFOV : — · Distance max : —</translation>
     <message>
       <source>Paramètres du motif</source>
       <translation>Symbol parameters</translation>
+    </message>
+  </context>
+  <context>
+    <name>RuntimeStrings</name>
+    <message>
+      <source>Interne</source>
+      <translation>Built-in</translation>
+    </message>
+    <message>
+      <source>Utilisateur</source>
+      <translation>User</translation>
+    </message>
+    <message>
+      <source>terrain apparent</source>
+      <translation>apparent terrain</translation>
+    </message>
+    <message>
+      <source>terrain brut</source>
+      <translation>raw terrain</translation>
+    </message>
+    <message>
+      <source> : preview jobs QGIS laissés dans leur état normal (previewJobsEnabled=</source>
+      <translation> : QGIS preview jobs left in their normal state (previewJobsEnabled=</translation>
+    </message>
+    <message>
+      <source> entité(s) sans intersection utile avec les lignes de visée.
+Source des hauteurs cibles — </source>
+      <translation> feature(s) with no useful intersection with the sight lines.
+Target-height source — </translation>
+    </message>
+    <message>
+      <source> entités.
+
+Elle sera ajoutée, mais l'aperçu pourra être limité automatiquement (profondeur auto, coupure des labels, simplification).</source>
+      <translation> features.
+
+It will be added, but the preview may be limited automatically (auto depth, label clipping, simplification).</translation>
+    </message>
+    <message>
+      <source> entités.
+
+QCALVIEW risque de devenir très lent ou de figer la machine en aperçu interactif.
+Réduisez l'emprise, appliquez un filtre ou simplifiez la couche avant de l'ajouter.</source>
+      <translation> features.
+
+QCALVIEW may become very slow or freeze the machine in interactive preview.
+Reduce the extent, apply a filter, or simplify the layer before adding it.</translation>
+    </message>
+    <message>
+      <source> GeometryGenerator pré-calculés).</source>
+      <translation> precomputed GeometryGenerators).</translation>
+    </message>
+    <message>
+      <source> générateurs QCALVIEW reconnus, </source>
+      <translation> recognised QCALVIEW generators, </translation>
+    </message>
+    <message>
+      <source> inconnu(s); renderer 40.20.3 conservé.</source>
+      <translation> unknown; 40.20.3 renderer kept.</translation>
+    </message>
+    <message>
+      <source> non créé.</source>
+      <translation> not created.</translation>
+    </message>
+    <message>
+      <source> non créé: </source>
+      <translation> not created: </translation>
+    </message>
+    <message>
+      <source> px
+Entités estimées : </source>
+      <translation> px
+Estimated features: </translation>
+    </message>
+    <message>
+      <source> ».
+Hauteur maximale calculée : </source>
+      <translation> ».
+Maximum calculated height: </translation>
+    </message>
+    <message>
+      <source> — vue schématique enregistrée (photo associée conservée).</source>
+      <translation> — schematic view saved (associated photo retained).</translation>
+    </message>
+    <message>
+      <source>. Renderer géométrique 40.20.3 restauré.</source>
+      <translation>. 40.20.3 geometry renderer restored.</translation>
+    </message>
+    <message>
+      <source>: moyeu + rayon</source>
+      <translation>: hub + radius</translation>
+    </message>
+    <message>
+      <source>; le style 40.20.3 sera conservé.</source>
+      <translation>; the 40.20.3 style will be kept.</translation>
+    </message>
+    <message>
+      <source>&lt;br&gt;Hauteur caméra : </source>
+      <translation>&lt;br&gt;Camera height: </translation>
+    </message>
+    <message>
+      <source>[QCALVIEW][PDV-QML] QML introuvable : </source>
+      <translation>[QCALVIEW][PDV-QML] QML not found: </translation>
+    </message>
+    <message>
+      <source>Cache FOV validé pour </source>
+      <translation>FOV cache validated for </translation>
+    </message>
+    <message>
+      <source>champ qcv_uid non éditable</source>
+      <translation>qcv_uid field is not editable</translation>
+    </message>
+    <message>
+      <source>Champs auxiliaires FOV non joints à la couche: </source>
+      <translation>Auxiliary FOV fields not joined to the layer: </translation>
+    </message>
+    <message>
+      <source>Création du champ qcv_uid impossible: </source>
+      <translation>Unable to create qcv_uid field: </translation>
+    </message>
+    <message>
+      <source>Création du stockage auxiliaire FOV impossible: </source>
+      <translation>Unable to create auxiliary FOV storage: </translation>
+    </message>
+    <message>
+      <source>Dossier : </source>
+      <translation>Folder: </translation>
+    </message>
+    <message>
+      <source>feature introuvable</source>
+      <translation>feature not found</translation>
+    </message>
+    <message>
+      <source>Fichier UI introuvable : </source>
+      <translation>UI file not found: </translation>
+    </message>
+    <message>
+      <source>Impossible de restaurer les preview jobs : </source>
+      <translation>Unable to restore preview jobs: </translation>
+    </message>
+    <message>
+      <source>Impossible de suspendre les preview jobs : </source>
+      <translation>Unable to suspend preview jobs: </translation>
+    </message>
+    <message>
+      <source>Le point de vue courant contient des modifications non enregistrées :
+• </source>
+      <translation>The current viewpoint contains unsaved changes:
+• </translation>
+    </message>
+    <message>
+      <source>Lecture des PDV impossible: </source>
+      <translation>Unable to read viewpoints: </translation>
+    </message>
+    <message>
+      <source>Lecture du renderer de secours impossible: </source>
+      <translation>Unable to read fallback renderer: </translation>
+    </message>
+    <message>
+      <source>Migration du renderer FOV impossible: </source>
+      <translation>Unable to migrate FOV renderer: </translation>
+    </message>
+    <message>
+      <source>motif AVR introuvable</source>
+      <translation>AVR pattern not found</translation>
+    </message>
+    <message>
+      <source>Renderer FOV allégé activé (</source>
+      <translation>Lightweight FOV renderer enabled (</translation>
+    </message>
+    <message>
+      <source>Renderer géométrique 40.20.3 restauré (</source>
+      <translation>40.20.3 geometry renderer restored (</translation>
+    </message>
+    <message>
+      <source>Restauration du renderer 40.20.3 impossible: </source>
+      <translation>Unable to restore 40.20.3 renderer: </translation>
+    </message>
+    <message>
+      <source>écriture provider qcv_uid refusée</source>
+      <translation>provider rejected qcv_uid write</translation>
+    </message>
+    <message>
+      <source>écriture qcv_uid impossible pour FID </source>
+      <translation>unable to write qcv_uid for FID </translation>
+    </message>
+    <message>
+      <source>Interroger le terrain depuis l’image actif : cliquez dans l’image. Mode </source>
+      <translation>Query terrain from image active: click in the image. Mode </translation>
+    </message>
+    <message>
+      <source>Repère depuis la carte actif : cliquez sur le canevas. Mode </source>
+      <translation>Reference from map active: click on the map canvas. Mode </translation>
     </message>
   </context>
 </TS>

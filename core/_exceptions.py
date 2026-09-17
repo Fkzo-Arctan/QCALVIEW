@@ -1,5 +1,4 @@
 from __future__ import annotations
-
 import os
 
 _DEBUG_EXCEPTIONS = os.environ.get("QCALVIEW_DEBUG_EXCEPTIONS", "").strip().lower() in {"1", "true", "yes", "on"}

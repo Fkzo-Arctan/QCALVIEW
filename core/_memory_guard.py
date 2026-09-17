@@ -1,11 +1,6 @@
-
-
-
-
 from __future__ import annotations
 from ._exceptions import qcv_suppress_exception as _qcv_suppress
 from ._i18n import tr
-
 from dataclasses import dataclass
 import ctypes
 import gc
@@ -14,7 +9,6 @@ import math
 import os
 import sys
 from typing import Any, Dict, Optional, Tuple
-
 from qgis.PyQt.QtWidgets import QMessageBox
 from ._compat import dialog_exec
 
@@ -165,7 +159,7 @@ def _symbol_instance_meta():
 
 
 def _style_instance_factor(sty, lyr) -> int:
-    
+
     try:
         sid = str(getattr(sty, 'schematic_symbol_id', '') or '')
         gen, default_max = _symbol_instance_meta().get(sid, ('', 1))
@@ -191,7 +185,7 @@ def _style_instance_factor(sty, lyr) -> int:
 
 
 def _visible_feature_estimate(owner) -> Tuple[int, int, int]:
-    
+
     total = schematic = 0
     snap_used = False
     try:
@@ -221,14 +215,14 @@ def _visible_feature_estimate(owner) -> Tuple[int, int, int]:
                 provider_schematic += n
                 factor = _style_instance_factor(sty, lyr)
                 if factor > 0:
-                    
+
                     instance_est += n * factor
         except Exception as _qcv_exc:
             _qcv_suppress(_qcv_exc, "core/_memory_guard.py:224")
             continue
     if not snap_used:
         total = int(min(provider_total, 50000)); schematic = int(min(provider_schematic, 20000))
-    
+
     instance_est = int(min(max(0, instance_est), 5_000_000))
     return int(total), int(schematic), instance_est
 
@@ -250,7 +244,7 @@ def _button_role(name: str):
 
 
 def _show_guard_dialog(owner, details: str, dangerous: bool) -> str:
-    
+
     try:
         box = QMessageBox(owner)
         box.setWindowTitle(tr('QCalView — limites de rendu'))
@@ -274,12 +268,12 @@ def _show_guard_dialog(owner, details: str, dangerous: bool) -> str:
             return 'cancel'
         return 'safe'
     except Exception:
-        
+
         return 'safe'
 
 
 def release_stale_panorama_buffers(owner, *, aggressive: bool = False) -> int:
-    
+
     released = 0
     cache = getattr(owner, '_overlay_cache', None)
     if isinstance(cache, dict):
@@ -305,9 +299,9 @@ def release_stale_panorama_buffers(owner, *, aggressive: bool = False) -> int:
     except Exception as _qcv_exc:
         _qcv_suppress(_qcv_exc, "core/_memory_guard.py:302")
     if aggressive:
-        
-        
-        
+
+
+
         try:
             owner._horizon = None
             owner._horizon_params = None
@@ -322,7 +316,7 @@ def release_stale_panorama_buffers(owner, *, aggressive: bool = False) -> int:
 
 
 def prune_base_cache_for_size(owner, width: int, height: int) -> int:
-    
+
     cache = getattr(owner, '_base_cache', None)
     if not isinstance(cache, dict) or not cache:
         return 0
@@ -332,8 +326,8 @@ def prune_base_cache_for_size(owner, width: int, height: int) -> int:
         keep = False
         try:
             if isinstance(key, tuple):
-                
-                
+
+
                 if len(key) >= 3 and int(key[1]) == W and int(key[2]) == H:
                     keep = True
         except Exception:
@@ -359,8 +353,8 @@ def _guard_signature(owner, w: int, h: int, feature_count: int, relief: str, lev
         dem_step = round(float(owner.spin_dem_step.value()), 1)
     except Exception:
         dem_step = 50.0
-    
-    
+
+
     return (proj, level, int(round(w / 256.0)), int(round(h / 256.0)),
             int(feature_count // 500), relief, maxdist, dem_step)
 
@@ -368,7 +362,7 @@ def _guard_signature(owner, w: int, h: int, feature_count: int, relief: str, lev
 def prepare_panorama_preview(owner, requested_w: int, requested_h: int,
                              full_w: int, full_h: int,
                              render_quality: str = 'high') -> Dict[str, Any]:
-    
+
     try:
         proj = str(owner.cmb_proj.currentText()).strip().upper()
     except Exception:
@@ -401,20 +395,11 @@ def prepare_panorama_preview(owner, requested_w: int, requested_h: int,
     full_pixels = max(1, int(full_w)) * max(1, int(full_h))
     full_frame_bytes = full_pixels * 4
     viewer_full = bool(getattr(owner, '_viewer_full_res', False)) and str(render_quality) == 'high'
-
-    
-    
-    
     image_peak = int(frame_bytes * 4.0)
     if viewer_full and (int(full_w) != W or int(full_h) != H):
         image_peak += int(full_frame_bytes * 2.6)
 
-    
-    
-    
     zbuffer_peak = 0
-    
-    
     zbuf_on = True
     if zbuf_on:
         q=str(render_quality or 'high').lower()
@@ -425,8 +410,6 @@ def prepare_panorama_preview(owner, requested_w: int, requested_h: int,
 
     topo_units = 0.0; topo_peak = 0
     if relief == 'wireframe':
-        
-        
         n = maxdist_est / max(0.5, dem_step)
         topo_units = (2.0 * n + 1.0) ** 2
         topo_peak = int(min(900.0 * _MIB, max(20.0 * _MIB, topo_units * 10.0)))
@@ -434,8 +417,6 @@ def prepare_panorama_preview(owner, requested_w: int, requested_h: int,
         topo_units = (360.0 / az_step) * (maxdist_est / rad_step)
         topo_peak = int(min(550.0 * _MIB, max(12.0 * _MIB, topo_units * 34.0)))
 
-    
-    
     geometry_peak = int(min(2.2 * _GIB, feat_count * 1200 + schematic_count * 1800 + schematic_instances * 520))
     predicted_increment = int(image_peak + topo_peak + geometry_peak)
     projected_free = int(snap.available_bytes - predicted_increment) if snap.available_bytes > 0 else 0
@@ -443,9 +424,6 @@ def prepare_panorama_preview(owner, requested_w: int, requested_h: int,
     if snap.total_bytes > 0:
         projected_ratio = float(snap.used_bytes + predicted_increment) / float(snap.total_bytes)
 
-    
-    
-    
     pixel_pressure = pixels / 30_000_000.0
     topo_pressure = topo_units / 3_000_000.0 if topo_units > 0 else 0.0
     entity_pressure = feat_count / 12000.0 if feat_count > 0 else 0.0
@@ -479,9 +457,6 @@ def prepare_panorama_preview(owner, requested_w: int, requested_h: int,
         'zbuffer_peak_bytes': int(zbuffer_peak),
     }
 
-    
-    
-    
     release_stale_panorama_buffers(owner, aggressive=(level in ('critical', 'dangerous')))
 
     if level in ('normal', 'elevated'):
@@ -526,32 +501,22 @@ def prepare_panorama_preview(owner, requested_w: int, requested_h: int,
         return state
     if choice == 'continue':
         return state
-
     state['safe_mode'] = True
     dangerous = level == 'dangerous'
-
-    
     target_pixels = 10_000_000 if dangerous else 18_000_000
     if pixels > target_pixels:
         s = math.sqrt(float(target_pixels) / float(max(1, pixels)))
         state['width'] = max(320, int(W * s))
         state['height'] = max(180, int(H * s))
     state['disable_viewer_full_res'] = True
-
-    
     if relief == 'wireframe':
         state['dem_step_min'] = max(dem_step, 20.0 if dangerous else 10.0, maxdist_est / (500.0 if dangerous else 800.0))
     elif relief in ('skyline', 'ridgelines', 'opaque'):
         state['rad_step_min'] = max(rad_step, 80.0 if dangerous else 50.0, maxdist_est / (120.0 if dangerous else 180.0))
-
-    
     state['maxdist_cap'] = 6000.0 if dangerous else 8000.0
     if maxdist_ui > 0.0:
         state['maxdist_cap'] = min(float(maxdist_ui), float(state['maxdist_cap']))
     state['entity_limit_per_layer'] = 1000 if dangerous else 1800
-    
-    
-    
     state['schematic_instance_budget'] = 12000 if dangerous else 28000
     state['min_billboard_px'] = 1.15 if dangerous else 0.85
     return state

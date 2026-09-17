@@ -1,11 +1,6 @@
-
-
-
-
 from __future__ import annotations
 from ._i18n import tr
 from ._compat import QC, dialog_exec
-
 import functools
 import time
 from collections import defaultdict

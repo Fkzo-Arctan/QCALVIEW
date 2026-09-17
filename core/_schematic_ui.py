@@ -1,7 +1,3 @@
-
-
-
-
 from __future__ import annotations
 from ._exceptions import qcv_suppress_exception as _qcv_suppress
 from ._i18n import tr
@@ -9,20 +5,13 @@ from ._compat import QC, dialog_exec
 import os, shutil
 from qgis.PyQt import uic
 from ._log import qcv_log
-
 from qgis.PyQt.QtWidgets import (
     QDialog, QVBoxLayout, QFormLayout, QLabel, QListWidget, QListWidgetItem,
     QDialogButtonBox, QDoubleSpinBox, QLineEdit, QPushButton, QHBoxLayout, QCheckBox, QComboBox, QFileDialog, QMessageBox, QColorDialog
 )
 from qgis.PyQt.QtGui import QColor
-
 from qgis.core import QgsApplication
 from ._schematic_symbols import get_symbol_library
-
-
-
-
-
 
 MOTIF_TAXONOMY = {
     "vegetation": {
@@ -138,9 +127,6 @@ _INTERNAL_ASSET_TAXONOMY = {
     "combine_harvester.svg": [("vehicles", "harvesters"), ("agriculture_objects", "farm_equipment")],
 }
 
-
-
-
 _GEOMETRY_TAXONOMY = {
     "point": {
         "vegetation": {"all","conifers","deciduous","shrubs_groves"},
@@ -227,13 +213,12 @@ def _definition_matches(definition, type_code: str = "", family_code: str = "", 
     if type_code and dt != str(type_code):
         return False
     fam = str(family_code or "")
-    
-    
-    
+
+
+
     if fam and fam != "all" and df not in (fam, "*"):
         return False
     return True
-
 
 def populate_symbol_combo(combo, plugin_dir: str, current_id: str = "", geometry_name: str = "", type_code: str = "", family_code: str = ""):
     lib = get_symbol_library(plugin_dir)
@@ -269,10 +254,10 @@ def browse_symbol_library(parent, combo, plugin_dir: str, geometry_name: str = "
         sid = str(definition.get("id", "") or "")
         name = str(definition.get("name", sid))
         dt, df = symbol_taxonomy(definition)
-        item = QListWidgetItem(f"{family_label(dt, df)} — {name}")
+        item = QListWidgetItem(tr(f"{family_label(dt, df)} — {name}"))
         item.setData(32, sid)
         item.setToolTip(tr(str(definition.get("description", "") or "")))
-        lst.addItem(tr(item))
+        lst.addItem(item)
         if sid == current:
             selected_row = i
 
@@ -303,7 +288,7 @@ def browse_symbol_library(parent, combo, plugin_dir: str, geometry_name: str = "
     return sid
 
 def edit_symbol_params(parent, definition, current_params):
-    
+
     if not definition:
         return dict(current_params or {})
     dlg = QDialog(parent)
@@ -319,9 +304,7 @@ def edit_symbol_params(parent, definition, current_params):
         default = raw.get("default") if isinstance(raw, dict) else raw
         source = raw.get("source") if isinstance(raw, dict) else None
         if source == "layer_height" and isinstance(default, (int, float)):
-            
-            
-            
+
             row = QHBoxLayout()
             sp = QDoubleSpinBox(); sp.setRange(0.01, 100000.0); sp.setDecimals(3)
             has_override = name in current
@@ -383,7 +366,7 @@ def edit_symbol_params(parent, definition, current_params):
             _set_color_button(btn, current.get(name, default))
             def _pick_color(_=False, b=btn, d=default):
                 base = QColor(str(b.property("qcv_color") or d or "#000000"))
-                c = QColorDialog.getColor(base, dlg, "Choisir la couleur")
+                c = QColorDialog.getColor(base, dlg, tr("Choisir la couleur"))
                 if c.isValid(): _set_color_button(b, c.name())
             btn.clicked.connect(_pick_color)
             widgets[name] = ("color", btn, default)
@@ -443,7 +426,7 @@ def edit_symbol_params(parent, definition, current_params):
         kind, w, default = item[:3]
         if kind == "number":
             value = float(w.value())
-            
+
             try:
                 if abs(value - float(default)) > 1e-9:
                     out[name] = value
@@ -452,8 +435,8 @@ def edit_symbol_params(parent, definition, current_params):
         elif kind == "layer_height_number":
             cb_layer = item[3]
             if not cb_layer.isChecked():
-                
-                
+
+
                 out[name] = float(w.value())
         elif kind == "choice":
             value = str(w.currentData() or "")
@@ -472,7 +455,6 @@ def edit_symbol_params(parent, definition, current_params):
             if value != str(default or ""):
                 out[name] = value
     return out
-
 
 def user_symbol_dir():
     root=os.path.join(QgsApplication.qgisSettingsDirPath(),'QCALVIEW','symbols')
@@ -553,7 +535,6 @@ def _choose_import_family(parent, type_code: str, family_code: str):
     return str(combo.currentData() or '')
 
 def select_symbol_assets(parent, plugin_dir: str, current_paths=None, type_code: str = '', family_code: str = ''):
-    
     current=[os.path.normpath(str(x)) for x in (current_paths or []) if x]
     internal=os.path.join(plugin_dir,'resources','symbols','assets')
     user=user_symbol_dir()
@@ -575,17 +556,17 @@ def select_symbol_assets(parent, plugin_dir: str, current_paths=None, type_code:
                     continue
                 files_cache.append((label,name,path))
         for label,name,path in files_cache:
-            it=QListWidgetItem(f'{label} — {name}'); it.setData(32,path)
+            it=QListWidgetItem(f'{tr(label)} — {name}'); it.setData(32,path)
             it.setFlags(it.flags() | QC.Qt_ItemFlag_ItemIsUserCheckable)
             it.setCheckState(QC.Qt_CheckState_Checked if path in current else QC.Qt_CheckState_Unchecked)
-            lst.addItem(tr(it))
+            lst.addItem(it)
     reload_list()
     btn_import=dlg.btnImport
     def do_import():
         fam = _choose_import_family(dlg, type_code, family_code)
         if not fam:
             return
-        paths,_=QFileDialog.getOpenFileNames(dlg,'Importer des modèles',user,'Images vectorielles ou PNG (*.svg *.png)')
+        paths,_=QFileDialog.getOpenFileNames(dlg,tr('Importer des modèles'),user,tr('Images vectorielles ou PNG (*.svg *.png)'))
         if not paths:
             return
         catalog=_load_user_catalog()
@@ -609,4 +590,3 @@ def select_symbol_assets(parent, plugin_dir: str, current_paths=None, type_code:
         QMessageBox.warning(parent,tr('QCALVIEW'),tr('Sélection limitée à 3 modèles. Les trois premiers ont été conservés.'))
         out=out[:3]
     return out
-

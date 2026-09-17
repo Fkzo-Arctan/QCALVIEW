@@ -1,6 +1,3 @@
-
-
-
 from ._exceptions import qcv_suppress_exception as _qcv_suppress
 from ._i18n import tr
 from ._compat import QC, dialog_exec, QShortcut, enum_int
@@ -10,12 +7,12 @@ from ._image_io import load_working_image, read_scaled_for_owner, PhotoReadError
 import os, json, math, re
 import numpy as np
 from qgis.PyQt.QtCore import Qt, QSize, QPoint, QTimer, QElapsedTimer, QRect, QRectF, pyqtSignal, QEvent, QSettings
-from qgis.PyQt.QtGui import QImage, QPainter, QPen, QColor, QPixmap, QFont, QKeySequence, QTransform
+from qgis.PyQt.QtGui import QImage, QPainter, QPen, QColor, QPixmap, QFont, QKeySequence, QTransform, QBrush
 from qgis.PyQt.QtWidgets import (
     QDockWidget, QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton,
     QFileDialog, QComboBox, QSpinBox, QDoubleSpinBox, QCheckBox, QListWidget,
     QListWidgetItem, QColorDialog, QGroupBox, QFormLayout, QLineEdit, QScrollArea, 
-    QDialog, QGraphicsView, QGraphicsScene, QGraphicsPixmapItem, QSizePolicy,
+    QDialog, QGraphicsView, QGraphicsScene, QGraphicsPixmapItem, QGraphicsItem, QGraphicsItemGroup, QGraphicsRectItem, QGraphicsSimpleTextItem, QSizePolicy,
     QSlider, QDialogButtonBox, QFrame, QMessageBox,
     QTableWidgetItem
 )
@@ -37,9 +34,8 @@ from ._schematic_ui import (
 from ._schematic_tools import calculate_hedge_occlusion_dialog
 from ..projector import hfov_from_focal_sensor, vfov_from_hfov_ratio
 
-
 def _opacity_factor(value, default=1.0):
-    
+
     try:
         v = float(value)
         if v > 1.0 and v <= 100.0:
@@ -50,9 +46,8 @@ def _opacity_factor(value, default=1.0):
     except Exception:
         return float(default)
 
-
 def _qgis_style_opacity(layer, renderer=None, symbol=None, fallback=1.0):
-    
+
     op = _opacity_factor(fallback, 1.0)
     for obj in (layer, renderer, symbol):
         if obj is None:
@@ -68,16 +63,15 @@ def _qgis_style_opacity(layer, renderer=None, symbol=None, fallback=1.0):
     return max(0.0, min(1.0, op))
 
 def _read_metadata_text_head(path: str, max_bytes: int = 4 * 1024 * 1024) -> str:
-    
+
     try:
         with open(path, "rb") as f:
             return f.read(int(max_bytes)).decode("utf-8", errors="ignore")
     except Exception:
         return ""
 
-
 def _parse_xmp_absolute_altitude(path) -> float | None:
-    
+
     try:
         text = _read_metadata_text_head(path)
         m = re.search(r"(?:drone-dji:)?AbsoluteAltitude[^0-9\-\.]*(-?\d+(?:\.\d+)?)", text, re.I)
@@ -87,13 +81,12 @@ def _parse_xmp_absolute_altitude(path) -> float | None:
         _qcv_suppress(_qcv_exc, "core/_utils_ops.py:85")
     return None
 
-
 def _parse_xmp_gpano_projection(jpeg_path: str) -> dict:
-    
+
     out = {}
     try:
         text = _read_metadata_text_head(jpeg_path)
-        
+
         keys = [
             "ProjectionType", "UsePanoramaViewer",
             "FullPanoWidthPixels", "FullPanoHeightPixels",
@@ -104,7 +97,7 @@ def _parse_xmp_gpano_projection(jpeg_path: str) -> dict:
             m = re.search(rf"GPano:{k}\s*>\s*([^<]+)\s*<", text, flags=re.I)
             if m:
                 val = m.group(1).strip()
-                
+
                 if k.endswith("Pixels"):
                     try: out[k] = int(float(val))
                     except BaseException: out[k] = val
@@ -115,7 +108,7 @@ def _parse_xmp_gpano_projection(jpeg_path: str) -> dict:
     except Exception as _qcv_exc:
         _qcv_suppress(_qcv_exc, "core/_utils_ops.py:114")
     return out
-    
+
 def _rat_to_float(x, default=None):
     try:
         if hasattr(x, "numerator") and hasattr(x, "denominator") and x.denominator != 0:
@@ -129,7 +122,7 @@ def _rat_to_float(x, default=None):
     return default
 
 def _mm_per_unit(res_unit: int) -> float:
-    
+
     if res_unit == 2:
         return 25.4
     if res_unit == 3:
@@ -141,7 +134,7 @@ def _mm_per_unit(res_unit: int) -> float:
     return 0.0
 
 def _sensor_from_fpr(img_w_px, img_h_px, xres, yres, unit) -> tuple:
-    
+
     mm_per = _mm_per_unit(int(unit or 0))
     if mm_per <= 0:
         return (None, None, None, None)
@@ -156,7 +149,7 @@ def _sensor_from_fpr(img_w_px, img_h_px, xres, yres, unit) -> tuple:
     return (sw, sh, px_pitch_x, px_pitch_y)
 
 def _parse_xmp_relative_altitude(path) -> float | None:
-    
+
     try:
         text = _read_metadata_text_head(path)
         m = re.search(r"(?:drone-dji:)?RelativeAltitude[^0-9\-\.]*(-?\d+(?:\.\d+)?)", text, re.I)
@@ -167,7 +160,7 @@ def _parse_xmp_relative_altitude(path) -> float | None:
     return None
 
 def read_exif(path):
-    
+
     out = {
         'ImageWidth': None, 'ImageHeight': None,
         'FocalLength': None, 'FocalLength35mmEq': None,
@@ -178,16 +171,13 @@ def read_exif(path):
     }
     try:
         from PIL import Image, ExifTags
-        
-        
-        
         _old_max_pixels = getattr(Image, 'MAX_IMAGE_PIXELS', None)
         try:
             Image.MAX_IMAGE_PIXELS = None
             with Image.open(path) as img:
                 out['ImageWidth'], out['ImageHeight'] = img.size
 
-                
+
                 try:
                     exif = img._getexif() or {}
                 except Exception:
@@ -209,29 +199,23 @@ def read_exif(path):
             tid = name2id.get(tagname)
             return exif.get(tid, default)
 
-        
+
         out['CameraMake'] = get('Make', None)
         out['CameraModel'] = get('Model', None)
 
-        
-        out['FocalLength'] = _rat_to_float(get('FocalLength', None), None)
 
-        
+        out['FocalLength'] = _rat_to_float(get('FocalLength', None), None)
         w = get('ExifImageWidth', None) or get('ImageWidth', None)
         h = get('ExifImageHeight', None) or get('ImageLength', None)
         wv = _rat_to_float(w, None); hv = _rat_to_float(h, None)
         if isinstance(wv, (int, float)) and wv > 0: out['ImageWidth'] = int(wv)
         if isinstance(hv, (int, float)) and hv > 0: out['ImageHeight'] = int(hv)
-
-        
         xres = get('FocalPlaneXResolution', None)
         yres = get('FocalPlaneYResolution', None)
         unit = get('FocalPlaneResolutionUnit', None)
         sw, sh, ppx, ppy = _sensor_from_fpr(out['ImageWidth'] or 0, out['ImageHeight'] or 0, xres, yres, unit)
         out['SensorWidthMM'] = sw; out['SensorHeightMM'] = sh
         out['PixelPitchMM_X'] = ppx; out['PixelPitchMM_Y'] = ppy
-
-        
         f35 = _rat_to_float(get('FocalLengthIn35mmFilm', None), None)
         if isinstance(f35, (int, float)) and f35 > 0:
             out['FocalLength35mmEq'] = float(f35)
@@ -241,14 +225,12 @@ def read_exif(path):
                 except Exception as _qcv_exc:
                     _qcv_suppress(_qcv_exc, "core/_utils_ops.py:240")
 
-        
         if (out['FocalLength'] and out['SensorWidthMM']):
             try:
                 out['FocalLength35mmEq'] = float(out['FocalLength']) * 36.0 / float(out['SensorWidthMM'])
             except Exception as _qcv_exc:
                 _qcv_suppress(_qcv_exc, "core/_utils_ops.py:247")
 
-        
         gps = get('GPSInfo', None)
         if isinstance(gps, dict):
             gps_named = { (GPSTAGS.get(k, k)): v for k, v in gps.items() }
@@ -266,7 +248,7 @@ def read_exif(path):
             if isinstance(az, (int, float)):
                 out['Azimuth'] = float(az) % 360.0
 
-        
+
         agl = _parse_xmp_relative_altitude(path)
         if isinstance(agl, (int, float)):
             out['RelativeAltitudeAGL'] = float(agl)
@@ -274,15 +256,15 @@ def read_exif(path):
         abs_alt = _parse_xmp_absolute_altitude(path)
         if isinstance(abs_alt, (int, float)) and out['AltitudeMSL'] is None:
             out['AltitudeMSL'] = float(abs_alt)
-        
-        
+
+
         gp = _parse_xmp_gpano_projection(path)
         if gp:
-            
+
             proj = gp.get("ProjectionType")
             if proj:
                 out["Projection"] = proj.lower()  
-            
+
             for k in ("UsePanoramaViewer",
                       "FullPanoWidthPixels", "FullPanoHeightPixels",
                       "CroppedAreaImageWidthPixels", "CroppedAreaImageHeightPixels",
@@ -290,20 +272,10 @@ def read_exif(path):
                 if k in gp:
                     out[k] = gp[k]
 
-        
-        
-        
-        
-        
-        # A ~2:1 aspect ratio alone is not sufficient to identify a 360°
-        # equirectangular panorama. Ordinary PNG/JPEG exports can have the
-        # same ratio. Keep the current/manual projection unless explicit
-        # panorama metadata is available.
     except Exception as _qcv_exc:
         _qcv_suppress(_qcv_exc, "core/_utils_ops.py:303")
-    
-    return out
 
+    return out
 
 class FmvViewerWindow(QWidget):
     def __init__(self):
@@ -391,24 +363,11 @@ class FmvViewerWindow(QWidget):
         pix = QPixmap.fromImage(self._last_img)
         self.label.setPixmap(pix.scaled(self.label.size(), QC.Qt_AspectRatioMode_KeepAspectRatio, QC.Qt_TransformationMode_SmoothTransformation))
 
-
-
-
-
-
-
-
-
-
-
-
-
-
 def _deg(self, spin):
     spin.setRange(-359.0, 359.0); spin.setSingleStep(0.1); spin.setDecimals(2)
 
 def _begin_render_field_edit(self, widget=None):
-    
+
     try:
         key = id(widget) if widget is not None else -1
         active = getattr(self, '_render_edit_widgets', None)
@@ -438,9 +397,8 @@ def _begin_render_field_edit(self, widget=None):
     except Exception as _qcv_exc:
         _qcv_suppress(_qcv_exc, "core/_utils_ops.py:439")
 
-
 def _end_render_field_edit(self, widget=None):
-    
+
     try:
         active = getattr(self, '_render_edit_widgets', None)
         if not isinstance(active, set):
@@ -448,15 +406,15 @@ def _end_render_field_edit(self, widget=None):
             self._render_edit_widgets = active
         key = id(widget) if widget is not None else -1
         active.discard(key)
-        
+
         if active:
             return
         pending = bool(getattr(self, '_render_edit_pending', False))
         self._render_edit_pending = False
         if pending and not getattr(self, '_ui_initializing', False):
-            
-            
-            
+
+
+
             try:
                 if hasattr(self, '_camera_schedule_autosave'):
                     self._camera_schedule_autosave()
@@ -467,10 +425,6 @@ def _end_render_field_edit(self, widget=None):
                     self._sync_pdv_qml()
             except Exception as _qcv_exc:
                 _qcv_suppress(_qcv_exc, "core/_utils_ops.py:469")
-            
-            
-            
-            
             expensive_names = ('d_yaw', 'd_yaw_offset', 'd_pitch', 'd_roll', 'd_camheight',
                                'd_hfov', 'd_vfov', 'd_maxdist', 'd_focal', 'd_sensorw')
             expensive = any(widget is getattr(self, n, None) for n in expensive_names)
@@ -489,14 +443,11 @@ def _end_render_field_edit(self, widget=None):
         except Exception as _qcv_exc:
             _qcv_suppress(_qcv_exc, "core/_utils_ops.py:490")
 
-
 def _connect_change_to_schedule(self, widget):
-    
+
     if widget is None:
         return
 
-    
-    
     if isinstance(widget, (QSpinBox, QDoubleSpinBox)):
         try:
             widget.valueChanged.connect(self.render_preview)
@@ -525,8 +476,6 @@ def _connect_change_to_schedule(self, widget):
             _qcv_suppress(_qcv_exc, "core/_utils_ops.py:525")
         return
 
-    
-    
     for sig in ('currentIndexChanged', 'toggled', 'valueChanged', 'textChanged'):
         if hasattr(widget, sig):
             try:
@@ -543,9 +492,7 @@ def _on_camera_layer_changed(self, layer):
     self._cam_connections.clear()
     self._cam_layer = layer
     if isinstance(layer, QgsVectorLayer):
-        
-        
-        
+
         try:
             layer.featureAdded.connect(lambda *a, **k: self.render_preview()); self._cam_connections.append((layer.featureAdded, self.render_preview))
         except BaseException as _qcv_exc: _qcv_suppress(_qcv_exc, "core/_utils_ops.py:551")
@@ -608,10 +555,7 @@ def load_photo(self):
             info.append("Panorama large : projection manuelle conservée")
     except Exception as _qcv_exc:
         _qcv_suppress(_qcv_exc, "core/_utils_ops.py:609")
-    
-    
-    
-    
+
     proj = (ex.get("Projection") or "").lower()
     try:
         current_mode = str(self.cmb_proj.currentText()).strip().upper()
@@ -624,8 +568,6 @@ def load_photo(self):
         mode = "CYLINDRICAL"
     elif proj in ("rectilinear", "pinhole"):
         mode = "PINHOLE"
-
-    
     updated = False
     for cmb_name in ("cmb_projection", "cmb_proj"):
         cmb = getattr(self, cmb_name, None)
@@ -639,14 +581,10 @@ def load_photo(self):
                 updated = True
             except Exception as _qcv_exc:
                 _qcv_suppress(_qcv_exc, "core/_utils_ops.py:640")
-        
+
     if not updated:
         self._projection_mode = mode
 
-    
-    
-    
-    
     try:
         mode_upper = str(mode).strip().upper()
         is_equirect = mode_upper in ('EQUIRECT', 'EQUIRECTANGULAR')
@@ -665,9 +603,6 @@ def load_photo(self):
                 and cw == fw and ch == fh
                 and left == 0 and top == 0
             )
-            # Only explicit GPano full-frame metadata may arm 360°
-            # automatically. A 2:1 ratio is only a geometric hint and must
-            # not turn an ordinary or partial panorama into a full sphere.
             auto_full_equirect = bool(gpano_full)
 
         self.cb_360.blockSignals(True)
@@ -695,10 +630,6 @@ def load_photo(self):
         except Exception as _qcv_exc:
             _qcv_suppress(_qcv_exc, "core/_utils_ops.py:694")
 
-    
-    
-    
-    
     focal = ex.get('FocalLength')
     sensor_w = ex.get('SensorWidthMM')
     focal_35 = ex.get('FocalLength35mmEq')
@@ -718,21 +649,19 @@ def load_photo(self):
         info.append(f"Capteur {float(sensor_w):.2f} mm")
         optics_ok = True
     elif _positive(focal_35):
-        
-        
+
+
         self.d_focal.setValue(float(focal_35))
         self.d_sensorw.setValue(36.0)
         info.append(f"Focale Eq. 24×36 {float(focal_35):.2f} mm")
         optics_ok = True
     else:
-        
-        
         optics_ok = False
-    
+
     if ex.get('RelativeAltitudeAGL') is not None and hasattr(self, 'd_agl'):
         self.d_agl.setValue(ex['RelativeAltitudeAGL'])
         info.append(f"AGL {ex['RelativeAltitudeAGL']:.2f} m")
-    
+
     if ex.get('AltitudeMSL') is not None and hasattr(self, 'd_alt'):
         self.d_alt.setValue(ex['AltitudeMSL'])
         info.append(f"Alt. MSL {ex['AltitudeMSL']:.2f} m")
@@ -749,8 +678,6 @@ def load_photo(self):
         vfov = 40.0 if mode == 'CYLINDRICAL' else vfov_from_hfov_ratio(HFOV, self.spin_w.value(), self.spin_h.value())
         self.d_vfov.blockSignals(True); self.d_vfov.setValue(vfov); self.d_vfov.blockSignals(False)
     elif self.cb_auto_hfov.isChecked() and mode == 'PINHOLE':
-        
-        
         self.cb_auto_hfov.blockSignals(True)
         self.cb_auto_hfov.setChecked(False)
         self.cb_auto_hfov.blockSignals(False)
@@ -765,9 +692,6 @@ def load_photo(self):
     finally:
         self._camera_loading_feature = prev_loading
 
-    # The photo-loading sequence changes projection/FOV widgets. Rebuild the
-    # PDV FOV only once those values are stable; doing it mid-load can enter
-    # QGIS geometry code with a transient state.
     if not prev_loading:
         try:
             self._sync_pdv_qml()
@@ -779,7 +703,7 @@ def load_photo(self):
         self._camera_schedule_autosave()
     except Exception as _qcv_exc:
         _qcv_suppress(_qcv_exc, "core/_utils_ops.py:770")
-    
+
     try:
         layer = self.cmb_camera.currentLayer()
         if layer:
@@ -801,7 +725,7 @@ def load_photo(self):
             )
             layer.triggerRepaint()
             self.iface.mapCanvas().refresh()    
-            
+
     except Exception as _qcv_exc:
         _qcv_suppress(_qcv_exc, "core/_utils_ops.py:795")
     try:
@@ -853,14 +777,11 @@ class _ImageViewer(QDialog):
         self._pix = QGraphicsPixmapItem()
         self._pix.setZValue(0)
         self._scene.addItem(tr(self._pix))
-        
-        
+        self._pick_markers = []
         self._overlay_pix = QGraphicsPixmapItem()
         self._overlay_pix.setZValue(10)
         self._overlay_pix.setVisible(False)
         self._scene.addItem(tr(self._overlay_pix))
-        
-        
         btn_plus = QPushButton(tr("Zoom +"))
         btn_moins = QPushButton(tr("Zoom −"))
         btn_fit = QPushButton(tr("Ajuster"))
@@ -877,24 +798,18 @@ class _ImageViewer(QDialog):
         cmb_pdv.setMinimumWidth(150)
         cmb_pdv.setToolTip(tr("Accès direct à un point de vue ; l’ordre suit le champ d’ordre configuré dans QCALVIEW."))
         info = QLabel(tr("Astuce : molette pour zoomer, glisser pour déplacer."))
-
-        
         lbl_op = QLabel(tr("Opacité"))
         sld_op = QSlider(QC.Qt_Orientation_Horizontal)
         sld_op.setRange(0, 100)
         sld_op.setValue(100)            
         sld_op.setMinimumWidth(60)
         sld_op.setMaximumWidth(140)
-        
-        
         chk_overlay = QCheckBox(tr("Overlay"))
         chk_overlay.setChecked(True)
-
         info = QLabel(tr("Molette: zoom · Glisser: déplacer · Raccourcis: +/-/1/F/O"))
         info.setStyleSheet("color: #666;")
         info.setMinimumWidth(0)
         info.setSizePolicy(QC.QSizePolicy_Policy_Ignored, QC.QSizePolicy_Policy_Fixed)
-        
         top = QHBoxLayout()
         for b in (btn_plus, btn_moins, btn_100, btn_fit, btn_capture, btn_export_full, btn_refresh, btn_prev_pdv, btn_next_pdv):
             try:
@@ -936,7 +851,6 @@ class _ImageViewer(QDialog):
         body.addWidget(self._view, 1)
         body.addWidget(self._info_panel, 0)
         lay.addLayout(body, 1)
-
         btn_plus.clicked.connect(lambda: self._zoom(1.25))
         btn_moins.clicked.connect(lambda: self._zoom(0.8))
         btn_fit.clicked.connect(self._fit)
@@ -949,18 +863,18 @@ class _ImageViewer(QDialog):
         cmb_pdv.currentIndexChanged.connect(self._on_viewer_pdv_changed)
         chk_live.toggled.connect(self._on_live_toggled)
 
-        
+
         def _apply_opacity(val):
             self._overlay_pix.setOpacity(val / 100.0)
         sld_op.valueChanged.connect(_apply_opacity)
         _apply_opacity(100)
 
-        
+
         def _toggle_overlay(checked):
             self._overlay_pix.setVisible(checked and not self._overlay_pix.pixmap().isNull())
         chk_overlay.toggled.connect(_toggle_overlay)
 
-        
+
         QShortcut(QKeySequence("+"), self, activated=lambda: self._zoom(1.25))
         QShortcut(QKeySequence("-"), self, activated=lambda: self._zoom(0.8))
         QShortcut(QKeySequence("1"), self, activated=self._reset)
@@ -968,8 +882,6 @@ class _ImageViewer(QDialog):
         QShortcut(QKeySequence("O"), self, activated=lambda: chk_overlay.toggle())
         QShortcut(QKeySequence("Ctrl+Shift+S"), self, activated=self.export_full_resolution)
         QShortcut(QKeySequence("Ctrl+Alt+S"), self, activated=self.export_window_capture)
-        
-        
         self._sld_op = sld_op
         self._chk_overlay = chk_overlay
         self._cmb_pdv = cmb_pdv
@@ -994,9 +906,6 @@ class _ImageViewer(QDialog):
             self._geometry_restored = True
         self.update_info()
 
-    
-    
-    
     def sync_pdv_controls(self):
         owner = getattr(self, '_owner', None)
         combo = getattr(self, '_cmb_pdv', None)
@@ -1086,7 +995,7 @@ class _ImageViewer(QDialog):
             super().resizeEvent(ev)
         except Exception as _qcv_exc:
             _qcv_suppress(_qcv_exc, "core/_utils_ops.py:1077")
-        
+
         try:
             self._settings.setValue("QCALVIEW/ui/viewer_geometry", self.saveGeometry())
         except Exception as _qcv_exc:
@@ -1249,29 +1158,32 @@ class _ImageViewer(QDialog):
         except Exception as _qcv_exc:
             _qcv_suppress(_qcv_exc, "core/_utils_ops.py:1236")
 
-        
+
         keep_transform = self._view.transform()
         keep_center = self._view.mapToScene(self._view.viewport().rect().center())
-    
+        old_pm = self._pix.pixmap()
+        if not old_pm.isNull() and (old_pm.width() != pm.width() or old_pm.height() != pm.height()):
+            self.clear_pick_markers()
+
         self._pix.setPixmap(pm)
         self._pix.setOffset(0, 0)
         self._scene.setSceneRect(QRectF(pm.rect()))
 
         if not self._has_pix:
-            
+
             self._reset()
             self._has_pix = True
         else:
-            
+
             self._view.setTransform(keep_transform)
             self._view.centerOn(keep_center)
 
-        
+
     def update_image(self, image_or_path):
         pm = _to_pixmap(image_or_path)
         if not pm.isNull():
             self.set_pixmap(pm)
-            
+
     def update_overlay(self, overlay):
         pm = _to_pixmap(overlay)
         if pm.isNull():
@@ -1300,45 +1212,97 @@ class _ImageViewer(QDialog):
         except Exception as _qcv_exc:
             _qcv_suppress(_qcv_exc, "core/_utils_ops.py:1287")
         self._overlay_pix.setVisible(self._chk_overlay.isChecked())
+        self.clear_pick_markers()
         self.update_info()
 
     def clear_overlay(self):
         self._overlay_pix.setPixmap(QPixmap())
         self._overlay_pix.setVisible(False)
-            
+
     def wheelEvent(self, ev):
-        
+
         factor = 1.25 if ev.angleDelta().y() > 0 else 0.8
         self._zoom(factor)
-    
+
+    def set_image_pick_active(self, active):
+        self._view.setDragMode(QC.QGraphicsView_DragMode_NoDrag if bool(active) else QC.QGraphicsView_DragMode_ScrollHandDrag)
+
+    def add_pick_marker(self, x, y, text=None):
+        try:
+            px = float(x)
+            py = float(y)
+            color = QColor(50, 120, 255, 235)
+            pen = QPen(color)
+            pen.setWidth(2)
+            pen.setCosmetic(True)
+            h = self._scene.addLine(px - 7.0, py, px + 7.0, py, pen)
+            v = self._scene.addLine(px, py - 7.0, px, py + 7.0, pen)
+            h.setZValue(30)
+            v.setZValue(30)
+            items = [h, v]
+            if text:
+                group = QGraphicsItemGroup()
+                label = QGraphicsSimpleTextItem(str(text), group)
+                label.setFont(QFont('Arial', 9))
+                label.setBrush(QBrush(QColor(20, 70, 180, 255)))
+                br = label.boundingRect()
+                bg = QGraphicsRectItem(-4.0, -2.0, float(br.width()) + 8.0, float(br.height()) + 4.0, group)
+                bg.setPen(QPen(QColor(50, 120, 255, 190)))
+                bg.setBrush(QBrush(QColor(255, 255, 255, 205)))
+                bg.setZValue(-1)
+                group.setPos(px + 10.0, py - float(br.height()) - 10.0)
+                group.setZValue(31)
+                try:
+                    flag = getattr(getattr(QGraphicsItem, 'GraphicsItemFlag', QGraphicsItem), 'ItemIgnoresTransformations')
+                    group.setFlag(flag, True)
+                except Exception as _qcv_exc:
+                    _qcv_suppress(_qcv_exc, "core/_utils_ops.py:add_pick_marker_flag")
+                self._scene.addItem(group)
+                items.append(group)
+            self._pick_markers.extend(items)
+        except Exception as _qcv_exc:
+            _qcv_suppress(_qcv_exc, "core/_utils_ops.py:add_pick_marker")
+
+    def clear_pick_markers(self):
+        items = list(getattr(self, '_pick_markers', []) or [])
+        self._pick_markers = []
+        for item in items:
+            try:
+                self._scene.removeItem(item)
+            except Exception as _qcv_exc:
+                _qcv_suppress(_qcv_exc, "core/_utils_ops.py:clear_pick_markers")
+
     def eventFilter(self, obj, ev):
-        
         if obj is self._view.viewport() and ev.type() == QC.QEvent_Type_Wheel:
             self.wheelEvent(ev)
-            return True  
+            return True
         if obj is self._view.viewport() and ev.type() == QC.QEvent_Type_MouseButtonPress:
             try:
                 if ev.button() == QC.Qt_MouseButton_LeftButton:
                     sp = self._view.mapToScene(ev.pos())
+                    lp = self._pix.mapFromScene(sp)
                     br = self._pix.boundingRect()
-                    if br.contains(sp):
-                        self.imageClicked.emit(float(sp.x()), float(sp.y()))
+                    active = bool(getattr(getattr(self, "_owner", None), "_image_pick_mode", None))
+                    if br.contains(lp):
+                        self.imageClicked.emit(float(lp.x()), float(lp.y()))
+                        if active:
+                            return True
             except Exception as _qcv_exc:
-                _qcv_suppress(_qcv_exc, "core/_utils_ops.py:1313")
+                _qcv_suppress(_qcv_exc, "core/_utils_ops.py:viewer_click")
         return super().eventFilter(obj, ev)
-    
+
 
     def _zoom(self, factor):
         self._scale *= factor
         self._view.scale(factor, factor)
 
     def _reset(self):
-        
+
         self._view.resetTransform()
         self._scale = 1.0
 
     def _fit(self):
-        
+
         br = self._pix.boundingRect()
         if br.isNull():
             return
@@ -1348,8 +1312,8 @@ class _ImageViewer(QDialog):
 
 def open_viewer(self):
     src = getattr(self, "image", None) or getattr(self, "photo_path", None)
-    
-    
+
+
     if src is None:
         try:
             src = self._make_schematic_base(int(self.spin_w.value()), int(self.spin_h.value()), for_export=False)
@@ -1365,17 +1329,18 @@ def open_viewer(self):
             self._viewer_click_connected = True
         except Exception as _qcv_exc:
             _qcv_suppress(_qcv_exc, "core/_utils_ops.py:1353")
-    
+
     self.viewer.update_image(src)
-    
-    
+    self.viewer.set_image_pick_active(bool(getattr(self, "_image_pick_mode", None)))
+
+
     ov = getattr(self, "overlay_image", None) or getattr(self, "overlay_path", None)
     if ov is not None:
         self.viewer.update_overlay(ov)
     else:
         self.viewer.clear_overlay()    
-    
-    
+
+
     try:
         self.viewer.update_info()
     except Exception as _qcv_exc:
@@ -1406,14 +1371,8 @@ def _normalize_qt_pen_style(val):
     except Exception:
         return QC.Qt_PenStyle_SolidLine
 
-
 def _parse_qcolor_component(value):
-    """Parse a serialized QGIS color channel without using float().
 
-    QGIS normally serializes channels as integers, but some providers/styles may
-    expose decimal strings. Keeping this parser independent from PyFloat_FromString
-    avoids a fragile conversion path observed on QGIS 3.44/Qt5.
-    """
     try:
         txt = str(value).strip()
         match = re.fullmatch(r"([+-]?)(\d+)(?:\.(\d*))?", txt)
@@ -1425,7 +1384,6 @@ def _parse_qcolor_component(value):
         return max(0, min(255, number))
     except Exception:
         return None
-
 
 def _parse_qcolor_value(val, default=None):
     if isinstance(val, QColor):
@@ -1449,7 +1407,6 @@ def _parse_qcolor_value(val, default=None):
     except Exception as _qcv_exc:
         _qcv_suppress(_qcv_exc, "core/_utils_ops.py:_parse_qcolor_value")
     return QColor(default) if default is not None else None
-
 
 def _float_prop(props, keys, default=None):
     if isinstance(keys, str):
@@ -1487,14 +1444,11 @@ def _pen_style_from_text(txt, default=QC.Qt_PenStyle_SolidLine):
     }
     return mapping.get(t, default)
 
-
 def _mm_to_px_estimate(mm):
     try:
         return max(1.0, float(mm) * 3.78)
     except Exception:
         return 4.0
-
-
 
 def _crop_nontransparent_qimage(img, alpha_threshold=6, pad=0):
     if img is None or img.isNull():
@@ -1522,7 +1476,6 @@ def _crop_nontransparent_qimage(img, alpha_threshold=6, pad=0):
         return src.copy(x0, y0, max(1, x1 - x0 + 1), max(1, y1 - y0 + 1))
     except Exception:
         return img
-
 
 def _render_symbol_preview_tile(sym, size=96):
     if sym is None:
@@ -1570,14 +1523,11 @@ def _texture_key_from_image(img):
         ck = id(img)
     return (ck, int(img.width()), int(img.height()))
 
-
-
 def _symbol_layer_props_safe(sl):
     try:
         return sl.properties() or {}
     except Exception:
         return {}
-
 
 def _extract_first_line_symbol_props(sym):
     out = {}
@@ -1600,7 +1550,6 @@ def _extract_first_line_symbol_props(sym):
             out.update(props)
             return out
     return out
-
 
 def _extract_first_marker_symbol_props(sym):
     out = {}
@@ -1654,9 +1603,7 @@ def _extract_qgis_fill_style_from_symbol(sym, default_fill, default_line, defaul
         lname = ((getattr(sl, 'layerType', lambda: '')() or '') + ' ' + sl.__class__.__name__).lower()
 
         if 'simplefill' in lname:
-            # Prefer the typed QGIS API over parsing the serialized properties map.
-            # This avoids unnecessary string/float conversions in the live preview
-            # path and is supported by QgsSimpleFillSymbolLayer in QGIS 3.44+.
+
             try:
                 fc = sl.color() if hasattr(sl, 'color') else None
             except Exception:
@@ -1796,26 +1743,14 @@ def _extract_qgis_fill_style_from_symbol(sym, default_fill, default_line, defaul
 
     return fill_style
 
-
-
 def _renderer_name(renderer):
     try:
         return str(renderer.type() or '').lower()
     except Exception:
         return str(renderer.__class__.__name__).lower() if renderer is not None else ''
 
-
 def _safe_symbol_from_renderer(renderer, feat=None, layer=None):
-    """Return ``(symbol, owner)`` while keeping the C++ symbol owner alive.
 
-    QgsRendererCategory.symbol() and QgsRendererRange.symbol() return symbols owned by
-    the category/range.  Returning only the symbol (or a SIP clone created from a
-    temporary wrapper) can leave a dangling C++ pointer once that temporary Python
-    wrapper is destroyed.  QGIS 3 / Qt5 can then terminate the process on the next
-    symbol method call instead of raising a Python exception.
-
-    The caller must keep ``owner`` referenced for as long as it reads ``symbol``.
-    """
     if renderer is None:
         return None, None
     try:
@@ -1879,7 +1814,7 @@ def _safe_symbol_from_renderer(renderer, feat=None, layer=None):
     return None, None
 
 def _extract_qgis_layer_style(self, layer, feat=None, fallback=None):
-    
+
     fallback = fallback or LayerStyle(layer=layer)
     color = QColor(getattr(fallback, 'color', QColor(0, 255, 0, 255)))
     fill_color = QColor(getattr(fallback, 'fill_color', color))
@@ -1997,8 +1932,8 @@ def _extract_qgis_layer_style(self, layer, feat=None, fallback=None):
     except Exception as _qcv_exc:
         _qcv_suppress(_qcv_exc, "core/_utils_ops.py:1912")
 
-    # Keep the category/range/renderer wrapper alive until every native symbol read
-    # above has completed.  Do not remove this reference without changing ownership.
+
+
     _ = symbol_owner
     return dict(color=color, fill_color=fill_color, width=width, pen_style=pen_style, opacity=opacity, fill_polygons=fill_polygons, fill_style=fill_style)
 
@@ -2073,7 +2008,6 @@ def _extract_qgis_label_settings(layer):
             _qcv_suppress(_qcv_exc, "core/_utils_ops.py:1984")
     return out
 
-
 def _sync_layer_labels_from_qgis(self, sty):
     if not bool(getattr(sty, 'use_qgis_labels', True)):
         return sty
@@ -2096,7 +2030,6 @@ def _sync_layer_labels_from_qgis(self, sty):
     except Exception as _qcv_exc:
         _qcv_suppress(_qcv_exc, "core/_utils_ops.py:2008")
     return sty
-
 
 def _sync_layer_style_from_qgis(self, sty, feat=None):
     if not bool(getattr(sty, 'use_qgis_style', True)):
@@ -2167,17 +2100,14 @@ def sync_all_layer_styles_from_qgis(self):
         changed = changed or (before != after)
     return changed
 
-
-
 def _qgis_theme_collection():
     try:
         return QgsProject.instance().mapThemeCollection()
     except Exception:
         return None
 
-
 def refresh_qgis_themes(self):
-    
+
     combo = getattr(self, 'cmb_qgis_theme', None)
     if combo is None:
         return
@@ -2199,8 +2129,8 @@ def refresh_qgis_themes(self):
             except Exception:
                 names = []
         for name in names:
-            
-            
+
+
             if str(name).startswith('__QCALVIEW_PDV__'):
                 continue
             combo.addItem(tr(str(name)), str(name))
@@ -2211,9 +2141,8 @@ def refresh_qgis_themes(self):
     finally:
         combo.blockSignals(False)
 
-
 def _ordered_theme_vector_layers(theme_name, camera_layer=None):
-    
+
     coll = _qgis_theme_collection()
     if coll is None or not theme_name:
         return [], {}
@@ -2268,7 +2197,7 @@ def _ordered_theme_vector_layers(theme_name, camera_layer=None):
 
 
 def _temporarily_extract_style_from_named_qgis_style(self, layer, style_name, fallback, feat=None):
-    
+
     if not style_name:
         return _extract_qgis_layer_style(self, layer, feat=feat, fallback=fallback)
     sm = None
@@ -2290,7 +2219,7 @@ def _temporarily_extract_style_from_named_qgis_style(self, layer, style_name, fa
 
 
 def apply_qgis_theme_to_overlays(self):
-    
+
     combo = getattr(self, 'cmb_qgis_theme', None)
     theme_name = ''
     if combo is not None:
@@ -2360,7 +2289,7 @@ def apply_qgis_theme_to_overlays(self):
 
 
 def _queue_overlay_style_refresh(self, delay_ms=15):
-    
+
     try:
         if hasattr(self, '_overlay_cache') and isinstance(self._overlay_cache, dict):
             self._overlay_cache.clear()
@@ -2383,13 +2312,12 @@ def _queue_overlay_style_refresh(self, delay_ms=15):
             timer.stop()
         timer.start(max(0, int(delay_ms)))
     except Exception:
-        
-        
+
+
         try:
             QTimer.singleShot(max(0, int(delay_ms)), self.render_preview)
         except Exception as _qcv_exc:
             _qcv_suppress(_qcv_exc, "core/_utils_ops.py:2300")
-
 
 def _on_qgis_theme_auto_sync_toggled(self, checked: bool):
     try:
@@ -2423,7 +2351,6 @@ def _on_qgis_theme_auto_sync_toggled(self, checked: bool):
             except Exception as _qcv_exc:
                 _qcv_suppress(_qcv_exc, "core/_utils_ops.py:2333")
         self._qgis_theme_sync_connected = True
-
 
 def _restore_qgis_theme_settings(self):
     try:
@@ -2470,7 +2397,6 @@ def _prune_missing_overlay_layers(self):
         _refresh_layer_list_labels(self)
     return changed
 
-
 def _on_project_layers_removed(self, *args):
     changed = _prune_missing_overlay_layers(self)
     if changed:
@@ -2482,9 +2408,6 @@ def _on_project_layers_removed(self, *args):
             self.render_preview()
         except Exception as _qcv_exc:
             _qcv_suppress(_qcv_exc, "core/_utils_ops.py:2393")
-
-
-
 
 def _overlay_layer_preflight(self, layer):
     try:
@@ -2525,10 +2448,8 @@ def _overlay_layer_preflight(self, layer):
         'level': level,
     }
 
-
 def _cache_keys_for_layer(layer_id):
     return [layer_id]
-
 
 def _invalidate_overlay_layer_cache(self, layer_id):
     try:
@@ -2546,7 +2467,6 @@ def _invalidate_overlay_layer_cache(self, layer_id):
     except Exception as _qcv_exc:
         _qcv_suppress(_qcv_exc, "core/_utils_ops.py:2456")
 
-
 def _watch_overlay_layer(self, layer):
     if not isinstance(layer, QgsVectorLayer):
         return
@@ -2560,10 +2480,7 @@ def _watch_overlay_layer(self, layer):
     callbacks = []
 
     def _mk_cb():
-        
-        
-        
-        
+
         def _on_overlay_changed(*a, _lid=layer.id(), **k):
             _invalidate_overlay_layer_cache(self, _lid)
             if not bool(getattr(self, '_camera_live_enabled', False)):
@@ -2573,7 +2490,7 @@ def _watch_overlay_layer(self, layer):
                 if timer is not None:
                     timer.start(250)
                 else:
-                    
+
                     QTimer.singleShot(250, lambda: getattr(self, '_camera_refresh_current_view', lambda **_: None)(force=False))
             except Exception as _qcv_exc:
                 _qcv_suppress(_qcv_exc, "core/_utils_ops.py:2488")
@@ -2613,10 +2530,10 @@ def _heavy_layer_message(name, count, level):
 
 
 def _add_overlay_layer_object(self, lyr):
-    
+
     if not lyr:
         return False
-    
+
     try:
         for existing in getattr(self, 'layer_styles', []):
             if getattr(existing, 'layer', None) is lyr or (getattr(getattr(existing, 'layer', None), 'id', lambda: None)() == lyr.id()):
@@ -2668,16 +2585,16 @@ def _add_overlay_layer_object(self, lyr):
     return True
 
 def add_layer(self):
-    
+
     lyr = self.cmb_src.currentLayer()
     return _add_overlay_layer_object(self, lyr)
 
 def add_layer_object(self, lyr):
-    
+
     return _add_overlay_layer_object(self, lyr)
 
 def _on_layer_table_double_clicked(self, row, column=0):
-    
+
     try:
         row = int(row)
     except Exception:
@@ -2715,16 +2632,6 @@ def move_down(self):
         self.layer_styles.insert(idx+1, self.layer_styles.pop(idx))
         self._refresh_layer_list_labels(idx+1); self.render_preview()
 
-
-
-
-
-
-
-
-
-
-
 def _finite_uv(self, uv):
     if not uv:
         return None
@@ -2733,12 +2640,6 @@ def _finite_uv(self, uv):
         if not (math.isfinite(u) and math.isfinite(v)):
             return None
 
-        
-        
-        
-        
-
-        
         try:
             proj_txt = str(self.cmb_proj.currentText()).strip().upper()
             is360 = bool(self._is360_mode()) if hasattr(self, '_is360_mode') else (bool(self.cb_360.isChecked()) and proj_txt in ("EQUIRECT", "EQUIRECTANGULAR", "CYLINDRICAL"))
@@ -2759,7 +2660,6 @@ def _finite_uv(self, uv):
     except Exception:
         return None
 
-
 def _safe_line(self, painter, uv1, uv2):
     if uv1 is None or uv2 is None:
         return False
@@ -2775,8 +2675,6 @@ def _safe_line(self, painter, uv1, uv2):
 
         u1, v1 = _coords(uv1)
         u2, v2 = _coords(uv2)
-
-        
         def _clip_y(u, v):
             if H > 0:
                 if v < 0.0:   v = 0.0
@@ -2790,7 +2688,6 @@ def _safe_line(self, painter, uv1, uv2):
             painter.drawLine(int(u1), int(v1), int(u2), int(v2))
             return True
 
-        
         try:
             proj_txt = str(self.cmb_proj.currentText()).strip().upper() if hasattr(self, 'cmb_proj') else ''
             wrap360 = bool(self._is360_mode()) if hasattr(self, '_is360_mode') else (bool(getattr(self, 'cb_360', None) and self.cb_360.isChecked()) and proj_txt in ('EQUIRECT', 'EQUIRECTANGULAR', 'CYLINDRICAL'))
@@ -2811,7 +2708,6 @@ def _safe_line(self, painter, uv1, uv2):
     except Exception:
         return False
 
-
 def _azimuth_deg(self, dx, dy):
     ang = math.degrees(math.atan2(dx, dy))
     if ang < 0: ang += 360.0
@@ -2821,7 +2717,7 @@ def _elev_deg(self, dz, horiz):
     return math.degrees(math.atan2(dz, max(horiz, 1e-9)))
 
 def _make_z_sampler(self, dem_layer, cam_crs):
-    
+
     if not isinstance(dem_layer, QgsRasterLayer):
         return None, None
     if not dem_layer.isValid():
@@ -2832,16 +2728,6 @@ def _make_z_sampler(self, dem_layer, cam_crs):
         cam_crs, dem_crs, QgsProject.instance()
     )
     provider = dem_layer.dataProvider()
-
-    
-    
-    
-    
-    
-    
-    
-    
-    
     cache = {}
     _CACHE_MAX = 65536
     _p_cam_reuse = QgsPointXY(0.0, 0.0)
@@ -2902,7 +2788,7 @@ def _make_z_sampler(self, dem_layer, cam_crs):
         return pts
 
     def sample_z_batch(points_xy_cam):
-        
+
         pts = _coerce_points_array(points_xy_cam)
         if pts.size == 0:
             return np.empty((0,), dtype=np.float64)
@@ -2912,7 +2798,7 @@ def _make_z_sampler(self, dem_layer, cam_crs):
         return out
 
     def sample_z_batch_uncached(points_xy_cam):
-        
+
         pts = _coerce_points_array(points_xy_cam)
         if pts.size == 0:
             return np.empty((0,), dtype=np.float64)
@@ -2956,7 +2842,7 @@ def _refresh_layer_list_labels(self, current_row=None):
         if current_row is None:
             current_row = self.list_layers.currentRow()
 
-        
+
         if hasattr(self.list_layers, 'setRowCount') and hasattr(self.list_layers, 'setItem'):
             rows = getattr(self, 'layer_styles', [])
             try:
@@ -3045,7 +2931,7 @@ def _refresh_layer_list_labels(self, current_row=None):
                 _qcv_suppress(_qcv_exc, "core/_utils_ops.py:2951")
             return
 
-        
+
         self.list_layers.clear()
         for sty in getattr(self, 'layer_styles', []):
             self.list_layers.addItem(tr(_style_item_text(sty)))
@@ -3057,7 +2943,7 @@ def _refresh_layer_list_labels(self, current_row=None):
 
 
 def _on_layer_table_item_changed(self, item):
-    
+
     try:
         if item is None or int(item.column()) != 0:
             return
@@ -3090,15 +2976,11 @@ def edit_style(self):
     sty, idx = self.current_style()
     if not sty:
         return
-
     _plugin_dir = os.path.dirname(os.path.dirname(__file__))
     dlg = QDialog(self)
     ui_path = os.path.join(_plugin_dir, 'ui', 'layer_style_dialog.ui')
     uic.loadUi(ui_path, dlg)
     dlg.setWindowTitle(tr(f"Style — {sty.layer.name() if getattr(sty, 'layer', None) else 'couche'}"))
-
-    
-    
     cb_use_qgis_style=dlg.cbUseQgisStyle; btn_color=dlg.btnColor; sp_width=dlg.spWidth; sp_opacity=dlg.spOpacity
     cb_fill_poly=dlg.cbFillPoly; btn_fill_color=dlg.btnFillColor; cb_fill_walls=dlg.cbFillWalls
     cb_25d=dlg.cb25d; le_hfield=dlg.leHField; sp_hdef=dlg.spHDef
@@ -3128,8 +3010,6 @@ def edit_style(self):
         }.get(_geom_name, 'Les familles proposées sont filtrées selon la géométrie de la couche.')))
     except Exception as _qcv_exc:
         _qcv_suppress(_qcv_exc, "core/_utils_ops.py:3036")
-
-    
     _initial_symbol_id = str(getattr(sty, 'schematic_symbol_id', '') or '')
     _lib0 = get_symbol_library(_plugin_dir)
     _def0 = _lib0.get(_initial_symbol_id) if _initial_symbol_id else None
@@ -3168,9 +3048,6 @@ def edit_style(self):
         btn_params.setEnabled(enabled and has_symbol)
         d = _current_symbol_def()
         _gen = str(d.get('generator','')) if d else ''
-        
-        
-        
         btn_models.setEnabled(enabled and _gen in ('billboard_svg','vegetation_adaptive'))
         is_vegetation_barrier = bool(d and _gtype_current == QC.QgsWkbTypes_GeometryType_LineGeometry and _gen in ('vegetation_ribbon', 'vegetation_adaptive'))
         btn_occ_height.setEnabled(enabled and is_vegetation_barrier)
@@ -3234,10 +3111,6 @@ def edit_style(self):
         _update_model_button()
 
     def _calc_occ_height():
-        
-        
-        
-        
         self._render_suspend_count = int(getattr(self, '_render_suspend_count', 0) or 0) + 1
         self._render_resume_requested = False
         try:
@@ -3277,7 +3150,6 @@ def edit_style(self):
                     QTimer.singleShot(0, self.render_preview)
                 except Exception as _qcv_exc:
                     _qcv_suppress(_qcv_exc, "core/_utils_ops.py:3185")
-
     cb_schematic.toggled.connect(_update_schematic_controls)
     cmb_schematic_type.currentIndexChanged.connect(_on_type_changed)
     cmb_schematic_family.currentIndexChanged.connect(_on_family_changed)
@@ -3287,7 +3159,6 @@ def edit_style(self):
     btn_models.clicked.connect(_select_models)
     btn_occ_height.clicked.connect(_calc_occ_height)
     _update_schematic_controls()
-
     cb_labels=dlg.cbLabels; cb_use_qgis_labels=dlg.cbUseQgisLabels; le_field=dlg.leField; le_text=dlg.leText
     sp_size=dlg.spSize; cmb_pos=dlg.cmbPos; cmb_anchor=dlg.cmbAnchor; sp_offx=dlg.spOffX; sp_offy=dlg.spOffY
     btn_txt_color=dlg.btnTxtColor; cb_bg=dlg.cbBg; btn_bg_color=dlg.btnBgColor; sp_bg_pad=dlg.spBgPad; sp_bg_rad=dlg.spBgRad
@@ -3302,7 +3173,6 @@ def edit_style(self):
     sp_bg_pad.setValue(int(sty.label_bg_padding)); sp_bg_rad.setValue(int(sty.label_bg_radius))
     cb_callout.setChecked(bool(sty.label_callout)); btn_callout_color.setStyleSheet(f"background:{sty.label_callout_color.name(QC.QColor_NameFormat_HexArgb)};"); sp_callout.setValue(int(sty.label_callout_width))
     bb=dlg.buttonBox; bb.accepted.connect(dlg.accept); bb.rejected.connect(dlg.reject)
-
     colors = {
         'layer': sty.color,
         'fill': getattr(sty, 'fill_color', sty.color),
@@ -3373,8 +3243,6 @@ def edit_style(self):
     sty.enable_25d = bool(cb_25d.isChecked())
     sty.height_field_override = le_hfield.text().strip()
     sty.default_height_override = None if float(sp_hdef.value()) <= 0.0 else float(sp_hdef.value())
-    
-    
     _requested_schematic = bool(cb_schematic.isChecked())
     _selected_symbol_id = str(cmb_schematic.currentData() or '').strip()
     _selected_definition = _sym_lib.get(_selected_symbol_id) if _selected_symbol_id else None
@@ -3416,7 +3284,6 @@ def edit_style(self):
     sty.label_callout = bool(cb_callout.isChecked())
     sty.label_callout_color = colors['callout']
     sty.label_callout_width = int(sp_callout.value())
-
     try:
         self._refresh_layer_list_labels(idx)
     except Exception as _qcv_exc:
@@ -3424,7 +3291,7 @@ def edit_style(self):
     _queue_overlay_style_refresh(self)
 
 def _get_base_scaled(self, W, H):
-    
+
     if self.image is None or self.image.isNull():
         try:
             transparent = bool(self._schematic_background_transparent())
@@ -3438,21 +3305,17 @@ def _get_base_scaled(self, W, H):
         except Exception:
             return None
 
-    
-    
     try:
         full_w = int(self.spin_w.value())
         full_h = int(self.spin_h.value())
     except Exception:
         full_w, full_h = int(W), int(H)
-
     is_full_res = (int(W) == full_w and int(H) == full_h)
     use_fast = False
     try:
         use_fast = bool(getattr(self, 'cb_lowlat', None) and self.cb_lowlat.isChecked() and not is_full_res)
     except Exception:
         use_fast = False
-
     transform_mode = QC.Qt_TransformationMode_FastTransformation if use_fast else QC.Qt_TransformationMode_SmoothTransformation
     key = (self.photo_path, int(W), int(H), 'fast' if use_fast else 'smooth')
     img = self._base_cache.get(key)
@@ -3471,8 +3334,6 @@ def _get_base_scaled(self, W, H):
         self._base_cache[key] = img
     return img
 
-
-
 def _refresh_preview_and_viewer(self):
     try: self.render_preview()
     except Exception as _qcv_exc: _qcv_suppress(_qcv_exc, "core/_utils_ops.py:3385")
@@ -3484,11 +3345,11 @@ def _refresh_preview_and_viewer(self):
     except Exception as _qcv_exc: _qcv_suppress(_qcv_exc, "core/_utils_ops.py:3391")
 
 def _mb(self):
-    
+
     return self.iface.messageBar()
 
 def _on_toggle_center_axis(self, checked: bool):
-    
+
     self.show_center_axis = bool(checked)
     try:
         getattr(self, '_overlay_cache', {}).clear()
@@ -3497,7 +3358,7 @@ def _on_toggle_center_axis(self, checked: bool):
     _refresh_preview_and_viewer(self)
 
 def _on_toggle_pdv_axis(self, checked: bool):
-    
+
     self.show_pdv_axis = bool(checked)
     try:
         getattr(self, '_overlay_cache', {}).clear()
@@ -3511,7 +3372,7 @@ def _on_toggle_pdv_axis(self, checked: bool):
             self._mb().pushWarning(tr("Centre image"), tr(f"Impossible d'armer le clic canevas: {e}"))
     else:
         try:
-            
+
             if hasattr(self, "_cancel_maptool"):
                 self._cancel_maptool()
         except Exception as _qcv_exc:
@@ -3519,19 +3380,15 @@ def _on_toggle_pdv_axis(self, checked: bool):
     _refresh_preview_and_viewer(self)
 
 def install_global_shortcuts(self):
-    
     if getattr(self, "_shortcuts_installed", False): return
     self._shortcuts_installed = True
-
     parent = self.iface.mainWindow()
-
     self._sc_center = QShortcut(QKeySequence("C"), parent)
     self._sc_center.setContext(QC.Qt_ShortcutContext_ApplicationShortcut)
     self._sc_center.activated.connect(lambda: (
         hasattr(self, "cb_show_center_axis") and
         self.cb_show_center_axis.setChecked(not self.cb_show_center_axis.isChecked())
     ))
-
     self._sc_pdv = QShortcut(QKeySequence("P"), parent)
     self._sc_pdv.setContext(QC.Qt_ShortcutContext_ApplicationShortcut)
     self._sc_pdv.activated.connect(lambda: (
@@ -3539,7 +3396,6 @@ def install_global_shortcuts(self):
         self.cb_show_pdv_axis.setChecked(not self.cb_show_pdv_axis.isChecked())
     ))
 
-        
 def _cancel_maptool(self):
     canvas = self.iface.mapCanvas()
     if self._maptool_backup:

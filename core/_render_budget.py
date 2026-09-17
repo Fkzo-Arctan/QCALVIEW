@@ -1,12 +1,7 @@
-
-
-
 from __future__ import annotations
 from ._compat import QC, dialog_exec
-
 from dataclasses import dataclass
 from qgis.core import QgsWkbTypes
-
 
 @dataclass
 class BudgetProfile:

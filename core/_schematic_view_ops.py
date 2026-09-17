@@ -1,22 +1,12 @@
-
-
-
 from ._exceptions import qcv_suppress_exception as _qcv_suppress
 from ._i18n import tr
 from ._compat import QC, dialog_exec
-"""QCALVIEW — gestion des vues schématiques sans photographie.
-
-La photographie n'est pas une condition du modèle caméra : une vue peut être
-rendue à partir des paramètres du PDV sur un fond global opaque ou transparent.
-Les préférences de fond sont globales (QSettings), jamais stockées par feature.
-"""
-
 from qgis.PyQt.QtCore import Qt
 from qgis.PyQt.QtGui import QColor, QImage, QPainter, QBrush
 from qgis.PyQt.QtWidgets import QColorDialog
 
 def _settings_key(*parts):
-    
+
     return "/".join(parts)
 
 
@@ -54,7 +44,7 @@ def _schematic_update_background_controls(self):
     btn = getattr(self, "btn_schematic_bg_color", None)
     if btn is not None:
         try:
-            
+
             lum = (0.2126 * c.red() + 0.7152 * c.green() + 0.0722 * c.blue())
             fg = "#111111" if lum > 150 else "#ffffff"
             btn.setText(tr(c.name(QC.QColor_NameFormat_HexRgb).upper()))
@@ -89,7 +79,7 @@ def _schematic_invalidate_base(self):
 
 def _schematic_choose_background_color(self):
     current = _schematic_background_color(self)
-    c = QColorDialog.getColor(current, self, "Couleur du fond des vues schématiques")
+    c = QColorDialog.getColor(current, self, tr("Couleur du fond des vues schématiques"))
     if not c.isValid():
         return
     c.setAlpha(255)
@@ -123,7 +113,7 @@ def _make_checkerboard(width, height):
     img.fill(QColor(238, 238, 238, 255))
     p = QPainter(img)
     try:
-        
+
         cell = max(8, min(28, int(round(min(width, height) / 28.0))))
         light = QColor(248, 248, 248, 255)
         dark = QColor(220, 220, 220, 255)
@@ -138,7 +128,7 @@ def _make_checkerboard(width, height):
 
 
 def _make_schematic_base(self, width, height, for_export=False, force_transparent=None):
-    
+
     width = max(1, int(width)); height = max(1, int(height))
     transparent = (_schematic_background_transparent(self)
                    if force_transparent is None else bool(force_transparent))
@@ -153,7 +143,7 @@ def _make_schematic_base(self, width, height, for_export=False, force_transparen
 
 
 def _activate_schematic_view(self):
-    
+
     self.image = None
     self.photo_path = None
     self._camera_current_photo_path = None

@@ -1,11 +1,6 @@
-
-
-
-
 from ._exceptions import qcv_suppress_exception as _qcv_suppress
 import os, sys, math, json, re, pathlib, functools, itertools, typing
 from qgis.PyQt import QtCore, QtGui, QtWidgets
-
 
 try:
     from qgis.PyQt.QtGui import QImage, QPainter, QPen, QColor, QFont, QPixmap, QTransform
@@ -40,7 +35,7 @@ def _toggle_hfov_enable(self, checked):
         self.render_preview()
 
 def _get_projection_mode(self) -> str:
-    
+
     cmb = getattr(self, "cmb_projection", None)
     if cmb is not None:
         try:

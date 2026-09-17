@@ -1,20 +1,16 @@
-
-
-
 from ..core._i18n import tr
 from ..core._compat import QC, dialog_exec
-
 from qgis.PyQt.QtCore import Qt, pyqtSignal
 from qgis.PyQt.QtWidgets import QWidget, QToolButton, QSizePolicy, QVBoxLayout
 
 class CollapsibleBox(QWidget):
-    
+
     toggled = pyqtSignal(bool)
 
     def __init__(self, title: str = "", *, checked: bool = True, parent=None):
         super().__init__(parent)
         self._checkable = True
-        self.toggle_button = QToolButton(text=title, checkable=True, checked=checked)
+        self.toggle_button = QToolButton(text=tr(title), checkable=True, checked=checked)
         self.toggle_button.setToolButtonStyle(QC.Qt_ToolButtonStyle_ToolButtonTextBesideIcon)
         self.toggle_button.setArrowType(QC.Qt_ArrowType_DownArrow)
         self.toggle_button.setSizePolicy(QC.QSizePolicy_Policy_Expanding, QC.QSizePolicy_Policy_Fixed)

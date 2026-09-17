@@ -1,17 +1,10 @@
-
-
-
-
 from __future__ import annotations
 from ._exceptions import qcv_suppress_exception as _qcv_suppress
-
 import math
 import os
 from contextlib import contextmanager
-
 from qgis.PyQt.QtCore import QSize
 from qgis.PyQt.QtGui import QImage, QImageReader
-
 from ._log import qcv_log
 
 _MIB = 1024 * 1024
@@ -41,7 +34,7 @@ def _reader_format(reader: QImageReader) -> str:
 
 
 def probe_image(path: str) -> dict:
-    
+
     path = str(path or '')
     if not path or not os.path.exists(path):
         raise FileNotFoundError(path)
@@ -54,8 +47,8 @@ def probe_image(path: str) -> dict:
     w = int(size.width()) if size is not None and size.isValid() else 0
     h = int(size.height()) if size is not None and size.isValid() else 0
     if w <= 0 or h <= 0:
-        
-        
+
+
         try:
             from PIL import Image
             with Image.open(path) as im:
@@ -98,7 +91,7 @@ def bounded_size(width: int, height: int, max_pixels: int = _DEFAULT_PROXY_MAX_P
 
 @contextmanager
 def _temporary_qt_allocation_limit(required_bytes: int, enabled: bool):
-    
+
     old = None
     setter = getattr(QImageReader, 'setAllocationLimit', None)
     getter = getattr(QImageReader, 'allocationLimit', None)
@@ -108,7 +101,7 @@ def _temporary_qt_allocation_limit(required_bytes: int, enabled: bool):
             try:
                 old = int(getter())
                 required_mib = max(1, int(math.ceil(float(required_bytes) * 1.20 / _MIB)))
-                
+
                 if old > 0 and required_mib > old:
                     setter(required_mib)
                     changed = True
@@ -124,14 +117,14 @@ def _temporary_qt_allocation_limit(required_bytes: int, enabled: bool):
 
 
 def _enough_memory_for_large_read(decoded_bytes: int) -> bool:
-    
+
     try:
         from ._memory_guard import memory_snapshot
         snap = memory_snapshot()
         avail = int(getattr(snap, 'available_bytes', 0) or 0)
         if avail <= 0:
             return True  
-        
+
         reserve = max(768 * _MIB, int(decoded_bytes * 1.75))
         return avail > reserve
     except Exception:
@@ -140,7 +133,7 @@ def _enough_memory_for_large_read(decoded_bytes: int) -> bool:
 
 def read_qimage(path: str, width: int | None = None, height: int | None = None,
                 *, allow_large: bool = False) -> QImage:
-    
+
     info = probe_image(path)
     tw = int(width) if width is not None else int(info['width'])
     th = int(height) if height is not None else int(info['height'])
@@ -158,8 +151,8 @@ def read_qimage(path: str, width: int | None = None, height: int | None = None,
         reader.setAutoTransform(True)
     except Exception as _qcv_exc:
         _qcv_suppress(_qcv_exc, "core/_image_io.py:158")
-    
-    
+
+
     if tw != int(info['width']) or th != int(info['height']):
         try:
             reader.setScaledSize(QSize(tw, th))
@@ -179,7 +172,7 @@ def read_qimage(path: str, width: int | None = None, height: int | None = None,
 
 
 def load_working_image(path: str) -> tuple[QImage, dict]:
-    
+
     info = probe_image(path)
     w, h = int(info['width']), int(info['height'])
     pw, ph = bounded_size(w, h)
@@ -187,8 +180,8 @@ def load_working_image(path: str) -> tuple[QImage, dict]:
     try:
         img = read_qimage(path, pw, ph, allow_large=False)
     except Exception as first_error:
-        
-        
+
+
         pw2, ph2 = bounded_size(w, h, max_pixels=8_000_000, max_dim=8_000)
         if (pw2, ph2) == (pw, ph):
             raise
@@ -213,7 +206,7 @@ def load_working_image(path: str) -> tuple[QImage, dict]:
 
 
 def read_scaled_for_owner(owner, width: int, height: int, *, for_export: bool = False) -> QImage:
-    
+
     path = str(getattr(owner, 'photo_path', '') or '')
     if not path:
         return QImage()
@@ -221,8 +214,8 @@ def read_scaled_for_owner(owner, width: int, height: int, *, for_export: bool = 
     source = getattr(owner, '_photo_source_info', {}) or {}
     proxy = bool(source.get('proxy', False))
     if for_export:
-        
-        
+
+
         return read_qimage(path, w, h, allow_large=True)
     if proxy and (w * h) <= _DIRECT_SCALED_MAX_PIXELS and max(w, h) <= 16_384:
         try:

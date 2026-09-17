@@ -1,7 +1,3 @@
-
-
-
-
 from ._exceptions import qcv_suppress_exception as _qcv_suppress
 from typing import List, Tuple, Optional, Dict
 import math
@@ -9,74 +5,50 @@ import numpy as np
 from qgis.core import QgsPointXY
 from ..projector import build_camera_context, project_points_batch
 
-
-
-
 Segment2D = Tuple[Tuple[float, float], Tuple[float, float]]   
 Polyline2D = List[Tuple[float, float]]                        
 
 
-
-
 def effective_radius(R_earth: float = 6370000.0, k: float = 1.0/6.0, enabled: bool = True) -> float:
-    
+
     if not enabled:
         return float('inf')  
     k = max(-0.5, min(0.49, float(k)))  
     return R_earth / (1.0 - k)
 
 def curvature_drop(d: np.ndarray, R_eff: float) -> np.ndarray:
-    
+
     if not np.isfinite(R_eff):
         return np.zeros_like(d)
     return (d * d) / (2.0 * R_eff)
-
-
-
 
 def build_adaptive_grid(
     maxdist: float,
     base_spacing: float,
     D_adapt: float,
 ) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
-    
+
     maxdist = float(maxdist)
     s0 = float(base_spacing)
     D = float(D_adapt if D_adapt > 0 else (100.0 * s0))
-
     n = int(math.ceil(maxdist / s0))
     xs = np.linspace(-n * s0, n * s0, 2 * n + 1)
     ys = np.linspace(-n * s0, n * s0, 2 * n + 1)
     X, Y = np.meshgrid(xs, ys)  
-
-    
     L1 = np.abs(X) + np.abs(Y)
     rings = np.floor(L1 / D).astype(np.int32)  
-    
     stride = np.left_shift(1, np.clip(rings, 0, 20))  
-
-    
     M, N = X.shape
     row_idx = np.arange(M).reshape(-1, 1).repeat(N, axis=1)
     col_idx = np.arange(N).reshape(1, -1).repeat(M, axis=0)
-
-    
-    
     mask = ((row_idx % stride) == 0) & ((col_idx % stride) == 0)
-
-    
     R = np.hypot(X, Y)
     mask &= (R <= maxdist + 1e-6)
 
     return X, Y, mask
 
-
-
-
-
-
 def build_radial_distances(d_step_min: float, maxdist: float) -> np.ndarray:
-    
+
     d_step_min = max(1.0, float(d_step_min))
     maxdist = max(d_step_min, float(maxdist))
     vals = []
@@ -84,7 +56,7 @@ def build_radial_distances(d_step_min: float, maxdist: float) -> np.ndarray:
     step = d_step_min
     while d <= maxdist + 1e-9:
         vals.append(d)
-        
+
         if d < 5000.0:
             step = max(d_step_min, step * 1.04)
         elif d < 10000.0:
@@ -102,9 +74,8 @@ def sample_dem_Z(
     cam_xy: tuple,
     R_eff: float
 ):
-    
-    return sample_dem_Z_optimized(X, Y, mask, sampler_callable, cam_xy, R_eff)
 
+    return sample_dem_Z_optimized(X, Y, mask, sampler_callable, cam_xy, R_eff)
 
 def sample_dem_Z_optimized(
     X: np.ndarray, Y: np.ndarray, mask: np.ndarray,
@@ -112,34 +83,31 @@ def sample_dem_Z_optimized(
     cam_xy: tuple,
     R_eff: float
 ):
-    
+
     cx, cy = cam_xy
     xs = X[mask].ravel()
     ys = Y[mask].ravel()
     d = np.hypot(xs, ys)
-    
-    
+
+
     pts = np.column_stack((xs + cx, ys + cy))
-    
-    
+
+
     if hasattr(sampler_callable, 'batch'):
         z = sampler_callable.batch(pts)
     else:
-        
+
         z = np.empty(pts.shape[0], dtype=np.float64)
         for i in range(pts.shape[0]):
             z[i] = float(sampler_callable(QgsPointXY(pts[i, 0], pts[i, 1])))
-    
-    
+
+
     h = curvature_drop(d, R_eff)
     z_corr = z - h
-    
+
     Z = np.full_like(X, np.nan, dtype=np.float64)
     Z[mask] = z_corr
     return Z
-
-
-
 
 def project_points(
     cam_pt_xy: Tuple[float,float], cam_z: float,
@@ -150,7 +118,6 @@ def project_points(
     HFOV: float, VFOV: float, is360: bool,
     dist_max: Optional[float]
 ) -> np.ndarray:
-    
     uvs = np.full((pts_xy.shape[0], 2), np.nan, dtype=np.float64)
     cx, cy = cam_pt_xy
     for i in range(pts_xy.shape[0]):
@@ -166,10 +133,6 @@ def project_points(
             uvs[i, 1] = uv[1]
     return uvs
 
-
-
-
-
 def _draw_dem_wireframe_sparse_adaptive(
     cam_xy: Tuple[float,float], cam_z: float,
     proj_name: str, width: int, height: int,
@@ -179,7 +142,6 @@ def _draw_dem_wireframe_sparse_adaptive(
     curvature_enabled: bool = True, R_earth: float = 6370000.0,
     k_refraction: float = 1.0/6.0
 ) -> List[Segment2D]:
-    
     maxdist = max(0.0, float(maxdist))
     s0 = max(0.1, float(base_spacing))
     D = float(D_adapt if (D_adapt is not None and D_adapt > 0) else (100.0 * s0))
@@ -187,13 +149,11 @@ def _draw_dem_wireframe_sparse_adaptive(
     size = 2 * n + 1
     if size < 2:
         return []
-
     js_all = np.arange(size, dtype=np.int32)
     x_all = (js_all.astype(np.float64) - float(n)) * s0
     r2_lim = maxdist * maxdist + 1e-6
     ii_parts = []; jj_parts = []; x_parts = []; y_parts = []
 
-    
     for i in range(size):
         y = (float(i) - float(n)) * s0
         rings = np.floor((np.abs(x_all) + abs(y)) / D).astype(np.int32, copy=False)
@@ -255,7 +215,6 @@ def _draw_dem_wireframe_sparse_adaptive(
         uv = project_points_batch(ctx, pts_world[ids], Zn[ids], dist_max=float(maxdist))
         if uv.shape[0] == ids.size:
             U[ids] = uv[:,0]; V[ids] = uv[:,1]
-
     horizon_visible = None
     if horizon_data is not None and int(wire_mode) != 0:
         try:
@@ -283,9 +242,6 @@ def _draw_dem_wireframe_sparse_adaptive(
         except Exception:
             horizon_visible = None
 
-    
-    
-    
     if int(wire_mode) == 2 and horizon_visible is None:
         return []
 
@@ -295,7 +251,6 @@ def _draw_dem_wireframe_sparse_adaptive(
         if horizon_visible is None or int(wire_mode) == 0:
             return True
         return bool(horizon_visible[q])
-
     segs = []
     def append_pair(a, b):
         ua,va,ub,vb = float(U[a]),float(V[a]),float(U[b]),float(V[b])
@@ -308,7 +263,6 @@ def _draw_dem_wireframe_sparse_adaptive(
                 return
         segs.append(((ua,va),(ub,vb)))
 
-    
     start = 0
     while start < count:
         row = int(ii[start]); end = start + 1
@@ -318,7 +272,6 @@ def _draw_dem_wireframe_sparse_adaptive(
             append_pair(q, q + 1)
         start = end
 
-    
     order = np.lexsort((ii, jj))
     start = 0
     olen = int(order.size)
@@ -349,18 +302,13 @@ def draw_dem_wireframe(
     R_earth: float = 6370000.0,
     k_refraction: float = 1.0/6.0
 ) -> List[Segment2D]:
-    
+
     R_eff = effective_radius(R_earth, k_refraction, enabled=curvature_enabled)
-    
-    
-    
-    
     _n_est = int(math.ceil(float(maxdist) / max(0.1, float(base_spacing))))
     _dense_cells_est = int(2 * _n_est + 1) ** 2
     _proj_upper = str(proj_name or '').strip().upper()
     _is_panorama = _proj_upper in ('EQUIRECT', 'EQUIRECTANGULAR', 'CYLINDRICAL')
-    
-    
+
     if _is_panorama and _dense_cells_est > 1200000:
         return _draw_dem_wireframe_sparse_adaptive(
             cam_xy=cam_xy, cam_z=cam_z, proj_name=proj_name, width=width, height=height,
@@ -374,10 +322,6 @@ def draw_dem_wireframe(
 
     segs: List[Segment2D] = []
     M, N = X.shape
-
-    
-    
-    
     valid_nodes = mask & np.isfinite(Z)
     U = np.full(X.shape, np.nan, dtype=np.float64)
     V = np.full(X.shape, np.nan, dtype=np.float64)
@@ -399,10 +343,6 @@ def draw_dem_wireframe(
             U[ii, jj] = uv[:, 0]
             V[ii, jj] = uv[:, 1]
 
-    
-    
-    
-    
     horizon_visible = None
     if horizon_data is not None and int(wire_mode) != 0:
         try:
@@ -433,8 +373,6 @@ def draw_dem_wireframe(
         except Exception:
             horizon_visible = None
 
-    
-    
     if int(wire_mode) == 2 and horizon_visible is None:
         return []
 
@@ -490,16 +428,13 @@ def draw_dem_wireframe(
             if keep:
                 segs.append(((float(ua), float(va)), (float(ub), float(vb))))
 
-    
+
     for i in range(M):
         _append_run(np.where(mask[i])[0], i, True)
     for j in range(N):
         _append_run(np.where(mask[:, j])[0], j, False)
 
     return segs
-
-
-
 
 def draw_dem_horizon(
     cam_xy: Tuple[float,float], cam_z: float,
@@ -514,13 +449,10 @@ def draw_dem_horizon(
     R_earth: float = 6370000.0,
     k_refraction: float = 1.0/6.0
 ) -> Polyline2D:
-    
+
     R_eff = effective_radius(R_earth, k_refraction, enabled=curvature_enabled)
     cx, cy = cam_xy
     poly: Polyline2D = []
-
-    
-    
     half = HFOV * 0.5 if not is360 else 180.0
     az0 = yaw - half
     az1 = yaw + half
@@ -529,7 +461,7 @@ def draw_dem_horizon(
 
     for az in az_list:
         th = math.radians(az)
-        
+
         d_values = build_radial_distances(d_step_min, maxdist)
         alpha_max = -1e9
         best_xy = None
@@ -545,7 +477,6 @@ def draw_dem_horizon(
 
         if best_xy is None:
             continue
-
         uv = projector(
             QgsPointXY(cx, cy), cam_z,
             QgsPointXY(best_xy[0], best_xy[1]), None,
@@ -556,9 +487,6 @@ def draw_dem_horizon(
             poly.append((float(uv[0]), float(uv[1])))
 
     return poly
-
-
-
 
 def draw_dem_ridgelines(
     cam_xy: Tuple[float,float], cam_z: float,
@@ -575,7 +503,7 @@ def draw_dem_ridgelines(
     R_earth: float = 6370000.0,
     k_refraction: float = 1.0/6.0
 ) -> List[Segment2D]:
-    
+
     R_eff = effective_radius(R_earth, k_refraction, enabled=curvature_enabled)
     s0 = float(base_spacing)
     n = int(math.ceil(near_dist_for_ridges / s0))
@@ -584,8 +512,6 @@ def draw_dem_ridgelines(
     X, Y = np.meshgrid(xs, ys)
     R = np.hypot(X, Y)
     mask = (R <= near_dist_for_ridges + 1e-6)
-
-    
     Z = np.full_like(X, np.nan, dtype=np.float64)
     cx, cy = cam_xy
     xs_f = X[mask].ravel(); ys_f = Y[mask].ravel()
@@ -595,33 +521,22 @@ def draw_dem_ridgelines(
         z[i] = float(z_sampler(QgsPointXY(cx + xs_f[i], cy + ys_f[i])))
     z -= curvature_drop(d, R_eff)
     Z[mask] = z
-
-    
-    
-    
     nX = np.full_like(Z, np.nan); nY = np.full_like(Z, np.nan)
     nX[:, 1:-1] = (Z[:, 2:] - Z[:, :-2]) / (2.0 * s0)
     nY[1:-1, :] = (Z[2:, :] - Z[:-2, :]) / (2.0 * s0)
-
-    
-    
     segs: List[Segment2D] = []
     thres = float(angle_deg)
-
     M, N = Z.shape
     for i in range(1, M - 1):
         for j in range(1, N - 1):
             if not np.isfinite(Z[i, j]): 
                 continue
-            
             x = cx + X[i, j]; y = cy + Y[i, j]; zc = Z[i, j]
             vx, vy, vz = (cx - x), (cy - y), (cam_z - zc)
             vnorm = math.sqrt(vx*vx + vy*vy + vz*vz)
             if vnorm < 1e-6: 
                 continue
             vx /= vnorm; vy /= vnorm; vz /= vnorm
-
-            
             if not (np.isfinite(nX[i, j]) and np.isfinite(nY[i, j])):
                 continue
             nx, ny, nz = (-nX[i, j], -nY[i, j], 1.0)
@@ -629,24 +544,17 @@ def draw_dem_ridgelines(
             if nnorm < 1e-6: 
                 continue
             nx /= nnorm; ny /= nnorm; nz /= nnorm
-
-            
-            
             dot = max(-1.0, min(1.0, nx*vx + ny*vy + nz*vz))
             theta = math.degrees(math.acos(dot))
             beta = 90.0 - theta
 
-            
             if beta < thres:
-                
-                
                 for di, dj in [(0, 1), (1, 0)]:
                     ii, jj = i + di, j + dj
                     if ii >= M or jj >= N: 
                         continue
                     if not np.isfinite(Z[ii, jj]): 
                         continue
-                    
                     uv1 = projector(
                         QgsPointXY(cx, cy), cam_z,
                         QgsPointXY(x, y), None,

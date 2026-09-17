@@ -1,8 +1,3 @@
-
-
-
-
-
 from qgis.PyQt.QtWidgets import QAbstractItemView
 from qgis.PyQt.QtGui import QColor
 from qgis.PyQt.QtWidgets import QColorDialog
@@ -29,7 +24,7 @@ except ImportError:
     from qgis.PyQt.QtWidgets import QAction, QShortcut
 
 def _enum(root, scope_name, member_name):
-    
+
     scope = getattr(root, scope_name, None)
     if scope is not None:
         value = getattr(scope, member_name, None)
@@ -62,6 +57,7 @@ QC.QEvent_Type_MouseButtonPress = _enum(QEvent, 'Type', 'MouseButtonPress')
 QC.QEvent_Type_Wheel = _enum(QEvent, 'Type', 'Wheel')
 QC.QFrame_Shape_NoFrame = _enum(QFrame, 'Shape', 'NoFrame')
 QC.QFrame_Shape_StyledPanel = _enum(QFrame, 'Shape', 'StyledPanel')
+QC.QGraphicsView_DragMode_NoDrag = _enum(QGraphicsView, 'DragMode', 'NoDrag')
 QC.QGraphicsView_DragMode_ScrollHandDrag = _enum(QGraphicsView, 'DragMode', 'ScrollHandDrag')
 QC.QGraphicsView_ViewportAnchor_AnchorUnderMouse = _enum(QGraphicsView, 'ViewportAnchor', 'AnchorUnderMouse')
 QC.QHeaderView_ResizeMode_ResizeToContents = _enum(QHeaderView, 'ResizeMode', 'ResizeToContents')
@@ -70,8 +66,6 @@ QC.QImage_Format_Format_ARGB32_Premultiplied = _enum(QImage, 'Format', 'Format_A
 QC.QImage_Format_Format_RGBA8888 = _enum(QImage, 'Format', 'Format_RGBA8888')
 QC.QMessageBox_StandardButton_No = _enum(QMessageBox, 'StandardButton', 'No')
 QC.QMessageBox_StandardButton_Yes = _enum(QMessageBox, 'StandardButton', 'Yes')
-
-
 QC.QMetaType_Type_QString = _enum(QMetaType, 'Type', 'QString')
 QC.QMetaType_Type_Int = _enum(QMetaType, 'Type', 'Int')
 QC.QMetaType_Type_Double = _enum(QMetaType, 'Type', 'Double')
@@ -138,14 +132,14 @@ QC.Qt_WindowType_WindowCloseButtonHint = _enum(Qt, 'WindowType', 'WindowCloseBut
 QC.Qt_WindowType_WindowMinMaxButtonsHint = _enum(Qt, 'WindowType', 'WindowMinMaxButtonsHint')
 
 def enum_int(value):
-    
+
     try:
         return int(value)
     except (TypeError, ValueError):
         return int(value.value)
 
 def dialog_exec(dialog):
-    
+
     fn = getattr(dialog, "exec", None)
     if callable(fn):
         return fn()

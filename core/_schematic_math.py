@@ -1,40 +1,29 @@
-
-
-
-
 from __future__ import annotations
 from ._exceptions import qcv_suppress_exception as _qcv_suppress
-
 import math
 import random
 from typing import Iterable, List, Optional, Sequence, Tuple
-
 Point2 = Tuple[float, float]
-
 
 class _DeterministicVisualRandom(random.Random):
     pass
 
-
 def clamp(value: float, lo: float, hi: float) -> float:
     return max(lo, min(hi, float(value)))
 
-
 def deterministic_noise(seed: int, count: int, amplitude: float = 1.0) -> List[float]:
-    
+
     rnd = _DeterministicVisualRandom(int(seed) & 0xFFFFFFFF)  
     amp = abs(float(amplitude))
     return [rnd.uniform(-amp, amp) for _ in range(max(0, int(count)))]
-
 
 def polyline_length(points: Sequence[Point2]) -> float:
     if len(points) < 2:
         return 0.0
     return sum(math.hypot(float(b[0]) - float(a[0]), float(b[1]) - float(a[1])) for a, b in zip(points[:-1], points[1:]))
 
-
 def resample_polyline(points: Sequence[Point2], step: float) -> List[Point2]:
-    
+
     pts = [(float(x), float(y)) for x, y in points]
     if len(pts) < 2:
         return pts
@@ -52,7 +41,7 @@ def resample_polyline(points: Sequence[Point2], step: float) -> List[Point2]:
             t = travelled / seg
             out.append((ax + dx * t, ay + dy * t))
             travelled += step
-        
+
         if out:
             lx, ly = out[-1]
             carry = math.hypot(bx - lx, by - ly)
@@ -64,9 +53,8 @@ def resample_polyline(points: Sequence[Point2], step: float) -> List[Point2]:
         out.append(pts[-1])
     return out
 
-
 def segment_intersection(a: Point2, b: Point2, c: Point2, d: Point2, eps: float = 1e-10) -> Optional[Tuple[Point2, float, float]]:
-    
+
     ax, ay = map(float, a); bx, by = map(float, b)
     cx, cy = map(float, c); dx, dy = map(float, d)
     r = (bx - ax, by - ay)
@@ -81,7 +69,6 @@ def segment_intersection(a: Point2, b: Point2, c: Point2, d: Point2, eps: float 
         return ((ax + t * r[0], ay + t * r[1]), t, u)
     return None
 
-
 def required_occlusion_height_at_point(
     camera_xy: Point2,
     camera_z: float,
@@ -91,7 +78,7 @@ def required_occlusion_height_at_point(
     barrier_ground_z: float,
     margin_m: float = 0.0,
 ) -> Optional[float]:
-    
+
     cx, cy = map(float, camera_xy); tx, ty = map(float, target_xy)
     bx, by = map(float, barrier_xy)
     vx, vy = tx - cx, ty - cy
@@ -104,7 +91,6 @@ def required_occlusion_height_at_point(
     los_z = float(camera_z) + lam * (float(target_z) - float(camera_z))
     return max(0.0, los_z - float(barrier_ground_z) + float(margin_m))
 
-
 def required_occlusion_height_on_polyline(
     camera_xy: Point2,
     camera_z: float,
@@ -114,7 +100,7 @@ def required_occlusion_height_on_polyline(
     ground_z_at,
     margin_m: float = 0.0,
 ) -> Optional[Tuple[float, Point2, int]]:
-    
+
     pts = [(float(x), float(y)) for x, y in barrier_points]
     if len(pts) < 2:
         return None
@@ -137,7 +123,6 @@ def required_occlusion_height_on_polyline(
         return None
     return best[1], best[2], best[3]
 
-
 def occlusion_hits_on_polylines(
     camera_xy: Point2,
     camera_z: float,
@@ -147,7 +132,7 @@ def occlusion_hits_on_polylines(
     ground_z_at,
     margin_m: float = 0.0,
 ):
-    
+
     cx, cy = map(float, camera_xy)
     tx, ty = map(float, target_xy)
     ray_len = math.hypot(tx - cx, ty - cy)
@@ -163,7 +148,7 @@ def occlusion_hits_on_polylines(
             if hit is None:
                 continue
             xy, t_cam, t_barrier = hit
-            
+
             if t_cam <= 1e-9 or t_cam >= 1.0 - 1e-9:
                 continue
             try:
@@ -190,7 +175,6 @@ def occlusion_hits_on_polylines(
     hits.sort(key=lambda rec: (rec["t_cam"], rec["part_index"], rec["segment_index"]))
     return hits
 
-
 def required_occlusion_hit_on_polylines(
     camera_xy: Point2,
     camera_z: float,
@@ -200,7 +184,7 @@ def required_occlusion_hit_on_polylines(
     ground_z_at,
     margin_m: float = 0.0,
 ):
-    
+
     hits = occlusion_hits_on_polylines(
         camera_xy, camera_z, target_xy, target_z,
         barrier_parts, ground_z_at, margin_m=margin_m,

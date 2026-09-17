@@ -1,16 +1,10 @@
-
-
-
-
 from __future__ import annotations
 from ._exceptions import qcv_suppress_exception as _qcv_suppress
 from ._i18n import tr
 from ._compat import QC, dialog_exec
-
 import math
 import os
 from typing import List, Tuple, Optional, Dict, Any
-
 from qgis.PyQt.QtWidgets import (
     QDialog, QVBoxLayout, QFormLayout, QDialogButtonBox, QLineEdit,
     QDoubleSpinBox, QLabel, QMessageBox, QCheckBox
@@ -32,7 +26,6 @@ def _finite_float(value, default=None):
     except Exception:
         return default
 
-
 def _feature_height(feature, field_name: str, default: float) -> float:
     try:
         if field_name and field_name in feature.fields().names():
@@ -43,9 +36,8 @@ def _feature_height(feature, field_name: str, default: float) -> float:
         _qcv_suppress(_qcv_exc, "core/_schematic_tools.py:41")
     return float(default)
 
-
 def _target_sample_points(geom, gtype: int):
-    
+
     pts = []
     try:
         if gtype == QC.QgsWkbTypes_GeometryType_PointGeometry:
@@ -73,13 +65,11 @@ def _target_sample_points(geom, gtype: int):
         return []
     return pts
 
-
 def _line_parts(geom):
     try:
         return geom.asMultiPolyline() if geom.isMultipart() else [geom.asPolyline()]
     except Exception:
         return []
-
 
 def _find_qcalview_style(dock, layer):
     if layer is None:
@@ -98,9 +88,8 @@ def _find_qcalview_style(dock, layer):
             continue
     return None
 
-
 def _style_explicit_layer_height(feature, style):
-    
+
     if style is None:
         return None
     fld = str(getattr(style, "height_field_override", "") or "").strip()
@@ -115,9 +104,8 @@ def _style_explicit_layer_height(feature, style):
     val = getattr(style, "default_height_override", None)
     return _finite_float(val, None) if val is not None else None
 
-
 def _symbol_param_value(feature, style, definition: Dict[str, Any], name: str, fallback=None):
-    
+
     try:
         overrides = dict(getattr(style, "schematic_params", {}) or {})
     except Exception:
@@ -143,9 +131,8 @@ def _symbol_param_value(feature, style, definition: Dict[str, Any], name: str, f
             _qcv_suppress(_qcv_exc, "core/_schematic_tools.py:140")
     return raw.get("default", fallback)
 
-
 def _schematic_target_height(dock, target_layer, feature) -> Tuple[Optional[float], str]:
-    
+
     style = _find_qcalview_style(dock, target_layer)
     if style is None or not bool(getattr(style, "schematic_enabled", False)):
         return None, ""
@@ -184,8 +171,6 @@ def _schematic_target_height(dock, target_layer, feature) -> Tuple[Optional[floa
         h = _style_explicit_layer_height(feature, style)
         if h is not None:
             return max(0.0, h), f"AVR {symbol_id}: extrusion"
-
-    
     params = definition.get("parameters", {}) or {}
     if "height_m" in params:
         h = _finite_float(_symbol_param_value(feature, style, definition, "height_m", None), None)
@@ -193,9 +178,8 @@ def _schematic_target_height(dock, target_layer, feature) -> Tuple[Optional[floa
             return max(0.0, h), f"AVR {symbol_id}: hauteur"
     return None, ""
 
-
 def _target_height(dock, target_layer, feature, explicit_field: str, default_h: float, use_avr: bool):
-    
+
     fld = str(explicit_field or "").strip()
     if fld:
         try:
@@ -211,9 +195,8 @@ def _target_height(dock, target_layer, feature, explicit_field: str, default_h: 
             return h, src
     return max(0.0, float(default_h)), "défaut"
 
-
 def _hedge_min_render_ratio(dock, hedge_layer, symbol_id=None, params_override=None):
-    
+
     style = _find_qcalview_style(dock, hedge_layer)
     sid = str(symbol_id or getattr(style, "schematic_symbol_id", "") or "").strip()
     if not sid:
@@ -248,9 +231,8 @@ def _hedge_min_render_ratio(dock, hedge_layer, symbol_id=None, params_override=N
     ratio = max(crown_min, 1.0 - irr)
     return max(0.05, min(1.0, ratio)), f"cime AVR min. {ratio:.3f} (irrégularité {irr:.3f})", True
 
-
 def _diagnostic_layer(cam_crs, hedge_layer, target_layer, records):
-    
+
     if not records:
         return None
     authid = ""
@@ -314,12 +296,11 @@ def _diagnostic_layer(cam_crs, hedge_layer, target_layer, records):
         QgsProject.instance().addMapLayer(layer)
     return layer
 
-
 def calculate_hedge_occlusion_dialog(
     dock, hedge_layer, initial_output_field="qcv_h_req",
     hedge_symbol_id=None, hedge_params=None,
 ):
-    
+
     if hedge_layer is None or QgsWkbTypes.geometryType(hedge_layer.wkbType()) != QC.QgsWkbTypes_GeometryType_LineGeometry:
         QMessageBox.warning(dock, tr("Hauteur d'occultation"), tr("La couche de haie doit être une couche linéaire."))
         return None
@@ -378,7 +359,7 @@ def calculate_hedge_occlusion_dialog(
         return None
     out_field = le_out.text().strip() or "qcv_h_req"
 
-    
+
     try:
         cam_layer = dock.cmb_camera.currentLayer()
         cam_feat = dock._camera_current_feature()
@@ -421,8 +402,6 @@ def calculate_hedge_occlusion_dialog(
     )
     effective_ratio = crown_ratio if (compensate_crown and continuous_screen) else 1.0
     target_gtype = QgsWkbTypes.geometryType(target_layer.wkbType())
-
-    
     targets = []
     source_counts = {}
     for feat in target_layer.getFeatures():
@@ -474,7 +453,6 @@ def calculate_hedge_occlusion_dialog(
             if not parts_cam:
                 no_cross += 1
                 continue
-
             first_hits_for_feature = []
             for target in targets:
                 hits = occlusion_hits_on_polylines(
@@ -484,8 +462,6 @@ def calculate_hedge_occlusion_dialog(
                 )
                 if not hits:
                     continue
-                
-                
                 first = dict(hits[0])
                 first["height_nominal_m"] = float(first["height_m"]) / max(0.05, effective_ratio)
                 first["crown_ratio"] = float(effective_ratio)
@@ -507,14 +483,12 @@ def calculate_hedge_occlusion_dialog(
             if not first_hits_for_feature:
                 no_cross += 1
                 continue
-
             controlling_hit, controlling_target = max(first_hits_for_feature, key=lambda item: float(item[0]["height_nominal_m"]))
             best_h = float(controlling_hit["height_nominal_m"])
             hedge_layer.changeAttributeValue(hfeat.id(), idx_out, round(best_h, 3))
             updated += 1; max_value = max(max_value, best_h)
 
             if create_diag:
-                
                 cx, cy = controlling_hit["xy"]
                 for rec in diagnostic_records:
                     if (str(rec.get("hedge_fid")) == str(hfeat.id()) and

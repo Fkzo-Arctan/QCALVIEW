@@ -1,6 +1,3 @@
-
-
-
 from ._exceptions import qcv_suppress_exception as _qcv_suppress
 from ._i18n import tr
 from ._compat import QC
@@ -13,8 +10,8 @@ from qgis.core import (
     QgsGeometry, QgsPointXY, QgsPoint, QgsField, QgsFields, QgsWkbTypes
 )
 from qgis.gui import QgsMapTool, QgsVertexMarker, QgsRubberBand
-from ..projector import project_point, _validated_vfov_for_cylindrical
-from ._render_ops import _make_pov_curved_sampler, _apply_pov_curvature_to_z
+from ..projector import project_point, _validated_vfov_for_cylindrical, _basis_from_yaw_pitch_roll
+from ._render_ops import _make_pov_curved_sampler, _apply_pov_curvature_to_z, _overlay_offset_pixels
 
 BLUE = QColor(50, 120, 255, 235)
 
@@ -124,6 +121,14 @@ def _monoplot_active_terrain_mode(self, ctx=None):
     return 'view' if bool(ctx.get('curvature_enabled')) else 'raw'
 
 
+def _monoplot_overlay_shift(self, width, height):
+    try:
+        dx, dy = _overlay_offset_pixels(self, int(width), int(height))
+        return float(int(round(float(dx)))), float(int(round(float(dy))))
+    except Exception:
+        return 0.0, 0.0
+
+
 def _monoplot_compute_view_z(self, ctx, x, y, z_raw):
     try:
         z_val = float(z_raw)
@@ -153,34 +158,46 @@ def _monoplot_record_active_z(self, rec, ctx=None):
 
 def _monoplot_angles_from_uv(self, u, v, ctx):
     W = max(1.0, float(ctx['width'])); H = max(1.0, float(ctx['height']))
-    proj = ctx['proj']; is360 = ctx['is360']; HFOV = float(ctx['hfov']); VFOV = float(ctx['vfov'])
+    proj = str(ctx['proj']).upper(); is360 = bool(ctx['is360'])
+    HFOV = float(ctx['hfov']); VFOV = float(ctx['vfov'])
     x = float(u); y = float(v)
-    theta = 0.0; beta = 0.0
+    hf = math.radians(max(1e-6, HFOV)); vf = math.radians(max(1e-6, VFOV))
     if proj == 'PINHOLE':
-        hf = math.radians(HFOV); vf = math.radians(VFOV)
         fx = (W * 0.5) / max(1e-9, math.tan(hf * 0.5))
         fy = (H * 0.5) / max(1e-9, math.tan(vf * 0.5))
-        theta = math.degrees(math.atan2(x - W * 0.5, fx))
-        beta = math.degrees(math.atan2(H * 0.5 - y, fy))
+        xc = (x - W * 0.5) / max(1e-9, fx)
+        yc = 1.0
+        zc = (H * 0.5 - y) / max(1e-9, fy)
     elif proj == 'CYLINDRICAL':
-        hf = math.radians(HFOV)
         vf = _validated_vfov_for_cylindrical(VFOV, HFOV, W, H)
-        fx = W / max(1e-9, hf)
-        fy = (H * 0.5) / max(1e-9, math.tan(vf * 0.5))
         if is360:
-            theta = ((x / W) * 360.0) - 180.0
+            alpha = (x / W) * (2.0 * math.pi) - math.pi
         else:
-            theta = math.degrees((x - W * 0.5) / max(1e-9, fx))
-        beta = math.degrees(math.atan((H * 0.5 - y) / max(1e-9, fy)))
+            fx = W / max(1e-9, hf)
+            alpha = (x - W * 0.5) / max(1e-9, fx)
+        fy = (H * 0.5) / max(1e-9, math.tan(vf * 0.5))
+        beta = math.atan((H * 0.5 - y) / max(1e-9, fy))
+        cb = math.cos(beta)
+        xc = math.sin(alpha) * cb
+        yc = math.cos(alpha) * cb
+        zc = math.sin(beta)
     else:
         if is360:
-            theta = ((x / W) * 360.0) - 180.0
-            beta = 90.0 - ((y / H) * 180.0)
+            alpha = (x / W) * (2.0 * math.pi) - math.pi
+            beta = (0.5 * math.pi) - (y / H) * math.pi
         else:
-            theta = ((x / W) - 0.5) * HFOV
-            beta = (0.5 - (y / H)) * VFOV
-    az_abs = (ctx['yaw_eff'] + theta) % 360.0
-    pitch_abs = ctx['pitch'] + beta
+            alpha = ((x / W) - 0.5) * hf
+            beta = (0.5 - (y / H)) * vf
+        cb = math.cos(beta)
+        xc = math.sin(alpha) * cb
+        yc = math.cos(alpha) * cb
+        zc = math.sin(beta)
+    r, up, f = _basis_from_yaw_pitch_roll(float(ctx['yaw_eff']), float(ctx['pitch']), float(ctx['roll']))
+    wx = xc * float(r[0]) + yc * float(f[0]) + zc * float(up[0])
+    wy = xc * float(r[1]) + yc * float(f[1]) + zc * float(up[1])
+    wz = xc * float(r[2]) + yc * float(f[2]) + zc * float(up[2])
+    az_abs = math.degrees(math.atan2(wx, wy)) % 360.0
+    pitch_abs = math.degrees(math.atan2(wz, max(1e-12, math.hypot(wx, wy))))
     return az_abs, pitch_abs
 
 
@@ -189,9 +206,16 @@ def _monoplot_point_visibility(self, rec, width=None, height=None):
     if not ctx:
         return None
     width = int(width or ctx['width']); height = int(height or ctx['height'])
+    shift_x, shift_y = _monoplot_overlay_shift(self, width, height)
     if rec.get('src_mode') == 'image_to_ground' and rec.get('src_pdv_id') == ctx.get('pdv_id') and rec.get('_click_uv'):
-        u, v = float(rec['_click_uv'][0]), float(rec['_click_uv'][1])
-        if 0.0 <= u <= width and 0.0 <= v <= height:
+        src_w = max(1.0, float(ctx['width'])); src_h = max(1.0, float(ctx['height']))
+        u = float(rec['_click_uv'][0]) * float(width) / src_w
+        v = float(rec['_click_uv'][1]) * float(height) / src_h
+        shown_u = u + shift_x
+        shown_v = v + shift_y
+        if bool(ctx['is360']):
+            shown_u %= max(1.0, float(width))
+        if (bool(ctx['is360']) or 0.0 <= shown_u < width) and 0.0 <= shown_v <= height:
             return (u, v)
     z_tgt = _monoplot_record_active_z(self, rec, ctx=ctx)
     if z_tgt is None:
@@ -202,9 +226,12 @@ def _monoplot_point_visibility(self, rec, width=None, height=None):
     if uv is None:
         return None
     u, v = float(uv[0]), float(uv[1])
-    if not ctx['is360']:
-        if u < 0 or u >= width or v < 0 or v > height:
-            return None
+    shown_u = u + shift_x
+    shown_v = v + shift_y
+    if bool(ctx['is360']):
+        shown_u %= max(1.0, float(width))
+    if (not bool(ctx['is360']) and (shown_u < 0 or shown_u >= width)) or shown_v < 0 or shown_v > height:
+        return None
     return (u, v)
 
 
@@ -232,14 +259,13 @@ def _monoplot_refresh_list(self):
     cur_pdv = _monoplot_current_pdv_info(self).get('pdv_id','')
     visible_count = 0
     terrain_mode = _monoplot_active_terrain_mode(self)
-    mode_label = 'terrain apparent' if terrain_mode == 'view' else 'terrain brut'
+    mode_label = tr('terrain apparent') if terrain_mode == 'view' else tr('terrain brut')
     for rec in records:
-        status = 'visible' if rec.get('_visible_uv') else ('PDV source' if rec.get('src_pdv_id') == cur_pdv else 'hors vue')
         if rec.get('_visible_uv'):
             visible_count += 1
         lbl_txt = rec.get('label') or rec['mp_id']
         txt = f"{lbl_txt} · D={rec['dist_m']:.1f} m · Az={rec['az_deg']:.1f}°"
-        lw.addItem(tr(QListWidgetItem(txt)))
+        lw.addItem(QListWidgetItem(txt))
     try:
         lbl = getattr(self, 'lbl_monoplot_status', None)
         if lbl is not None:
@@ -250,12 +276,44 @@ def _monoplot_refresh_list(self):
     except Exception as _qcv_exc:
         _qcv_suppress(_qcv_exc, "core/_monoplot_ops.py:249")
 
+def _monoplot_live_project_layer(layer):
+    if not isinstance(layer, QgsVectorLayer):
+        return None
+    try:
+        layer_id = layer.id()
+    except Exception:
+        return None
+    try:
+        current = QgsProject.instance().mapLayer(layer_id)
+    except Exception:
+        return None
+    if not isinstance(current, QgsVectorLayer):
+        return None
+    try:
+        if not current.isValid():
+            return None
+    except Exception:
+        return None
+    return current
+
+
+def _monoplot_reset_runtime_state(self):
+    self._monoplot_records = []
+    self._monoplot_visible = []
+    self._monoplot_counter = 0
+    self._monoplot_points_layer = None
+    self._monoplot_rays_layer = None
+    try:
+        self.list_monoplot.clear()
+    except Exception as _qcv_exc:
+        _qcv_suppress(_qcv_exc, "core/_monoplot_ops.py:reset_runtime")
 
 
 def _monoplot_sync_from_layers(self):
-    points = getattr(self, '_monoplot_points_layer', None)
-    if not isinstance(points, QgsVectorLayer) or not points.isValid():
+    points = _monoplot_live_project_layer(getattr(self, '_monoplot_points_layer', None))
+    if points is None:
         return
+    self._monoplot_points_layer = points
     idx_id = points.fields().indexOf('mp_id')
     idx_label = points.fields().indexOf('label')
     if idx_id < 0:
@@ -287,8 +345,15 @@ def _monoplot_ensure_layers(self):
         crs = None
     authid = crs.authid() if crs is not None and crs.isValid() else self.iface.mapCanvas().mapSettings().destinationCrs().authid()
     proj = QgsProject.instance()
-    points = getattr(self, '_monoplot_points_layer', None)
-    if not isinstance(points, QgsVectorLayer) or not points.isValid():
+    raw_points = getattr(self, '_monoplot_points_layer', None)
+    raw_rays = getattr(self, '_monoplot_rays_layer', None)
+    points = _monoplot_live_project_layer(raw_points)
+    rays = _monoplot_live_project_layer(raw_rays)
+    if (raw_points is not None and points is None) or (raw_rays is not None and rays is None):
+        _monoplot_reset_runtime_state(self)
+        points = None
+        rays = None
+    if points is None:
         points = QgsVectorLayer(f'Point?crs={authid}', tr('QCV_MONOPLOT_POINTS'), 'memory')
         pr = points.dataProvider()
         pr.addAttributes([
@@ -316,8 +381,7 @@ def _monoplot_ensure_layers(self):
         if extra_attrs:
             points.dataProvider().addAttributes(extra_attrs)
             points.updateFields()
-    rays = getattr(self, '_monoplot_rays_layer', None)
-    if not isinstance(rays, QgsVectorLayer) or not rays.isValid():
+    if rays is None:
         rays = QgsVectorLayer(f'LineString?crs={authid}', tr('QCV_MONOPLOT_RAYS'), 'memory')
         pr = rays.dataProvider()
         pr.addAttributes([
@@ -328,8 +392,6 @@ def _monoplot_ensure_layers(self):
     return points, rays
 
 
-
-
 def _monoplot_invalidate_overlay(self):
     try:
         if hasattr(self, '_overlay_cache') and isinstance(self._overlay_cache, dict):
@@ -338,12 +400,12 @@ def _monoplot_invalidate_overlay(self):
         _qcv_suppress(_qcv_exc, "core/_monoplot_ops.py:335")
 
 def _monoplot_add_record(self, rec, add_ray=True):
+    points, rays = _monoplot_ensure_layers(self)
     records = getattr(self, '_monoplot_records', None)
     if records is None:
         self._monoplot_records = []
         records = self._monoplot_records
     records.append(rec)
-    points, rays = _monoplot_ensure_layers(self)
     feat = QgsFeature(points.fields())
     feat.setGeometry(QgsGeometry.fromPointXY(QgsPointXY(float(rec['x']), float(rec['y']))))
     feat['mp_id'] = rec['mp_id']; feat['src_mode'] = rec['src_mode']; feat['src_pdv'] = rec['src_pdv_id']; feat['src_name'] = rec['src_pdv_name']
@@ -416,6 +478,10 @@ def _monoplot_pick_map_z(self, map_pt):
 
 def start_monoplot_map_to_image(self):
     self._monoplot_active_tool = 'map_to_image'
+    self._image_pick_mode = None
+    viewer = getattr(self, "viewer", None)
+    if viewer is not None and hasattr(viewer, "set_image_pick_active"):
+        viewer.set_image_pick_active(False)
     canvas = self.iface.mapCanvas()
     self._maptool_backup = canvas.mapTool()
     canvas.setMapTool(MonoplotMapTool(canvas, lambda pt: _monoplot_on_map_click(self, pt)))
@@ -449,6 +515,9 @@ def _monoplot_on_map_click(self, map_pt):
 def start_monoplot_image_to_ground(self):
     self._monoplot_active_tool = 'image_to_ground'
     self._image_pick_mode = 'monoplot_ground'
+    viewer = getattr(self, "viewer", None)
+    if viewer is not None and hasattr(viewer, "set_image_pick_active"):
+        viewer.set_image_pick_active(True)
     mode_label = 'terrain apparent' if _monoplot_active_terrain_mode(self) == 'view' else 'terrain brut'
     _mp_log(self, f'Interroger le terrain depuis l’image actif : cliquez dans l’image. Mode {mode_label}.')
 
@@ -458,7 +527,14 @@ def _monoplot_intersect_image_uv(self, u, v):
     z_sampler_active = ctx.get('z_sampler_active') if ctx else None
     if not ctx or z_sampler_active is None:
         return None, 'pas de topographie pour ce point'
-    az_abs, pitch_abs = _monoplot_angles_from_uv(self, u, v, ctx)
+    raw_u = float(u)
+    raw_v = float(v)
+    off_x, off_y = _monoplot_overlay_shift(self, int(ctx['width']), int(ctx['height']))
+    raw_u -= float(off_x)
+    raw_v -= float(off_y)
+    if bool(ctx.get('is360')):
+        raw_u %= max(1.0, float(ctx['width']))
+    az_abs, pitch_abs = _monoplot_angles_from_uv(self, raw_u, raw_v, ctx)
     maxdist = max(50.0, float(ctx['maxdist']))
     tanp = math.tan(math.radians(pitch_abs))
     prev = None
@@ -510,8 +586,8 @@ def _monoplot_intersect_image_uv(self, u, v):
         z_view = _monoplot_compute_view_z(self, ctx, x, y, z_raw)
     rec = _monoplot_make_record(self, 'image_to_ground', x, y, z_raw, ctx, z_view=z_view)
     rec['az_deg'] = float(az_abs)
-    rec['_click_uv'] = (float(u), float(v))
-    rec['_visible_uv'] = (float(u), float(v))
+    rec['_click_uv'] = (float(raw_u), float(raw_v))
+    rec['_visible_uv'] = (float(raw_u), float(raw_v))
     return rec, None
 
 
@@ -523,12 +599,14 @@ def _monoplot_handle_image_click_uv(self, u, v):
         except Exception as _qcv_exc:
             _qcv_suppress(_qcv_exc, "core/_monoplot_ops.py:521")
         _mp_log(self, err or 'Aucune intersection terrain trouvée')
-        return
+        return False
     _monoplot_add_record(self, rec, add_ray=True)
-    try:
-        self.render_preview()
-    except Exception as _qcv_exc:
-        _qcv_suppress(_qcv_exc, "core/_monoplot_ops.py:528")
+    if not bool(getattr(self, '_monoplot_viewer_click_active', False)):
+        try:
+            self.render_preview()
+        except Exception as _qcv_exc:
+            _qcv_suppress(_qcv_exc, "core/_monoplot_ops.py:528")
+    return True
 
 
 def clear_monoplot_reperes(self):
@@ -537,16 +615,25 @@ def clear_monoplot_reperes(self):
     self._monoplot_counter = 0
     _monoplot_invalidate_overlay(self)
     for attr in ('_monoplot_points_layer', '_monoplot_rays_layer'):
-        lyr = getattr(self, attr, None)
-        if isinstance(lyr, QgsVectorLayer) and lyr.isValid():
+        lyr = _monoplot_live_project_layer(getattr(self, attr, None))
+        if lyr is not None:
+            setattr(self, attr, lyr)
             ids = [f.id() for f in lyr.getFeatures()]
             if ids:
                 lyr.dataProvider().deleteFeatures(ids)
                 lyr.triggerRepaint()
+        else:
+            setattr(self, attr, None)
     try:
         self.list_monoplot.clear()
     except Exception as _qcv_exc:
         _qcv_suppress(_qcv_exc, "core/_monoplot_ops.py:546")
+    try:
+        viewer = getattr(self, 'viewer', None)
+        if viewer is not None and hasattr(viewer, 'clear_pick_markers'):
+            viewer.clear_pick_markers()
+    except Exception as _qcv_exc:
+        _qcv_suppress(_qcv_exc, "core/_monoplot_ops.py:clear_viewer_markers")
     try:
         self.render_preview()
     except Exception as _qcv_exc:
@@ -557,6 +644,9 @@ def clear_monoplot_reperes(self):
 def stop_monoplot_tools(self):
     self._monoplot_active_tool = None
     self._image_pick_mode = None
+    viewer = getattr(self, "viewer", None)
+    if viewer is not None and hasattr(viewer, "set_image_pick_active"):
+        viewer.set_image_pick_active(False)
     try:
         self._cancel_maptool()
     except Exception as _qcv_exc:

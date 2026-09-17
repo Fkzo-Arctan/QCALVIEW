@@ -1,15 +1,11 @@
-"""Terrain/MNT preflight guard for QCALVIEW renders and visual exports."""
-
 from qgis.PyQt.QtWidgets import QMessageBox
 from qgis.core import QgsProject, QgsRasterLayer
-
 from ._exceptions import qcv_suppress_exception as _qcv_suppress
 from ._i18n import tr
 from ._log import qcv_log
 
-
 def terrain_layer_status(self):
-    """Return ``(is_valid, layer, reason)`` for the selected terrain raster."""
+
     combo = getattr(self, "cmb_dem", None)
     if combo is None:
         return False, None, "missing_selector"
@@ -62,9 +58,8 @@ def terrain_layer_status(self):
 
     return True, layer, ""
 
-
 def refresh_terrain_requirement_ui(self):
-    """Refresh the persistent MNT requirement hint in the Relief panel."""
+
     valid, layer, reason = terrain_layer_status(self)
     label = getattr(self, "lbl_dem_required", None)
     if label is not None:
@@ -112,12 +107,6 @@ def _focus_terrain_selector(self):
     except Exception as exc:
         _qcv_suppress(exc, "core/_terrain_guard.py:suppressed")
 def validate_terrain_layer(self, notify=True, purpose="render"):
-    """Block visual rendering when no valid terrain raster is selected.
-
-    For normal rendering and startup, the persistent warning inside QCALVIEW's
-    Relief panel is the only user-facing notification. Exports keep a blocking
-    QCALVIEW dialog because the requested operation cannot continue.
-    """
     valid, _layer, _reason = refresh_terrain_requirement_ui(self)
     if valid:
         setattr(self, "_terrain_guard_warned", False)
@@ -156,7 +145,7 @@ def validate_terrain_layer(self, notify=True, purpose="render"):
 
 
 def on_terrain_layer_changed(self, _layer=None):
-    """Reset warning throttling and render as soon as a valid MNT is selected."""
+
     setattr(self, "_terrain_guard_warned", False)
     valid, _layer, _reason = refresh_terrain_requirement_ui(self)
     if not valid:

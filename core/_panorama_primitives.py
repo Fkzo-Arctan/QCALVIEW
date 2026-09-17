@@ -1,23 +1,15 @@
-
-
-
-
 from __future__ import annotations
 from ._exceptions import qcv_suppress_exception as _qcv_suppress
-
 from dataclasses import dataclass, field
 from typing import Any, Dict, Optional, Sequence
 import math
 import numpy as np
-
 from ..projector import project_points_batch, _validated_vfov_for_cylindrical
-
 
 PANORAMIC_PROJECTIONS = ("EQUIRECT", "EQUIRECTANGULAR", "CYLINDRICAL")
 
-
 def _finite_uv_rows_scalar(arr, rows=None):
-    
+
     try:
         a = arr
         n = int(len(a) if rows is None else min(int(rows), len(a)))
@@ -57,7 +49,7 @@ def _xy_distance2_scalar(a, b):
 
 @dataclass
 class PanoramicPrimitive2D:
-    
+
     kind: str
     uv: np.ndarray
     radial_depth: np.ndarray
@@ -70,7 +62,7 @@ class PanoramicPrimitive2D:
 
 @dataclass
 class PanoramicFace:
-    
+
     uv: np.ndarray
     radial_depth: np.ndarray
     world_xyz: np.ndarray
@@ -84,7 +76,7 @@ def is_panorama_context(ctx) -> bool:
 
 
 def project_panorama_point_scalar(ctx, x: float, y: float, z: float, dist_max=None, *, clip_to_fov=True):
-    
+
     try:
         x=float(x); y=float(y); z=float(z)
         if not (math.isfinite(x) and math.isfinite(y) and math.isfinite(z)):
@@ -125,10 +117,7 @@ def project_panorama_point_scalar(ctx, x: float, y: float, z: float, dist_max=No
                     return None
                 if abs(beta) > 0.5*vf+1e-9:
                     return None
-            
-            
-            
-            
+
             if abs(beta) >= (math.pi*0.5-1e-9):
                 return None
             uu=(alpha+math.pi)/(2.0*math.pi)*W if full360 else W*0.5+(W/max(1e-9,hf))*alpha
@@ -147,7 +136,7 @@ def project_panorama_point_scalar(ctx, x: float, y: float, z: float, dist_max=No
 
 
 def panorama_quad_rects_scalar(points, wrap_width: float, viewport_width: float, margin_px: float = 2.0):
-    
+
     try:
         pts=[(float(p[0]),float(p[1])) for p in points]
         if len(pts)<4 or any(not (math.isfinite(x) and math.isfinite(y)) for x,y in pts):
@@ -168,12 +157,11 @@ def panorama_quad_rects_scalar(points, wrap_width: float, viewport_width: float,
             if maxx < -m or minx > VW+m:
                 return ()
             return ((minx,maxx,top,bottom),)
-        
+
         kmin=int(math.ceil((-m-maxx)/W)); kmax=int(math.floor((VW+m-minx)/W))
         if kmax<kmin:
             return ()
-        
-        
+
         kmin=max(kmin,-3); kmax=min(kmax,3)
         out=[]
         for k in range(kmin,kmax+1):
@@ -186,7 +174,6 @@ def panorama_quad_rects_scalar(points, wrap_width: float, viewport_width: float,
     except Exception:
         return ()
 
-
 def radial_depths(ctx, xyz) -> np.ndarray:
     xyz = np.asarray(xyz, dtype=np.float64)
     if xyz.ndim != 2 or xyz.shape[1] < 3:
@@ -196,10 +183,8 @@ def radial_depths(ctx, xyz) -> np.ndarray:
     dz = xyz[:, 2] - float(ctx["cam_z"])
     return np.sqrt(dx * dx + dy * dy + dz * dz)
 
-
-
 def project_panorama_points_unclipped(ctx, xyz, dist_max=None):
-    
+
     xyz = np.asarray(xyz, dtype=np.float64)
     if xyz.ndim != 2 or xyz.shape[1] < 3:
         return np.empty((0, 2), dtype=np.float64)
@@ -248,7 +233,7 @@ def project_panorama_points_unclipped(ctx, xyz, dist_max=None):
 
 def project_panorama_primitive(ctx, xyz, dist_max=None, *, kind="polyline", texture_uv=None,
                                closed=False, role="generic", metadata=None, clip_to_fov=True):
-    
+
     xyz = np.asarray(xyz, dtype=np.float64)
     if xyz.ndim != 2 or xyz.shape[0] == 0 or xyz.shape[1] < 3:
         return PanoramicPrimitive2D(
@@ -258,9 +243,7 @@ def project_panorama_primitive(ctx, xyz, dist_max=None, *, kind="polyline", text
             texture_uv=None, closed=bool(closed), role=str(role), metadata=dict(metadata or {})
         )
     xyz3 = np.asarray(xyz[:, :3], dtype=np.float64)
-    
-    
-    
+
     if xyz3.shape[0] <= 8:
         uv = np.full((xyz3.shape[0], 2), np.nan, dtype=np.float64)
         depth = np.full((xyz3.shape[0],), np.inf, dtype=np.float64)
@@ -287,9 +270,8 @@ def project_panorama_primitive(ctx, xyz, dist_max=None, *, kind="polyline", text
         texture_uv=tex, closed=bool(closed), role=str(role), metadata=dict(metadata or {})
     )
 
-
 def unwrap_x_continuous(pts, wrap_width):
-    
+
     if isinstance(pts, np.ndarray):
         arr = pts
     else:
@@ -328,7 +310,7 @@ def _same_wrapped_point(a, b, wrap_width, tol=1e-5):
 
 
 def unwrap_closed_ring(pts, wrap_width):
-    
+
     if not isinstance(pts, np.ndarray):
         pts = np.asarray(pts, dtype=np.float64)
     if pts.ndim != 2 or pts.shape[0] < 3 or pts.shape[1] != 2:
@@ -344,9 +326,7 @@ def unwrap_closed_ring(pts, wrap_width):
 
 
 def _small_finite_x_stats(base):
-    
-    
-    
+
     try:
         n = int(len(base))
     except Exception:
@@ -372,12 +352,12 @@ def _small_finite_x_stats(base):
 
 
 def _viewport_shift_indices(base, wrap_width, margin_px=2.0):
-    
+
     W = float(wrap_width or 0.0)
     if W <= 1.0:
         return (0,)
-    
-    
+
+
     stats = _small_finite_x_stats(base)
     if stats is None:
         return ()
@@ -393,7 +373,7 @@ def _viewport_shift_indices(base, wrap_width, margin_px=2.0):
 
 
 def iter_viewport_copies(pts, wrap_width, margin_px=2.0, *, closed=False):
-    
+
     if not isinstance(pts, np.ndarray):
         pts = np.asarray(pts, dtype=np.float64)
     W = float(wrap_width or 0.0)
@@ -415,7 +395,7 @@ def iter_viewport_copies(pts, wrap_width, margin_px=2.0, *, closed=False):
 
 
 def periodic_triangle_copies(uv3, wrap_width, margin_px=2.0):
-    
+
     uv = uv3 if isinstance(uv3, np.ndarray) else np.asarray(uv3, dtype=np.float64)
     W = float(wrap_width or 0.0)
     if uv.shape != (3, 2) or not _finite_uv_rows_scalar(uv, 3):
@@ -434,14 +414,8 @@ def periodic_triangle_copies(uv3, wrap_width, margin_px=2.0):
             continue
         yield shifted
 
-
-
-
-
-
-
 def panorama_angles_batch(ctx, xyz, dist_max=None):
-    
+
     a = np.asarray(xyz, dtype=np.float64)
     if a.ndim != 2 or a.shape[1] < 3:
         return (np.empty((0,), dtype=np.float64),)*3
@@ -462,9 +436,8 @@ def panorama_angles_batch(ctx, xyz, dist_max=None):
         alpha[bad]=np.nan; beta[bad]=np.nan; dep[bad]=np.inf
     return alpha,beta,dep
 
-
 def _panorama_beta_limits(ctx, pole_guard_px=2.0):
-    
+
     H=max(1,int(ctx.get('height',1) or 1)); W=max(1,int(ctx.get('width',1) or 1))
     proj=str(ctx.get('proj','') or '').upper()
     if proj in ('EQUIRECT','EQUIRECTANGULAR'):
@@ -507,7 +480,7 @@ def _unwrap_alpha_near(alpha, ref):
 
 
 def _map_panorama_angles(ctx, alpha, beta):
-    
+
     try:
         a=float(alpha); b=float(beta)
         if not (math.isfinite(a) and math.isfinite(b)): return None
@@ -539,7 +512,7 @@ def _make_angle_vertex(ctx, xyz, tex=None, dist_max=None, pre=None):
 
 
 def _intersect_beta_edge(ctx, va, vb, beta_limit, dist_max=None):
-    
+
     ba=float(va['beta'])-float(beta_limit); bb=float(vb['beta'])-float(beta_limit)
     if abs(ba)<1e-12: return dict(va)
     if abs(bb)<1e-12: return dict(vb)
@@ -566,7 +539,7 @@ def _intersect_beta_edge(ctx, va, vb, beta_limit, dist_max=None):
 
 
 def _clip_vertices_beta(ctx, verts, lower, upper, dist_max=None):
-    
+
     poly=[v for v in verts if v is not None]
     if len(poly)<3: return []
     for lim,keep_ge in ((float(lower),True),(float(upper),False)):
@@ -589,12 +562,12 @@ def _clip_vertices_beta(ctx, verts, lower, upper, dist_max=None):
 
 
 def _mapped_triangle(ctx, verts, wrap_width=0.0):
-    
+
     if len(verts)!=3: return []
     a0=float(verts[0]['alpha']); al=[a0]
     al.append(_unwrap_alpha_near(float(verts[1]['alpha']),al[-1]))
-    
-    
+
+
     al.append(_unwrap_alpha_near(float(verts[2]['alpha']),0.5*(al[0]+al[1])))
     uv=[]; dep=[]; xyz=[]; tex=[]; have_tex=True
     for v,a in zip(verts,al):
@@ -611,7 +584,7 @@ def _mapped_triangle(ctx, verts, wrap_width=0.0):
 
 
 def _triangle_quick_needs_split(ctx, verts, quality='high', wrap_width=0.0):
-    
+
     mapped=_mapped_triangle(ctx,verts,wrap_width=0.0)
     if not mapped: return True
     uv=mapped[0][0]
@@ -620,7 +593,7 @@ def _triangle_quick_needs_split(ctx, verts, quality='high', wrap_width=0.0):
              math.hypot(float(uv[0,0]-uv[2,0]),float(uv[0,1]-uv[2,1])))
     q=str(quality or 'high').lower(); trigger=700.0 if q=='low' else 520.0 if q=='normal' else 380.0
     if max(lengths)>trigger: return True
-    
+
     if str(ctx.get('proj','')).upper() in ('EQUIRECT','EQUIRECTANGULAR'):
         if max(abs(float(v['beta'])) for v in verts)>math.radians(78.0): return True
     return False
@@ -645,7 +618,7 @@ def _split_triangle_longest_world(ctx, verts, dist_max=None):
 def panorama_faces_from_world_mesh(ctx, world_xyz, triangle_indices, dist_max=None, *, texture_uv=None,
                                    wrap_width=None, role='surface', metadata=None, render_quality='high',
                                    extra_face_budget=None, pole_guard_px=2.0):
-    
+
     xyz=np.asarray(world_xyz,dtype=np.float64)
     if xyz.ndim!=2 or xyz.shape[0]<3 or xyz.shape[1]<3: return []
     tex=None
@@ -674,7 +647,7 @@ def panorama_faces_from_world_mesh(ctx, world_xyz, triangle_indices, dist_max=No
             continue
         clipped=_clip_vertices_beta(ctx,verts,lower,upper,dist_max=dist_max)
         if len(clipped)<3: continue
-        
+
         seeds=[[clipped[0],clipped[i],clipped[i+1]] for i in range(1,len(clipped)-1)]
         for seed in seeds:
             stack=[(seed,0,0)]
@@ -708,7 +681,7 @@ def _clip_world_segment_beta(ctx, a, b, lower, upper, dist_max=None):
     va=_make_angle_vertex(ctx,a,dist_max=dist_max); vb=_make_angle_vertex(ctx,b,dist_max=dist_max)
     if va is None or vb is None: return None
     verts=[va,vb]
-    
+
     for lim,keep_ge in ((lower,True),(upper,False)):
         a0,b0=verts[0],verts[-1]
         ia=(a0['beta']>=lim) if keep_ge else (a0['beta']<=lim)
@@ -734,7 +707,7 @@ def _segment_midpoint_error(ctx, a, b, wrap_width=0.0, dist_max=None):
 
 def project_panorama_path_safe(ctx, world_xyz, dist_max=None, *, closed=False, render_quality='high',
                                wrap_width=None, max_points=4096, budget_state=None, pole_guard_px=2.0):
-    
+
     a=np.asarray(world_xyz,dtype=np.float64)
     if a.ndim!=2 or a.shape[0]<2 or a.shape[1]<3:
         return PanoramicPrimitive2D('polyline',np.empty((0,2)),np.empty((0,)),np.empty((0,3)),closed=bool(closed))
@@ -772,13 +745,13 @@ def project_panorama_path_safe(ctx, world_xyz, dist_max=None, *, closed=False, r
                     uv_out.append((math.nan,math.nan)); dep_out.append(math.inf); xyz_out.append((math.nan,math.nan,math.nan)); run_open=False
                 continue
             va,vb=seg
-            
+
             ma=_map_panorama_angles(ctx,float(va['alpha']),float(va['beta'])); mb=_map_panorama_angles(ctx,float(vb['alpha']),float(vb['beta']))
             if ma is None or mb is None: continue
             if not run_open:
                 uv_out.append(ma); dep_out.append(float(va['depth'])); xyz_out.append(va['xyz']); run_open=True
             else:
-                
+
                 px,py,pz=xyz_out[-1]
                 _d2=((float(px)-float(va['xyz'][0]))**2 + (float(py)-float(va['xyz'][1]))**2 + (float(pz)-float(va['xyz'][2]))**2) if all(math.isfinite(v) for v in (px,py,pz)) else math.inf
                 if _d2>1e-10:
@@ -792,7 +765,7 @@ def project_panorama_path_safe(ctx, world_xyz, dist_max=None, *, closed=False, r
 
 def surface_faces_from_primitive(primitive: PanoramicPrimitive2D, triangle_indices: Sequence[Sequence[int]],
                                  wrap_width=None, *, role="surface", metadata=None):
-    
+
     faces = []
     if primitive is None:
         return faces
@@ -821,19 +794,16 @@ def surface_faces_from_primitive(primitive: PanoramicPrimitive2D, triangle_indic
             continue
         copies = periodic_triangle_copies(uv3, W) if W > 1.0 else (uv3,)
         for uv_copy in copies:
-            
-            
-            
+
             faces.append(PanoramicFace(
                 uv=uv_copy, radial_depth=d3, world_xyz=xyz3,
                 texture_uv=tex3, role=str(role), metadata=dict(md),
             ))
     return faces
 
-
 def wall_faces_from_primitives(base: PanoramicPrimitive2D, top: PanoramicPrimitive2D,
                                wrap_width=None, *, role="wall", metadata=None):
-    
+
     faces = []
     if base is None or top is None:
         return faces
@@ -846,7 +816,7 @@ def wall_faces_from_primitives(base: PanoramicPrimitive2D, top: PanoramicPrimiti
     n = min(len(buv), len(tuv), len(bd), len(td), len(bxyz), len(txyz))
     if n < 2:
         return faces
-    
+
     closed = bool(base.closed or top.closed)
     if closed and n >= 3:
         try:

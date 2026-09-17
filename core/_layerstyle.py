@@ -1,10 +1,6 @@
-
-
-
 from ._exceptions import qcv_suppress_exception as _qcv_suppress
 from ._i18n import tr
 from ._compat import QC, dialog_exec
-
 import os, json, math, re
 from qgis.PyQt.QtCore import Qt, QSize, QPoint, QTimer, QElapsedTimer, QRect, pyqtSignal
 from qgis.PyQt.QtGui import QImage, QPainter, QPen, QColor, QPixmap, QFont
@@ -18,93 +14,63 @@ from qgis.core import (
     QgsGeometryGeneratorSymbolLayer, QgsMarkerSymbol, QgsLineSymbol, QgsFillSymbol, QgsRuleBasedRenderer,
     QgsMessageLog, QgsVectorLayer, QgsField, QgsProject, Qgis
 )
-    
 
-    
+
 class LayerStyle:
     def __init__(self, layer, color=QColor(0,255,0,255), width=2, label_field=None, label_size=12, label_offset=QPoint(8,-8)):
         self.layer = layer
         self.color = color
         self.width = width
-        
-        
         self.visible = True
-        
-        
         self.opacity = 1.0
-        
         self.show_labels = True
         self.label_field = label_field
         self.label_size = label_size
         self.label_offset = label_offset  
         self.label_pos = "N"             
         self.label_text_color = QColor(20,20,20,255)
-        
         self.label_bg = False
         self.label_bg_color = QColor(255,255,255,220)
         self.label_bg_padding = 4
         self.label_bg_radius = 4
-        
         self.label_halo = False
         self.label_halo_color = QColor(0,0,0,220)
         self.label_halo_width = 2
-        
         self.label_callout = False
         self.label_callout_color = QColor(0,0,0,180)
         self.label_callout_width = 1
-        
         self.label_anchor_mode = "AUTO"   
         self.label_text = ""              
-        
-        
-        
         self.enable_25d = True
         self.height_field_override = ""   
         self.default_height_override = None 
-        
         self.fill_polygons = True
         self.fill_color = QColor(color.red(), color.green(), color.blue(), 255)
         self.fill_walls = True
-        
-        
-        
         self.use_qgis_style = True
-        
-        
         self.qgis_fill_style = None
         self.pen_style = QC.Qt_PenStyle_SolidLine
-        
-        
-        
         self.qgis_theme_name = ""
         self.qgis_theme_style_name = ""
-        
-        
         self.schematic_enabled = False
         self.schematic_symbol_id = ""
-        
-        
         self.schematic_type = ""
         self.schematic_family = ""
         self.schematic_params = {}
-        
         self.schematic_asset_paths = []
-        
         self.use_qgis_labels = True
         self.qgis_label_is_expression = False
         self.qgis_label_expr = ""
 
 
 def apply_pdv_qml_style(self, layer, qml_rel_path="core/style/STYLE-PDV.qml"):
-    
+
     if not isinstance(layer, QgsVectorLayer):
         return False
 
     plugin_dir = os.path.dirname(os.path.dirname(__file__))
     qml_path = os.path.join(plugin_dir, qml_rel_path)
 
-    
-    
     try:
         layer_name = layer.name() if hasattr(layer, "name") else "<sans nom>"
         QgsMessageLog.logMessage(
@@ -169,7 +135,6 @@ def apply_pdv_qml_style(self, layer, qml_rel_path="core/style/STYLE-PDV.qml"):
     return True
 
 
-
 PDV_AUTO_STYLE_NAME = "QCALVIEW — Couleurs automatiques"
 PDV_MANUAL_STYLE_NAME = "QCALVIEW — Style modifiable"
 PDV_AUTO_COLOR_PROPERTY = "QCALVIEW/pdv_auto_colors"
@@ -183,7 +148,7 @@ def _style_manager_names(manager):
 
 
 def _activate_qml_as_named_style(self, layer, style_name, qml_rel_path, refresh_existing=False):
-    
+
     if not isinstance(layer, QgsVectorLayer):
         return False
     try:
@@ -205,9 +170,6 @@ def _activate_qml_as_named_style(self, layer, style_name, qml_rel_path, refresh_
         layer.triggerRepaint()
         return True
 
-    
-    
-    
     previous = ''
     try:
         previous = str(manager.currentStyle())
@@ -264,7 +226,7 @@ def _activate_qml_as_named_style(self, layer, style_name, qml_rel_path, refresh_
 
 
 def apply_pdv_style_mode(self, layer, automatic=True):
-    """Apply the normal PDV style, then lighten its FOV renderer if safe."""
+
     if not isinstance(layer, QgsVectorLayer):
         return False
 
@@ -294,8 +256,6 @@ def apply_pdv_style_mode(self, layer, automatic=True):
     if not ok:
         return False
 
-    # The 40.20.3 QML remains the fallback. We only patch the five geometry
-    # expressions after the auxiliary cache has been created and validated.
     prepare_fov = getattr(self, "_qcv_fov_prepare_layer", None)
     patch_renderer = getattr(self, "_qcv_fov_patch_renderer", None)
     restore_renderer = getattr(self, "_qcv_fov_restore_legacy_renderer", None)
@@ -339,9 +299,7 @@ def apply_pdv_style_mode(self, layer, automatic=True):
                 "QCALVIEW",
                 QC.Qgis_MessageLevel_Warning,
             )
-    # Named styles may restore layer variables captured when the style was
-    # saved. Force the next _sync_pdv_qml() to rewrite the current Live WKT,
-    # even when yaw/HFOV/range themselves did not change.
+
     try:
         live_signatures = getattr(self, "_qcv_fov_live_signatures", None)
         if isinstance(live_signatures, dict):
@@ -366,7 +324,7 @@ def pdv_layer_auto_colors(layer, default=True):
         return bool(default)
 
 def update_pdv_qml_vars(self, layer, yaw_deg, hfov_deg, range_m, pitch_deg, is360=False):
-    
+
     if not isinstance(layer, QgsVectorLayer):
         return False
 
@@ -398,4 +356,3 @@ def update_pdv_qml_vars(self, layer, yaw_deg, hfov_deg, range_m, pitch_deg, is36
     except Exception as e:
         QgsMessageLog.logMessage(tr(f"[QCALVIEW] update_pdv_qml_vars error: {e}"), "QCALVIEW", QC.Qgis_MessageLevel_Warning)
         return False
-

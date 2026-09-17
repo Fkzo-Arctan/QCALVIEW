@@ -1,6 +1,3 @@
-
-
-
 from .core._exceptions import qcv_suppress_exception as _qcv_suppress
 from .core._i18n import tr, install_qcalview_translator, remove_qcalview_translator
 from .core._compat import QC, dialog_exec, QAction
@@ -21,10 +18,6 @@ class QCalViewPlugin:
         self.settings_action = None
         self.layer_context_action = None
         self.dock = None
-        
-        
-        
-        
         self._canvas_preview_jobs_previous = None
         self._preview_jobs_notice_logged = False
         self.plugin_dir = os.path.dirname(__file__)
@@ -40,9 +33,6 @@ class QCalViewPlugin:
         self.iface.addPluginToMenu("&QCALVIEW", self.action)
         self.iface.addToolBarIcon(self.action)
 
-        
-        
-        
         try:
             plugins_menu = self.iface.pluginMenu()
             for menu_action in plugins_menu.actions():
@@ -60,9 +50,6 @@ class QCalViewPlugin:
         self.settings_action = QAction(plugin_icon, tr("Paramètres QCALVIEW"), self.iface.mainWindow())
         self.settings_action.triggered.connect(self.open_settings)
         self.iface.addPluginToMenu("&QCALVIEW", self.settings_action)
-
-        
-        
         self.layer_context_action = QAction(plugin_icon, tr("Ajouter à QCALVIEW"), self.iface.mainWindow())
         self.layer_context_action.triggered.connect(self.add_active_layer_to_qcalview)
         try:
@@ -156,9 +143,6 @@ class QCalViewPlugin:
             self._restore_canvas_preview_jobs()
 
     def _ensure_dock(self, show=True):
-        
-        
-        
         self._disable_canvas_preview_jobs()
         if self.dock is None:
             self.dock = QCalViewDock(self.iface)
@@ -175,7 +159,6 @@ class QCalViewPlugin:
         return self.dock
 
     def add_active_layer_to_qcalview(self):
-
         layer = None
         try:
             view = self.iface.layerTreeView()

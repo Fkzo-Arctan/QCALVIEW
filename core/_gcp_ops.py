@@ -1,19 +1,12 @@
-
-
-
 from ._exceptions import qcv_suppress_exception as _qcv_suppress
 from ._i18n import tr
 from ._compat import QC, dialog_exec
-"""SPLIT-ONLY extracted implementations from qcalview_window.QCalViewDock.
-Attached to the class via setattr after class definition.
-"""
 import os, sys, math, json, re, pathlib, functools, itertools, typing
 import numpy as np
 from qgis.PyQt import QtCore, QtGui, QtWidgets
 from qgis.core import QgsCoordinateTransform, QgsPointXY, QgsProject, QgsRasterLayer, QgsVectorLayer
 from qgis.gui import QgsMapTool, QgsRubberBand, QgsVertexMarker
 from ..projector import (project_point, hfov_from_focal_sensor, vfov_from_hfov_ratio, _validated_vfov_for_cylindrical)
-
 
 try:
     from qgis.PyQt.QtGui import QImage, QPainter, QPen, QColor, QFont, QPixmap, QTransform
@@ -73,10 +66,10 @@ def _proj_grid_uv(proj_name, W, H, HFOV, VFOV, is360, alpha_deg, beta_deg):
                 u = (a + math.pi) / (2.0 * math.pi) * W
             else:
                 u = W * 0.5 + fx * a
-            
+
             v = H * 0.5 - fy * math.tan(b)
             return (u, v) if (math.isfinite(u) and math.isfinite(v)) else None
-        
+
         if bool(is360):
             u = (a + math.pi) / (2.0 * math.pi) * W
             v = (math.pi * 0.5 - b) / math.pi * H
@@ -170,12 +163,11 @@ def _draw_projection_grid_overlay(self, p, proj, W, H, HFOV, VFOV, is360):
 
 
 def _draw_calib_grid(self, p, cam_pt, cam_z, cam_crs, proj, W, H, yaw_eff, pitch, roll, HFOV, VFOV, is360, z_sampler):
-    
+
     _draw_projection_grid_overlay(self, p, proj, W, H, HFOV, VFOV, is360)
     if not bool(getattr(self, 'cb_calib_enable', None) and self.cb_calib_enable.isChecked()):
         return
 
-    
     typ = self.cmb_calib_type.currentText()
     S   = float(self.d_calib_spacing.value())
     Lx  = float(self.d_calib_width.value())
@@ -183,22 +175,13 @@ def _draw_calib_grid(self, p, cam_pt, cam_z, cam_crs, proj, W, H, yaw_eff, pitch
     Hz  = float(self.d_calib_height.value())
     D   = float(self.d_calib_dist.value())
     dz  = float(self.d_calib_elev.value())
-
-    
     pen = QPen(self._calib_color); pen.setWidth(int(self.spin_calib_width.value()))
     p.setPen(pen)
-
-    
     yr = math.radians(yaw_eff)
     fxy = (math.sin(yr), math.cos(yr))          
     rxy = (math.cos(yr), -math.sin(yr))         
-
-    
     Cx = cam_pt.x() + D * fxy[0]
     Cy = cam_pt.y() + D * fxy[1]
-
-    
-    
     cam_ground_z = cam_z - float(self.d_camheight.value())
     Z0 = cam_ground_z
     if self.cb_calib_snap_dem.isChecked() and z_sampler is not None:
@@ -208,7 +191,7 @@ def _draw_calib_grid(self, p, cam_pt, cam_z, cam_crs, proj, W, H, yaw_eff, pitch
             _qcv_suppress(_qcv_exc, "core/_gcp_ops.py:206")
     Z0 += dz  
 
-    
+
     def proj_xy_z(x, y, z):
         return self._finite_uv(project_point(cam_pt, cam_z, QgsPointXY(x, y), None,
                                              proj, W, H, yaw_eff, pitch, roll, HFOV, VFOV, is360,
@@ -242,16 +225,16 @@ def _draw_calib_grid(self, p, cam_pt, cam_z, cam_crs, proj, W, H, yaw_eff, pitch
                 p.drawLine(prev, q)
             prev = q
 
-    
+
     if S <= 0.0 or Lx <= 0.0:
         return
     max_lines = 400
 
     if typ == "Plan au sol":
-        
+
         half_x = Lx * 0.5
         half_y = max(Ly, S) * 0.5
-        
+
         n1 = int(math.floor(Lx / S))
         n2 = int(math.floor(Ly / S))
         n1 = max(1, min(n1, max_lines))
@@ -261,26 +244,26 @@ def _draw_calib_grid(self, p, cam_pt, cam_z, cam_crs, proj, W, H, yaw_eff, pitch
             P = (Cx - half_y * fxy[0] + ox, Cy - half_y * fxy[1] + oy, Z0)
             Q = (Cx + half_y * fxy[0] + ox, Cy + half_y * fxy[1] + oy, Z0)
             draw_seg(P, Q)
-        
+
         for j in range(-n2//2, n2//2 + 1):
             oy = j * S * fxy[1]; ox = j * S * fxy[0]
             P = (Cx - half_x * rxy[0] + ox, Cy - half_x * rxy[1] + oy, Z0)
             Q = (Cx + half_x * rxy[0] + ox, Cy + half_x * rxy[1] + oy, Z0)
             draw_seg(P, Q)
 
-        
+
         if self.cb_calib_axes.isChecked():
-            
+
             ax_len = max(5.0, min(Lx, Ly, Hz if Hz>0 else 100.0) * 0.25)
             uvC = proj_xy_z(Cx, Cy, Z0)
             if uvC:
-                
+
                 p.setPen(QPen(QColor(255,80,80,220), int(self.spin_calib_width.value()+1)))
                 draw_seg((Cx, Cy, Z0), (Cx + ax_len*rxy[0], Cy + ax_len*rxy[1], Z0))
-                
+
                 p.setPen(QPen(QColor(80,220,80,220), int(self.spin_calib_width.value()+1)))
                 draw_seg((Cx, Cy, Z0), (Cx + ax_len*fxy[0], Cy + ax_len*fxy[1], Z0))
-                
+
                 p.setPen(QPen(QColor(80,120,255,220), int(self.spin_calib_width.value()+1)))
                 draw_seg((Cx, Cy, Z0), (Cx, Cy, Z0 + ax_len))
                 p.setPen(pen)
@@ -302,18 +285,18 @@ def _draw_calib_grid(self, p, cam_pt, cam_z, cam_crs, proj, W, H, yaw_eff, pitch
             p.restore()
 
     elif typ == "Plan vertical":
-        
+
         half_x = Lx * 0.5
         z0 = Z0
         nX = max(1, min(int(math.floor(Lx / S)), max_lines))
         nZ = max(1, min(int(math.floor(max(Hz, S) / S)), max_lines))
-        
+
         for i in range(-nX//2, nX//2 + 1):
             ox = i * S * rxy[0]; oy = i * S * rxy[1]
             P = (Cx + ox, Cy + oy, z0)
             Q = (Cx + ox, Cy + oy, z0 + Hz)
             draw_seg(P, Q)
-        
+
         for k in range(0, nZ + 1):
             z = z0 + k * S
             P = (Cx - half_x * rxy[0], Cy - half_x * rxy[1], z)
@@ -321,10 +304,10 @@ def _draw_calib_grid(self, p, cam_pt, cam_z, cam_crs, proj, W, H, yaw_eff, pitch
             draw_seg(P, Q)
 
     else:  
-        
+
         half_x = Lx * 0.5; half_y = max(Ly, S) * 0.5; half_z = Hz * 0.5
         zc = Z0 + half_z
-        
+
         def V(sx, sy, sz):
             return (Cx + sx*half_x*rxy[0] + sy*half_y*fxy[0],
                     Cy + sx*half_x*rxy[1] + sy*half_y*fxy[1],
@@ -345,12 +328,12 @@ def _on_map_pick_for_gcp(self, map_pt):
         if not cam_layer or cam_layer.featureCount() < 1:
             self._cancel_maptool(); self._adding_gcp_uv = None; return
         cam_crs = cam_layer.crs()
-        
+
         src = self.iface.mapCanvas().mapSettings().destinationCrs()
         tr = QgsCoordinateTransform(src, cam_crs, QgsProject.instance())
         pt_cam = tr.transform(map_pt)
 
-        
+
         z = 0.0
         dem_layer = self.cmb_dem.currentLayer()
         if isinstance(dem_layer, QgsRasterLayer) and dem_layer.isValid():
@@ -375,17 +358,17 @@ def _on_map_pick_for_gcp(self, map_pt):
         self.lbl_info.setText(tr(f"Erreur ajout GCP: {e}"))
 
 def start_pick_pdv_center(self):
-    
+
     canvas = self.iface.mapCanvas()
     self._maptool_backup = canvas.mapTool()
-    
+
     canvas.setMapTool(MapPointTool(canvas, self._on_map_pick_pdv_center))
     if hasattr(self, "lbl_info"):
         self.lbl_info.setText(tr("clic on canvas"))
 
 
 def _on_map_pick_pdv_center(self, map_pt):
-    
+
     try:
         cam_layer = self.cmb_camera.currentLayer()
         if not isinstance(cam_layer, QgsVectorLayer) or cam_layer.featureCount() < 1:
@@ -442,7 +425,7 @@ def _on_map_pick_pdv_center(self, map_pt):
 
 
 def _start_add_gcp(self):
-    
+
     self._adding_gcp_uv = (0, 0)  
     self.lbl_info.setText(tr("Ajout GCP : cliquez d'abord dans la photo, puis sur la carte…"))
 
@@ -471,21 +454,21 @@ def _clear_gcp_markers(self):
     self._gcp_markers = []
 
 def _ensure_fov_rubberbands(self):
-    
+
     canvas = self.iface.mapCanvas()
-    
+
     if not hasattr(self, "_rb_dir") or self._rb_dir is None:
         self._rb_dir = QgsRubberBand(canvas, QC.QgsWkbTypes_GeometryType_LineGeometry)
         self._rb_dir.setColor(QColor(200, 60, 60, 220))  
         self._rb_dir.setWidth(2)
-    
+
     if not hasattr(self, "_rb_fov") or self._rb_fov is None:
         self._rb_fov = QgsRubberBand(canvas, QC.QgsWkbTypes_GeometryType_PolygonGeometry)
         self._rb_fov.setColor(QColor(60, 120, 220, 80))  
         self._rb_fov.setWidth(2)
 
 def _connect_fov_signals(self):
-    
+
     widgets = [self.d_yaw, self.d_hfov, self.cb_360, self.d_maxdist, self.cmb_camera]
     for w in widgets:
         for sig in ('valueChanged', 'currentIndexChanged', 'toggled'):
@@ -494,13 +477,13 @@ def _connect_fov_signals(self):
                     getattr(w, sig).connect(self._update_canvas_fov)
                 except Exception as _qcv_exc:
                     _qcv_suppress(_qcv_exc, "core/_gcp_ops.py:494")
-    
+
     try:
         self.iface.mapCanvas().destinationCrsChanged.connect(self._update_canvas_fov)
     except Exception as _qcv_exc:
         _qcv_suppress(_qcv_exc, "core/_gcp_ops.py:499")
 
-    
+
     layer = self.cmb_camera.currentLayer()
     if isinstance(layer, QgsVectorLayer):
         try: layer.geometryChanged.connect(self._update_canvas_fov)
@@ -530,7 +513,7 @@ def _draw_gcps_overlay(self, painter, W, H):
         return
     pen = QPen(QColor(255, 80, 80, 220)); pen.setWidth(2)
     painter.setPen(pen)
-    
+
     W_full, H_full = float(self.spin_w.value()), float(self.spin_h.value())
     sx = W / max(1.0, W_full); sy = H / max(1.0, H_full)
     for g in self.gcps:
@@ -539,7 +522,7 @@ def _draw_gcps_overlay(self, painter, W, H):
         painter.drawLine(u,   v-6, u,   v+6)
 
 def _solve_camera(self):
-    
+
     if len(self.gcps) < 4:
         self.lbl_info.setText(tr("Besoin d’au moins 4 GCP pour une résolution stable."))
         return
@@ -556,7 +539,7 @@ def _solve_camera(self):
     cam_crs = cam_layer.crs()
 
 
-    
+
     cam_ground_z = 0.0
     dem_layer = self.cmb_dem.currentLayer()
     z_sampler = None
@@ -570,7 +553,7 @@ def _solve_camera(self):
             cam_ground_z = 0.0
     cam_z = cam_ground_z + float(self.d_camheight.value())
 
-    
+
     W_full, H_full = int(self.spin_w.value()), int(self.spin_h.value())
     proj = self.cmb_proj.currentText()
     is360 = bool(self._is360_mode()) if hasattr(self, '_is360_mode') else bool(self.cb_360.isChecked())
@@ -584,7 +567,7 @@ def _solve_camera(self):
     )
     maxdist = None if float(self.d_maxdist.value()) <= 0 else float(self.d_maxdist.value())
 
-    
+
     params0 = [float(self.d_yaw.value()), float(self.d_pitch.value()),
                float(self.d_roll.value()), float(self.d_hfov.value())]
     mask = [self.cb_sol_yaw.isChecked(), self.cb_sol_pitch.isChecked(),
@@ -595,11 +578,11 @@ def _solve_camera(self):
         return
     if is_proj_360:
         params0[3] = 360.0  
-        
-        
+
+
         if 3 in idxs:
             idxs.remove(3)
-        
+
     def params_full(vec):
         out = params0[:]
         for k, i in enumerate(idxs): out[i] = float(vec[k])
@@ -637,7 +620,7 @@ def _solve_camera(self):
             simplex.append(xi)
         simplex = np.array(simplex)
         vals = np.array([f(s) for s in simplex])
-    
+
         for _ in range(max_iter):
             order = np.argsort(vals)
             simplex = simplex[order]; vals = vals[order]
@@ -645,23 +628,23 @@ def _solve_camera(self):
                 break
             x_best = simplex[0]
             x_cent = simplex[:-1].mean(axis=0)
-            
+
             xr = x_cent + (x_cent - simplex[-1])
             fr = f(xr)
             if fr < vals[0]:
-                
+
                 xe = x_cent + 2.0*(x_cent - simplex[-1])
                 fe = f(xe)
                 simplex[-1] = (xe if fe < fr else xr)
                 vals[-1] = min(fe, fr)
             else:
-                
+
                 xc = x_cent + 0.5*(simplex[-1] - x_cent)
                 fc = f(xc)
                 if fc < vals[-1]:
                     simplex[-1] = xc; vals[-1] = fc
                 else:
-                    
+
                     for i in range(1, n+1):
                         simplex[i] = simplex[0] + 0.5*(simplex[i] - simplex[0])
                     vals = np.array([f(s) for s in simplex])
@@ -670,7 +653,7 @@ def _solve_camera(self):
         return simplex[0], vals[0]
 
 
-    
+
     x_opt, err = nelder_mead(reproj_rms, x_init=x0_vec, step=2.0, max_iter=250, tol=0.5)
 
     yaw, pitch, roll, HFOV = params_full(x_opt)
@@ -682,7 +665,7 @@ def _solve_camera(self):
     self.d_vfov.blockSignals(True); self.d_vfov.setValue(vfov_out); self.d_vfov.blockSignals(False)
     self.lbl_info.setText(tr(f"Résolution OK — RMS ≈ {err:.2f} px"))
     self._update_canvas_fov()
-    
+
     if is_proj_360:
         HFOV = 360.0
         self.d_hfov.blockSignals(True)
@@ -695,14 +678,14 @@ def _solve_camera(self):
         self.d_hfov.setValue(float(HFOV))
         self.d_hfov.blockSignals(False)
 
-    
+
     self.d_vfov.blockSignals(True)
     self.d_vfov.setValue(40.0 if proj_upper == 'CYLINDRICAL' else vfov_from_hfov_ratio(float(HFOV), W_full, H_full))
     self.d_vfov.blockSignals(False)
     self.render_preview()
 
 def _update_canvas_fov(self):
-    
+
     try:
         canvas = self.iface.mapCanvas()
         self._ensure_fov_rubberbands()
@@ -747,7 +730,7 @@ def _update_canvas_fov(self):
         hfov_deg = 360.0 if is360 else float(self.d_hfov.value())
         hfov = math.radians(hfov_deg)
 
-        
+
         L = 200.0
         md = float(self.d_maxdist.value())
         if md > 0:
@@ -785,7 +768,7 @@ def _update_canvas_fov(self):
     except Exception as _qcv_exc:
         _qcv_suppress(_qcv_exc, "core/_gcp_ops.py:784")
 
-        
+
 def _ensure_nav_overlays(self):
     canvas = self.iface.mapCanvas()
     if not hasattr(self, "_rb_pick") or self._rb_pick is None:
@@ -805,6 +788,9 @@ def start_pick_view_from_canvas(self):
     canvas = self.iface.mapCanvas()
     self._maptool_backup = canvas.mapTool()
     self._image_pick_mode = None
+    viewer = getattr(self, "viewer", None)
+    if viewer is not None and hasattr(viewer, "set_image_pick_active"):
+        viewer.set_image_pick_active(False)
     canvas.setMapTool(MapPointTool(canvas, self._on_map_pick_set_view))
     if hasattr(self, "lbl_nav_state"):
         self.lbl_nav_state.setText(tr("Mode navigation : cliquez un point dans le canevas pour orienter la vue"))
@@ -889,6 +875,9 @@ def _on_map_pick_set_view(self, map_pt):
 
 def start_image_to_canvas_pick(self):
     self._image_pick_mode = "mapray"
+    viewer = getattr(self, "viewer", None)
+    if viewer is not None and hasattr(viewer, "set_image_pick_active"):
+        viewer.set_image_pick_active(True)
     if hasattr(self, "lbl_nav_state"):
         self.lbl_nav_state.setText(tr("Mode navigation : cliquez dans l’image pour tracer un rayon sur la carte"))
     if hasattr(self, "lbl_info"):
@@ -901,6 +890,9 @@ def start_image_to_canvas_pick(self):
 
 def stop_interaction_tools(self):
     self._image_pick_mode = None
+    viewer = getattr(self, "viewer", None)
+    if viewer is not None and hasattr(viewer, "set_image_pick_active"):
+        viewer.set_image_pick_active(False)
     try:
         self._cancel_maptool()
     except Exception as _qcv_exc:
@@ -949,7 +941,7 @@ def _draw_canvas_pick_ray(self, az_deg, target_point=None):
             )
             p1 = to_canvas.transform(target_work)
         else:
-            
+
             src = cam_layer.crs()
             target_work = QgsCoordinateTransform(src, work_crs, project).transform(target_point)
             p1 = to_canvas.transform(target_work)
@@ -1044,23 +1036,24 @@ def _dispatch_image_uv_click(self, u, v):
     mode = getattr(self, "_image_pick_mode", None)
     if mode == "mapray":
         self._handle_image_navigation_click_uv(u, v)
-        return
+        return True
     if mode == "monoplot_ground":
         try:
-            self._monoplot_handle_image_click_uv(u, v)
+            return bool(self._monoplot_handle_image_click_uv(u, v))
         except Exception as e:
             try:
                 self.lbl_info.setText(tr(f"Erreur image → terrain : {e}"))
             except Exception as _qcv_exc:
                 _qcv_suppress(_qcv_exc, "core/_gcp_ops.py:1053")
-        return
+        return False
     if self._adding_gcp_uv is None:
-        return
+        return False
     self._adding_gcp_uv = (u, v)
     canvas = self.iface.mapCanvas()
     self._maptool_backup = canvas.mapTool()
     canvas.setMapTool(MapPointTool(canvas, self._on_map_pick_for_gcp))
     self.lbl_info.setText(tr("Choisissez maintenant le point correspondant sur la carte…"))
+    return True
 
 
 def _on_preview_click(self, x, y):
@@ -1070,11 +1063,45 @@ def _on_preview_click(self, x, y):
     self._dispatch_image_uv_click(*uv)
 
 
+def _viewer_click_to_full_uv(self, u, v):
+    viewer = getattr(self, "viewer", None)
+    pix_item = getattr(viewer, "_pix", None) if viewer is not None else None
+    pm = pix_item.pixmap() if pix_item is not None else None
+    if pm is None or pm.isNull() or pm.width() <= 0 or pm.height() <= 0:
+        return None
+    x = float(u)
+    y = float(v)
+    if x < 0.0 or y < 0.0 or x >= float(pm.width()) or y >= float(pm.height()):
+        return None
+    full_w = max(1.0, float(self.spin_w.value()))
+    full_h = max(1.0, float(self.spin_h.value()))
+    return x * full_w / float(pm.width()), y * full_h / float(pm.height())
+
+
 def _on_viewer_image_clicked(self, u, v):
     try:
-        self._dispatch_image_uv_click(float(u), float(v))
+        uv = _viewer_click_to_full_uv(self, u, v)
+        if uv is None:
+            return
+        mode = getattr(self, "_image_pick_mode", None)
+        self._monoplot_viewer_click_active = bool(mode == "monoplot_ground")
+        try:
+            ok = bool(self._dispatch_image_uv_click(*uv))
+        finally:
+            self._monoplot_viewer_click_active = False
+        if ok and mode == "monoplot_ground":
+            viewer = getattr(self, "viewer", None)
+            if viewer is not None and hasattr(viewer, "add_pick_marker"):
+                records = getattr(self, '_monoplot_records', []) or []
+                rec = records[-1] if records else None
+                text = None
+                if isinstance(rec, dict) and rec.get('src_mode') == 'image_to_ground':
+                    lbl_txt = rec.get('label') or rec.get('mp_id') or ''
+                    text = f"{lbl_txt} | D={float(rec.get('dist_m', 0.0)):.1f} m | Az={float(rec.get('az_deg', 0.0)):.1f}°"
+                viewer.add_pick_marker(float(u), float(v), text)
     except Exception as _qcv_exc:
-        _qcv_suppress(_qcv_exc, "core/_gcp_ops.py:1075")
+        self._monoplot_viewer_click_active = False
+        _qcv_suppress(_qcv_exc, "core/_gcp_ops.py:viewer_click")
 
 def _safe_line(self, painter, uv1, uv2):
     if uv1 is None or uv2 is None:
@@ -1092,7 +1119,7 @@ def _safe_line(self, painter, uv1, uv2):
         u1, v1 = _coords(uv1)
         u2, v2 = _coords(uv2)
 
-        
+
         def _clip_y(u, v):
             if H > 0:
                 if v < 0.0:   v = 0.0
@@ -1106,7 +1133,7 @@ def _safe_line(self, painter, uv1, uv2):
             painter.drawLine(int(u1), int(v1), int(u2), int(v2))
             return True
 
-        
+
         du = abs(u2 - u1)
         if du > (W * 0.5):
             if u2 > u1:

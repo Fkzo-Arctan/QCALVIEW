@@ -1,5 +1,12 @@
 # QCALVIEW — Public changelog
 
+## ALPHA-40.20.5
+- Fixes Interactive Monoplotting clicks in the full viewer, including proxy-image coordinate mapping and point-picking interaction.
+- Keeps preview and full-viewer image picking consistent for monoplotting and image-to-map tools.
+- Generalises the curvature radius control to a configurable body radius while retaining 6370.0 km as the default and preserving existing project/settings compatibility.
+- Completes English-default localisation coverage across the public interface, messages, logs and experimental tools.
+- Includes repository-oriented code and packaging cleanup.
+
 ## ALPHA-40.20.4
 - Add message to force selection of dtm
 - Experimental release for QGIS 3.44/Qt5 and QGIS 4.x/Qt6.
