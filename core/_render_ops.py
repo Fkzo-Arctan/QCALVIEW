@@ -44,7 +44,7 @@ from ._panorama_primitives import (
     PanoramicPrimitive2D, PanoramicFace, is_panorama_context, project_panorama_primitive,
     unwrap_x_continuous, unwrap_closed_ring, iter_viewport_copies,
     surface_faces_from_primitive, wall_faces_from_primitives,
-    panorama_faces_from_world_mesh, project_panorama_path_safe, project_panorama_primitive,
+    panorama_faces_from_world_mesh, project_panorama_path_safe,
 )
 from ._memory_guard import (
     prepare_panorama_preview, format_guard_status, release_stale_panorama_buffers, prune_base_cache_for_size,
@@ -1095,7 +1095,8 @@ def _render_overlay(self, width, height):
                 )
             except Exception as _exc:
                 try: qcv_log(f"Raster drape PINHOLE: {_exc}", 'RASTER/DRAPE', 'WARNING')
-                except Exception: pass
+                except Exception as _qcv_exc:
+                    _qcv_suppress(_qcv_exc, "core/_render_ops.py:1098")
 
         if not _pano_defer_calib_grid:
             self._draw_calib_grid(p, cam_pt, cam_z, cam_crs, proj, width, height,
@@ -1175,7 +1176,8 @@ def _render_overlay(self, width, height):
                 ))
             except Exception as _exc:
                 try: qcv_log(f"Raster drape PANORAMA: {_exc}", 'RASTER/DRAPE', 'WARNING')
-                except Exception: pass
+                except Exception as _qcv_exc:
+                    _qcv_suppress(_qcv_exc, "core/_render_ops.py:1178")
         if panoramic_overlay_mode:
             _extra = 3000 if render_quality == 'low' else 8000 if render_quality == 'normal' else 16000
             if not bool(getattr(self,'_memory_guard_in_preview',False)):
@@ -1692,7 +1694,8 @@ def _render_overlay(self, width, height):
                             )
                     except Exception as _exc:
                         try: qcv_log(f"Deferred panorama raster texture: {_exc}",'RASTER/DRAPE','WARNING')
-                        except Exception: pass
+                        except Exception as _qcv_exc:
+                            _qcv_suppress(_qcv_exc, "core/_render_ops.py:1695")
                 else:
                     _sw=max(1,int(round(float(width)*float(_zscale))))
                     _sh=max(1,int(round(float(height)*float(_zscale))))
@@ -1728,8 +1731,8 @@ def _render_overlay(self, width, height):
                             'aborted_memory':False,'width':int(_depth.shape[1]),
                             'height':int(_depth.shape[0]),'scale':float(_zscale),
                         }
-                    except Exception:
-                        pass
+                    except Exception as _qcv_exc:
+                        _qcv_suppress(_qcv_exc, "core/_render_ops.py:1731")
 
                 _compose_panorama_strokes_zbuffer(
                     _rgba, _depth, _zscale, _pano_deferred_edges)
@@ -1769,7 +1772,8 @@ def _render_overlay(self, width, height):
                 try: _pano_zfaces.clear()
                 except Exception as _qcv_exc: _qcv_suppress(_qcv_exc, "core/_render_ops.py:1751")
                 try: _pano_deferred_ground_surfaces.clear()
-                except Exception: pass
+                except Exception as _qcv_exc:
+                    _qcv_suppress(_qcv_exc, "core/_render_ops.py:1772")
 
         if topo_draw_before_vectors and _pano_zbuffer_enabled:
             p.save()
@@ -5096,8 +5100,8 @@ def _mask_panorama_zbuffer_by_horizon(rgba, depth_buf, depth_scale, ctx, horizon
                         pm=np.asarray(preserve_mask[y0:y1,x0:x1],dtype=np.bool_)
                         if pm.shape==ds.shape:
                             hidden &= ~pm[yy,xx]
-                    except Exception:
-                        pass
+                    except Exception as _qcv_exc:
+                        _qcv_suppress(_qcv_exc, "core/_render_ops.py:5099")
                 if not np.any(hidden):
                     continue
                 hy=yy[hidden]; hx=xx[hidden]
@@ -5917,8 +5921,8 @@ def _apply_deferred_panorama_raster_texture_4207(rgba, depth, scale, ctx, textur
     except Exception as exc:
         try:
             qcv_log(f"Deferred panorama raster texture: {exc}", 'RASTER/DRAPE', 'WARNING')
-        except Exception:
-            pass
+        except Exception as _qcv_exc:
+            _qcv_suppress(_qcv_exc, "core/_render_ops.py:5920")
         return rgba
 
 def _raster_drape_mesh_shape(self, extent, render_quality='high'):
@@ -6086,8 +6090,8 @@ def _is_large_ground_polygon_4208(ring, camera_xy=None, maxdist=None):
         try:
             if maxdist is not None and float(maxdist)>0.0 and diag>=0.28*float(maxdist):
                 return True
-        except Exception:
-            pass
+        except Exception as _qcv_exc:
+            _qcv_suppress(_qcv_exc, "core/_render_ops.py:6089")
         return False
     except Exception:
         return False
@@ -6287,7 +6291,8 @@ def _refine_repaired_panorama_depth_tile_4208(self, sd, repaired, y0, scale, ctx
         return arr
     except Exception as exc:
         try: qcv_log(f"Deferred polygon depth refine: {exc}",'PANORAMA/POLYGON','WARNING')
-        except Exception: pass
+        except Exception as _qcv_exc:
+            _qcv_suppress(_qcv_exc, "core/_render_ops.py:6290")
         return sd
 
 
@@ -6451,7 +6456,8 @@ def _direct_ground_depth_for_missing_pixels_4208(self, sd, missing_mask, x0, y0,
         return arr
     except Exception as exc:
         try: qcv_log(f"Deferred direct ground depth: {exc}",'PANORAMA/POLYGON','WARNING')
-        except Exception: pass
+        except Exception as _qcv_exc:
+            _qcv_suppress(_qcv_exc, "core/_render_ops.py:6454")
         return sd
 
 def _deferred_panorama_surface_depth_4208(self, ctx, scale, cam_pt, maxdist, yaw, HFOV, is360,
@@ -6512,7 +6518,8 @@ def _deferred_panorama_surface_depth_4208(self, ctx, scale, cam_pt, maxdist, yaw
         return result
     except Exception as exc:
         try: qcv_log(f"Deferred polygon depth: {exc}",'PANORAMA/POLYGON','WARNING')
-        except Exception: pass
+        except Exception as _qcv_exc:
+            _qcv_suppress(_qcv_exc, "core/_render_ops.py:6515")
         return None
 
 
@@ -6643,7 +6650,8 @@ def _apply_deferred_panorama_polygon_surface_4208(self, rgba, depth, scale, ctx,
         return preserve
     except Exception as exc:
         try: qcv_log(f"Deferred polygon surface: {exc}",'PANORAMA/POLYGON','WARNING')
-        except Exception: pass
+        except Exception as _qcv_exc:
+            _qcv_suppress(_qcv_exc, "core/_render_ops.py:6646")
         return None
 
 
@@ -7610,8 +7618,8 @@ def export_overlay(self):
         try:
             if qp is not None:
                 qp.end()
-        except Exception:
-            pass
+        except Exception as _qcv_exc:
+            _qcv_suppress(_qcv_exc, "core/_render_ops.py:7613")
         _qcv_suppress(_qcv_exc, "core/_render_ops.py:export_overlay_monoplot")
     if not overlay_export.save(path, "PNG"):
         return

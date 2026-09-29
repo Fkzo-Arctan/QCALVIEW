@@ -633,8 +633,8 @@ def _render_current_export_image(self, mode='composite', schematic_transparent=N
                     try:
                         if qp is not None:
                             qp.end()
-                    except Exception:
-                        pass
+                    except Exception as _qcv_exc:
+                        _qcv_suppress(_qcv_exc, "core/_export_ops.py:636")
                     _qcv_suppress(_qcv_exc, "core/_export_ops.py:overlay_export_monoplot")
             return overlay_export
         if getattr(self, 'image', None) is None or self.image.isNull():

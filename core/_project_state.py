@@ -131,16 +131,16 @@ def project_capture_global_relief(self):
     try:
         lyr = self.cmb_dem.currentLayer()
         out['dem_layer_id'] = str(lyr.id()) if lyr is not None else ''
-    except Exception:
-        pass
+    except Exception as _qcv_exc:
+        _qcv_suppress(_qcv_exc, "core/_project_state.py:134")
     try:
         out['relief_mode'] = str(self._relief_mode_id() or 'none')
-    except Exception:
-        pass
+    except Exception as _qcv_exc:
+        _qcv_suppress(_qcv_exc, "core/_project_state.py:138")
     try:
         out['wire_mode'] = int(self.combo_wire_mode.currentData()) if self.combo_wire_mode.currentData() is not None else int(self.combo_wire_mode.currentIndex())
-    except Exception:
-        pass
+    except Exception as _qcv_exc:
+        _qcv_suppress(_qcv_exc, "core/_project_state.py:142")
     try:
         out['dem_color'] = _color_hex(getattr(self, '_dem_color', QColor(255, 255, 0, 220)))
     except Exception:
@@ -148,8 +148,8 @@ def project_capture_global_relief(self):
     try:
         lyr = self.cmb_drape_raster.currentLayer()
         out['drape_layer_id'] = str(lyr.id()) if lyr is not None else ''
-    except Exception:
-        pass
+    except Exception as _qcv_exc:
+        _qcv_suppress(_qcv_exc, "core/_project_state.py:151")
     return out
 
 
@@ -215,8 +215,8 @@ def project_apply_global_relief(self, terrain, include_mode=True):
             if key in terrain:
                 try:
                     _set_checked(getattr(self, name, None), terrain[key])
-                except Exception:
-                    pass
+                except Exception as _qcv_exc:
+                    _qcv_suppress(_qcv_exc, "core/_project_state.py:218")
         nums = {
             'spin_dem_step': 'dem_step',
             'spin_dem_width': 'dem_width',
@@ -231,8 +231,8 @@ def project_apply_global_relief(self, terrain, include_mode=True):
             if key in terrain:
                 try:
                     _set_value(getattr(self, name, None), terrain[key])
-                except Exception:
-                    pass
+                except Exception as _qcv_exc:
+                    _qcv_suppress(_qcv_exc, "core/_project_state.py:234")
         try:
             wm = terrain.get('wire_mode', None)
             combo = getattr(self, 'combo_wire_mode', None)
@@ -243,14 +243,14 @@ def project_apply_global_relief(self, terrain, include_mode=True):
                 old = combo.blockSignals(True)
                 combo.setCurrentIndex(max(0, min(idx, combo.count() - 1)))
                 combo.blockSignals(old)
-        except Exception:
-            pass
+        except Exception as _qcv_exc:
+            _qcv_suppress(_qcv_exc, "core/_project_state.py:246")
         try:
             if terrain.get('dem_color'):
                 self._dem_color = QColor(str(terrain['dem_color']))
                 self._sky_color = QColor(self._dem_color)
-        except Exception:
-            pass
+        except Exception as _qcv_exc:
+            _qcv_suppress(_qcv_exc, "core/_project_state.py:252")
         # Raster drape is project-global as well.
         try:
             drape_lid = str(terrain.get('drape_layer_id') or '')
@@ -258,12 +258,12 @@ def project_apply_global_relief(self, terrain, include_mode=True):
             if getattr(self, 'cmb_drape_raster', None) is not None:
                 self.cmb_drape_raster.setLayer(drape_layer)
             _set_checked(getattr(self, 'cb_drape_rasters', None), bool(terrain.get('drape_enabled', False) and drape_layer is not None))
-        except Exception:
-            pass
+        except Exception as _qcv_exc:
+            _qcv_suppress(_qcv_exc, "core/_project_state.py:261")
         try:
             self._sync_relief_mode_controls()
-        except Exception:
-            pass
+        except Exception as _qcv_exc:
+            _qcv_suppress(_qcv_exc, "core/_project_state.py:265")
         return True
     finally:
         self._restoring_project_state = prev

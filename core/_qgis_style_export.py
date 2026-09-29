@@ -60,8 +60,8 @@ def _color(value, fallback):
         c = QColor(value)
         if c.isValid():
             return c
-    except Exception:
-        pass
+    except Exception as _qcv_exc:
+        _qcv_suppress(_qcv_exc, "core/_qgis_style_export.py:63")
     return QColor(fallback)
 
 
@@ -152,8 +152,8 @@ def _parameter_value(sty, definition, key, fallback=None):
         params = dict(getattr(sty, "schematic_params", {}) or {})
         if key in params:
             return params[key]
-    except Exception:
-        pass
+    except Exception as _qcv_exc:
+        _qcv_suppress(_qcv_exc, "core/_qgis_style_export.py:155")
     return _parameter_default(definition or {}, key, fallback)
 
 
@@ -230,11 +230,11 @@ def _layer_extent_area_m2(layer):
                 da.setSourceCrs(crs, QgsProject.instance().transformContext())
                 try:
                     da.setEllipsoid(QgsProject.instance().ellipsoid())
-                except Exception:
-                    pass
+                except Exception as _qcv_exc:
+                    _qcv_suppress(_qcv_exc, "core/_qgis_style_export.py:233")
                 return max(0.0, float(da.measureArea(geom)))
-        except Exception:
-            pass
+        except Exception as _qcv_exc:
+            _qcv_suppress(_qcv_exc, "core/_qgis_style_export.py:236")
         width = abs(float(rect.width()))
         height = abs(float(rect.height()))
         if not (math.isfinite(width) and math.isfinite(height)):
@@ -285,8 +285,8 @@ def _line_layer(color, width_mm, pen_style=None):
         layer.setWidth(float(width_mm))
         try:
             layer.setPenStyle(pen_style)
-        except Exception:
-            pass
+        except Exception as _qcv_exc:
+            _qcv_suppress(_qcv_exc, "core/_qgis_style_export.py:288")
         return layer
 
 
@@ -294,15 +294,15 @@ def _fill_layer(fill_color, stroke_color, stroke_width_mm, pen_style=None):
     layer = QgsSimpleFillSymbolLayer()
     try:
         layer.setColor(QColor(fill_color))
-    except Exception:
-        pass
+    except Exception as _qcv_exc:
+        _qcv_suppress(_qcv_exc, "core/_qgis_style_export.py:297")
     try:
         layer.setStrokeColor(QColor(stroke_color))
         layer.setStrokeWidth(float(stroke_width_mm))
         if pen_style is not None:
             layer.setStrokeStyle(pen_style)
-    except Exception:
-        pass
+    except Exception as _qcv_exc:
+        _qcv_suppress(_qcv_exc, "core/_qgis_style_export.py:304")
     return layer
 
 
@@ -514,8 +514,8 @@ def _existing_label_settings(layer):
         labeling = layer.labeling()
         if labeling is not None and hasattr(labeling, "settings"):
             return QgsPalLayerSettings(labeling.settings())
-    except Exception:
-        pass
+    except Exception as _qcv_exc:
+        _qcv_suppress(_qcv_exc, "core/_qgis_style_export.py:517")
     return QgsPalLayerSettings()
 
 
@@ -531,8 +531,8 @@ def _apply_labels_from_style(layer, sty):
     if not bool(getattr(sty, "show_labels", False)):
         try:
             layer.setLabelsEnabled(False)
-        except Exception:
-            pass
+        except Exception as _qcv_exc:
+            _qcv_suppress(_qcv_exc, "core/_qgis_style_export.py:534")
         return
 
     settings = _existing_label_settings(layer)
@@ -548,8 +548,8 @@ def _apply_labels_from_style(layer, sty):
     else:
         try:
             layer.setLabelsEnabled(False)
-        except Exception:
-            pass
+        except Exception as _qcv_exc:
+            _qcv_suppress(_qcv_exc, "core/_qgis_style_export.py:551")
         return
 
     try:
@@ -564,19 +564,19 @@ def _apply_labels_from_style(layer, sty):
         if existing_font is None:
             existing_font = QFont()
         fmt.setFont(existing_font)
-    except Exception:
-        pass
+    except Exception as _qcv_exc:
+        _qcv_suppress(_qcv_exc, "core/_qgis_style_export.py:567")
     try:
         fmt.setSize(max(1.0, float(getattr(sty, "label_size", 12) or 12)))
-    except Exception:
-        pass
+    except Exception as _qcv_exc:
+        _qcv_suppress(_qcv_exc, "core/_qgis_style_export.py:571")
     try:
         txt = QColor(getattr(sty, "label_text_color", QColor(20, 20, 20, 255)))
         fmt.setColor(txt)
         if hasattr(fmt, "setOpacity"):
             fmt.setOpacity(max(0.0, min(1.0, txt.alphaF())))
-    except Exception:
-        pass
+    except Exception as _qcv_exc:
+        _qcv_suppress(_qcv_exc, "core/_qgis_style_export.py:578")
 
     try:
         buf = QgsTextBufferSettings(fmt.buffer())
@@ -659,8 +659,8 @@ def _install_named_style(layer, renderer, style_name, sty):
         except Exception as exc:
             try:
                 original.writeToLayer(layer)
-            except Exception:
-                pass
+            except Exception as _qcv_exc:
+                _qcv_suppress(_qcv_exc, "core/_qgis_style_export.py:662")
             return False, str(exc)
         try:
             original.writeToLayer(layer)
@@ -676,8 +676,8 @@ def _install_named_style(layer, renderer, style_name, sty):
 
     try:
         layer.triggerRepaint()
-    except Exception:
-        pass
+    except Exception as _qcv_exc:
+        _qcv_suppress(_qcv_exc, "core/_qgis_style_export.py:679")
     try:
         QgsProject.instance().setDirty(True)
     except Exception as _qcv_exc:

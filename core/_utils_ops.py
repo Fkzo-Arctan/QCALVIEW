@@ -1507,8 +1507,8 @@ class _ImageViewer(QDialog):
         self._zoom(factor, viewport_pos=viewport_pos)
         try:
             ev.accept()
-        except Exception:
-            pass
+        except Exception as _qcv_exc:
+            _qcv_suppress(_qcv_exc, "core/_utils_ops.py:1510")
 
     def set_image_pick_active(self, active):
         active = bool(active)
@@ -1773,7 +1773,8 @@ def _parse_dash_pattern_value(value):
             v = float(item)
             if math.isfinite(v) and v > 0.0:
                 out.append(v)
-        except Exception:
+        except Exception as _qcv_exc:
+            _qcv_suppress(_qcv_exc, "core/_utils_ops.py:1776")
             continue
     if len(out) < 2:
         return []
@@ -1806,8 +1807,8 @@ def _qgis_line_pen_style(sl, props=None, default=QC.Qt_PenStyle_SolidLine):
             style = _normalize_qt_pen_style(sl.penStyle())
             if style != QC.Qt_PenStyle_CustomDashLine:
                 return style, []
-    except Exception:
-        pass
+    except Exception as _qcv_exc:
+        _qcv_suppress(_qcv_exc, "core/_utils_ops.py:1809")
     text = _str_prop(props, ['line_style', 'outline_style', 'style'], '')
     return _pen_style_from_text(text, default), []
 
@@ -2499,16 +2500,16 @@ def _ensure_qgis_layer_visible(self, layer):
             return False
         try:
             node.setItemVisibilityChecked(True)
-        except Exception:
-            pass
+        except Exception as _qcv_exc:
+            _qcv_suppress(_qcv_exc, "core/_utils_ops.py:2502")
         parent = node.parent()
         guard = 0
         while parent is not None and guard < 64:
             try:
                 if hasattr(parent, 'setItemVisibilityChecked'):
                     parent.setItemVisibilityChecked(True)
-            except Exception:
-                pass
+            except Exception as _qcv_exc:
+                _qcv_suppress(_qcv_exc, "core/_utils_ops.py:2510")
             try:
                 parent = parent.parent()
             except Exception:
@@ -2516,8 +2517,8 @@ def _ensure_qgis_layer_visible(self, layer):
             guard += 1
         try:
             self.iface.mapCanvas().refresh()
-        except Exception:
-            pass
+        except Exception as _qcv_exc:
+            _qcv_suppress(_qcv_exc, "core/_utils_ops.py:2519")
         return True
     except Exception as exc:
         _qcv_suppress(exc, "core/_utils_ops.py:ensure_qgis_layer_visible")
@@ -2550,8 +2551,8 @@ def _apply_theme_to_qgis_canvas(self, theme_name):
             self._suspend_theme_auto_apply = prev
         try:
             self.iface.mapCanvas().refresh()
-        except Exception:
-            pass
+        except Exception as _qcv_exc:
+            _qcv_suppress(_qcv_exc, "core/_utils_ops.py:2553")
         return True
     except Exception as exc:
         _qcv_suppress(exc, "core/_utils_ops.py:apply_theme_to_qgis_canvas")
@@ -2822,8 +2823,8 @@ def apply_qgis_theme_to_overlays(self, scope='pdv'):
             self.layer_styles = new_styles
             try:
                 self._refresh_layer_list_labels(0 if self.layer_styles else -1)
-            except Exception:
-                pass
+            except Exception as _qcv_exc:
+                _qcv_suppress(_qcv_exc, "core/_utils_ops.py:2825")
     else:
         self.layer_styles = new_styles
         try:
@@ -3112,13 +3113,13 @@ def _add_overlay_layer_object(self, lyr, apply_all_pdvs=False):
                 try:
                     if bool(getattr(self, 'cb_theme_apply_to_qgis', None) and self.cb_theme_apply_to_qgis.isChecked()):
                         _ensure_qgis_layer_visible(self, lyr)
-                except Exception:
-                    pass
+                except Exception as _qcv_exc:
+                    _qcv_suppress(_qcv_exc, "core/_utils_ops.py:3115")
                 self._refresh_layer_list_labels()
                 try:
                     self.render_preview()
-                except Exception:
-                    pass
+                except Exception as _qcv_exc:
+                    _qcv_suppress(_qcv_exc, "core/_utils_ops.py:3120")
                 return True
     except Exception as _qcv_exc:
         _qcv_suppress(_qcv_exc, "core/_utils_ops.py:existing-overlay")
@@ -3914,8 +3915,8 @@ def edit_style(self):
                 try:
                     self.iface.layerTreeView().refreshLayerSymbology(work.layer.id())
                     self.iface.mapCanvas().refresh()
-                except Exception:
-                    pass
+                except Exception as _qcv_exc:
+                    _qcv_suppress(_qcv_exc, "core/_utils_ops.py:3917")
                 try:
                     suffix = tr(" The QGIS theme “%1” was updated.").replace("%1", theme_name) if theme_updated else ''
                     self.iface.messageBar().pushInfo(

@@ -419,8 +419,8 @@ def _camera_capture_plugin_settings(self):
     }
     try:
         out['height_field'] = str(self.txt_hfield.text() or '')
-    except Exception:
-        pass
+    except Exception as _qcv_exc:
+        _qcv_suppress(_qcv_exc, "core/_camera_layer_ops.py:422")
     if out['relief_specific']:
         try:
             out['relief_mode_override'] = str(self._relief_mode_id() or 'none')
@@ -444,21 +444,21 @@ def _camera_restore_plugin_settings(self, data):
     if 'd_hdefault' in data:
         try:
             w = self.d_hdefault; old = w.blockSignals(True); w.setValue(float(data['d_hdefault'])); w.blockSignals(old)
-        except Exception:
-            pass
+        except Exception as _qcv_exc:
+            _qcv_suppress(_qcv_exc, "core/_camera_layer_ops.py:447")
     if 'height_field' in data:
         try:
             w = self.txt_hfield; old = w.blockSignals(True); w.setText(str(data.get('height_field') or '')); w.blockSignals(old)
-        except Exception:
-            pass
+        except Exception as _qcv_exc:
+            _qcv_suppress(_qcv_exc, "core/_camera_layer_ops.py:452")
 
     specific = bool(data.get('relief_specific', False))
     try:
         cb = getattr(self, 'cb_relief_specific_pdv', None)
         if cb is not None:
             old = cb.blockSignals(True); cb.setChecked(specific); cb.blockSignals(old)
-    except Exception:
-        pass
+    except Exception as _qcv_exc:
+        _qcv_suppress(_qcv_exc, "core/_camera_layer_ops.py:460")
     try:
         if specific:
             self._set_relief_mode_id(str(data.get('relief_mode_override') or 'none'))
@@ -490,7 +490,8 @@ def _camera_collect_visual_state_snapshot(self):
     for sty in list(getattr(self, 'layer_styles', []) or []):
         try:
             lid = str(sty.layer.id())
-        except Exception:
+        except Exception as _qcv_exc:
+            _qcv_suppress(_qcv_exc, "core/_camera_layer_ops.py:493")
             continue
         if not lid or lid in effective:
             continue
@@ -498,8 +499,8 @@ def _camera_collect_visual_state_snapshot(self):
         visibility[lid] = bool(getattr(sty, 'visible', True))
         try:
             _overlay_store_global_style(self, sty)
-        except Exception:
-            pass
+        except Exception as _qcv_exc:
+            _qcv_suppress(_qcv_exc, "core/_camera_layer_ops.py:501")
     base_ids = _camera_base_layer_ids(self)
     local_add = [lid for lid in effective if lid not in base_ids]
     removed = [lid for lid in base_ids if lid not in effective]
@@ -543,8 +544,8 @@ def _camera_read_saved_state(self, fid):
                 data = json.loads(str(raw))
                 if isinstance(data, dict):
                     return data, True, False
-        except Exception:
-            pass
+        except Exception as _qcv_exc:
+            _qcv_suppress(_qcv_exc, "core/_camera_layer_ops.py:546")
     legacy_key = _camera_legacy_visual_state_key(self, fid)
     if legacy_key:
         try:
@@ -553,8 +554,8 @@ def _camera_read_saved_state(self, fid):
                 data = json.loads(str(raw))
                 if isinstance(data, dict):
                     return data, True, True
-        except Exception:
-            pass
+        except Exception as _qcv_exc:
+            _qcv_suppress(_qcv_exc, "core/_camera_layer_ops.py:556")
     return {}, False, False
 
 
@@ -577,7 +578,8 @@ def _camera_theme_layer_ids(self, theme_name):
         for lyr in ordered_layers:
             try:
                 lid = str(lyr.id())
-            except Exception:
+            except Exception as _qcv_exc:
+                _qcv_suppress(_qcv_exc, "core/_camera_layer_ops.py:580")
                 continue
             if lid not in visible or lid == cam_id or not isinstance(lyr, QgsVectorLayer):
                 continue
@@ -593,15 +595,15 @@ def _camera_migrate_legacy_state(self, legacy):
     try:
         if hasattr(self, '_project_seed_from_legacy_pdv'):
             self._project_seed_from_legacy_pdv(legacy.get('settings') or {}, legacy.get('theme') or '')
-    except Exception:
-        pass
+    except Exception as _qcv_exc:
+        _qcv_suppress(_qcv_exc, "core/_camera_layer_ops.py:596")
     legacy_theme = str(legacy.get('theme') or '')
     old_theme_ids = _camera_theme_layer_ids(self, legacy_theme)
     try:
         if legacy_theme and old_theme_ids and hasattr(self, '_project_base_layer_ids') and not self._project_base_layer_ids():
             self._project_set_base_theme(legacy_theme, old_theme_ids, styles_initialized=False)
-    except Exception:
-        pass
+    except Exception as _qcv_exc:
+        _qcv_suppress(_qcv_exc, "core/_camera_layer_ops.py:603")
     base_ids = old_theme_ids if old_theme_ids else _camera_base_layer_ids(self)
     effective = []
     visibility = {}
@@ -741,8 +743,8 @@ def _camera_restore_visual_state(self, fid):
         self.layer_styles = restored
         try:
             self._refresh_layer_list_labels(0 if restored else -1)
-        except Exception:
-            pass
+        except Exception as _qcv_exc:
+            _qcv_suppress(_qcv_exc, "core/_camera_layer_ops.py:744")
     except Exception as exc:
         qcv_log(f"PDV {fid}: incomplete v5 overlay restore: {exc}", 'PDV/LOAD', 'WARNING')
 
@@ -755,15 +757,15 @@ def _camera_restore_visual_state(self, fid):
     try:
         getattr(self, '_overlay_cache', {}).clear()
         getattr(self, '_geom_cache', {}).clear()
-    except Exception:
-        pass
+    except Exception as _qcv_exc:
+        _qcv_suppress(_qcv_exc, "core/_camera_layer_ops.py:758")
     try:
         self._refresh_preview_and_viewer()
     except Exception:
         try:
             self.render_preview()
-        except Exception:
-            pass
+        except Exception as _qcv_exc:
+            _qcv_suppress(_qcv_exc, "core/_camera_layer_ops.py:765")
     self._camera_last_visual_restore_fid = int(fid)
     self._camera_last_visual_restore_summary = (
         f"QCALVIEW v5 state restored ({len(restored)} layers; project base theme unchanged)"
@@ -772,8 +774,8 @@ def _camera_restore_visual_state(self, fid):
     if was_legacy:
         try:
             _camera_capture_visual_state(self, fid)
-        except Exception:
-            pass
+        except Exception as _qcv_exc:
+            _qcv_suppress(_qcv_exc, "core/_camera_layer_ops.py:775")
     return bool(state_found or restored)
 
 def _camera_metric_project_crs(self):

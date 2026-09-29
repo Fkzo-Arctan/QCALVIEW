@@ -1182,8 +1182,8 @@ def _points_in_polygon_grid_spread(ring: Sequence[Tuple[float, float]], spacing:
             cx, cy = float(camera_xy[0]), float(camera_xy[1]); rr = float(maxdist)
             minx = max(minx, cx - rr); maxx = min(maxx, cx + rr)
             miny = max(miny, cy - rr); maxy = min(maxy, cy + rr)
-    except Exception:
-        pass
+    except Exception as _qcv_exc:
+        _qcv_suppress(_qcv_exc, "core/_schematic_symbols.py:1185")
     if maxx <= minx or maxy <= miny:
         return []
 
@@ -1225,8 +1225,8 @@ def _points_in_polygon_grid_spread(ring: Sequence[Tuple[float, float]], spacing:
                     if dx * dx + dy * dy > float(maxdist) * float(maxdist):
                         x += step
                         continue
-            except Exception:
-                pass
+            except Exception as _qcv_exc:
+                _qcv_suppress(_qcv_exc, "core/_schematic_symbols.py:1228")
             if _point_in_ring(px, py, pts):
                 candidates.append((px, py))
             x += step

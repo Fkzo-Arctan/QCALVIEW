@@ -26,8 +26,8 @@ def raster_declared_as_elevation(layer):
         enabled = getattr(props, "isEnabled", None)
         if callable(enabled) and bool(enabled()):
             return True
-    except Exception:
-        pass
+    except Exception as _qcv_exc:
+        _qcv_suppress(_qcv_exc, "core/_raster_drape.py:29")
     return False
 
 
@@ -81,15 +81,15 @@ def refresh_dem_raster_filter(self, *_args):
                 # Do not silently replace a previously selected non-DEM raster by
                 # another layer when the strict filter is re-enabled.
                 combo.setLayer(None)
-        except Exception:
-            pass
+        except Exception as _qcv_exc:
+            _qcv_suppress(_qcv_exc, "core/_raster_drape.py:84")
     try:
         if show_all:
             combo.setToolTip(tr('All QGIS/GDAL raster layers in the project are shown. Check that the selected layer actually contains elevations.'))
         else:
             combo.setToolTip(tr('List limited to rasters QGIS identifies as probable DEM/DSM layers or explicitly declared elevation surfaces.'))
-    except Exception:
-        pass
+    except Exception as _qcv_exc:
+        _qcv_suppress(_qcv_exc, "core/_raster_drape.py:91")
 
 
 def raster_is_local(layer):
@@ -158,12 +158,12 @@ def refresh_drape_raster_filter(self, *_args):
                 combo.setLayer(current)
             else:
                 combo.setLayer(None)
-        except Exception:
-            pass
+        except Exception as _qcv_exc:
+            _qcv_suppress(_qcv_exc, "core/_raster_drape.py:161")
     try:
         combo.setToolTip(tr('Local raster layer only. WMS/WMTS/XYZ services and other network sources are excluded to avoid slowdowns.'))
-    except Exception:
-        pass
+    except Exception as _qcv_exc:
+        _qcv_suppress(_qcv_exc, "core/_raster_drape.py:165")
 
 
 def selected_drape_layers(self):
@@ -196,18 +196,18 @@ def clear_raster_drape_cache(self):
         cache = getattr(self, "_raster_drape_texture_cache", None)
         if isinstance(cache, dict):
             cache.clear()
-    except Exception:
-        pass
+    except Exception as _qcv_exc:
+        _qcv_suppress(_qcv_exc, "core/_raster_drape.py:199")
     try:
         mesh_cache = getattr(self, "_raster_drape_mesh_cache", None)
         if isinstance(mesh_cache, dict):
             mesh_cache.clear()
-    except Exception:
-        pass
+    except Exception as _qcv_exc:
+        _qcv_suppress(_qcv_exc, "core/_raster_drape.py:205")
     try:
         getattr(self, "_overlay_cache", {}).clear()
-    except Exception:
-        pass
+    except Exception as _qcv_exc:
+        _qcv_suppress(_qcv_exc, "core/_raster_drape.py:209")
 
 
 def _disconnect_drape_watchers(self):
@@ -215,8 +215,8 @@ def _disconnect_drape_watchers(self):
     for signal, slot in conns:
         try:
             signal.disconnect(slot)
-        except Exception:
-            pass
+        except Exception as _qcv_exc:
+            _qcv_suppress(_qcv_exc, "core/_raster_drape.py:218")
     self._raster_drape_connections = []
 
 
@@ -229,8 +229,8 @@ def refresh_raster_drape_watchers(self):
         clear_raster_drape_cache(self)
         try:
             self.render_preview()
-        except Exception:
-            pass
+        except Exception as _qcv_exc:
+            _qcv_suppress(_qcv_exc, "core/_raster_drape.py:232")
 
     for layer in selected_drape_layers(self):
         for sig_name in ("styleChanged", "rendererChanged", "repaintRequested"):
@@ -238,7 +238,8 @@ def refresh_raster_drape_watchers(self):
                 sig = getattr(layer, sig_name)
                 sig.connect(_invalidate)
                 conns.append((sig, _invalidate))
-            except Exception:
+            except Exception as _qcv_exc:
+                _qcv_suppress(_qcv_exc, "core/_raster_drape.py:241")
                 continue
     self._raster_drape_connections = conns
 
@@ -282,8 +283,8 @@ def _layer_tree_visibility_snapshot(layer):
 def _refresh_qgis_canvas(self):
     try:
         self.iface.mapCanvas().refresh()
-    except Exception:
-        pass
+    except Exception as _qcv_exc:
+        _qcv_suppress(_qcv_exc, "core/_raster_drape.py:285")
 
 
 def restore_drape_qgis_visibility(self, refresh=True):
@@ -301,9 +302,10 @@ def restore_drape_qgis_visibility(self, refresh=True):
         try:
             node.setItemVisibilityChecked(bool(checked))
             restored = True
-        except Exception:
+        except Exception as _qcv_exc:
             # The layer/group may have been removed from the project while the
             # drape was active; restoration then simply skips that stale node.
+            _qcv_suppress(_qcv_exc, "core/_raster_drape.py:304")
             continue
     if refresh and restored:
         _refresh_qgis_canvas(self)
@@ -339,7 +341,8 @@ def _activate_drape_qgis_visibility(self, layer):
             if not bool(node.itemVisibilityChecked()):
                 node.setItemVisibilityChecked(True)
                 changed = True
-        except Exception:
+        except Exception as _qcv_exc:
+            _qcv_suppress(_qcv_exc, "core/_raster_drape.py:342")
             continue
     if changed or active_id != layer_id:
         _refresh_qgis_canvas(self)
@@ -518,8 +521,8 @@ def render_combined_raster_texture(self, layers, cam_crs, extent, output_width, 
     settings = QgsMapSettings()
     try:
         settings.setTransformContext(QgsProject.instance().transformContext())
-    except Exception:
-        pass
+    except Exception as _qcv_exc:
+        _qcv_suppress(_qcv_exc, "core/_raster_drape.py:521")
     settings.setDestinationCrs(cam_crs)
     settings.setExtent(QgsRectangle(extent))
     settings.setOutputSize(QSize(int(tex_w), int(tex_h)))
@@ -527,8 +530,8 @@ def render_combined_raster_texture(self, layers, cam_crs, extent, output_width, 
     settings.setLayers(list(layers))
     try:
         settings.setOutputDpi(96.0)
-    except Exception:
-        pass
+    except Exception as _qcv_exc:
+        _qcv_suppress(_qcv_exc, "core/_raster_drape.py:530")
 
     job = QgsMapRendererParallelJob(settings)
     job.start()
@@ -538,8 +541,8 @@ def render_combined_raster_texture(self, layers, cam_crs, extent, output_width, 
         return None
     try:
         image = image.convertToFormat(QC.QImage_Format_Format_ARGB32_Premultiplied)
-    except Exception:
-        pass
+    except Exception as _qcv_exc:
+        _qcv_suppress(_qcv_exc, "core/_raster_drape.py:541")
     cache.clear()
     cache[key] = image
     return image

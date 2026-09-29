@@ -595,8 +595,8 @@ class QCalViewDock(QDockWidget):
             self.cmb_drape_raster.setAllowEmptyLayer(True)
         try:
             self.cmb_drape_raster.setLayer(None)
-        except Exception:
-            pass
+        except Exception as _qcv_exc:
+            _qcv_suppress(_qcv_exc, "qcalview_dock.py:598")
         self.cmb_drape_raster.setToolTip(tr('Local raster layer only. WMS/WMTS/XYZ services and other network sources are excluded to avoid slowdowns.'))
         fdrape.addRow(tr('Local raster'), self.cmb_drape_raster)
         self.cb_drape_show_in_qgis = QCheckBox(tr('Show the raster in the QGIS map canvas too'))
