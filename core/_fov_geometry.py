@@ -132,15 +132,15 @@ def _ensure_uid_field(layer):
         try:
             if not bool(provider.addAttributes([field])):
                 qcv_log(
-                    "Création du champ qcv_uid refusée par le provider; "
-                    "le style 40.20.3 sera conservé.",
+                    "Provider refused creation of qcv_uid field; "
+                    "the existing style will be preserved.",
                     "PDV/FOV",
                     "WARNING",
                 )
                 return None
         except Exception as exc:
             qcv_log(
-                f"Création du champ qcv_uid impossible: {exc}",
+                f"Unable to create qcv_uid field: {exc}",
                 "PDV/FOV",
                 "WARNING",
             )
@@ -195,20 +195,20 @@ def _ensure_uid_field(layer):
         if layer.isEditable():
             for fid, uid in updates.items():
                 if not layer.changeAttributeValue(fid, layer_index, uid):
-                    raise RuntimeError(f"écriture qcv_uid impossible pour FID {fid}")
+                    raise RuntimeError(f"unable to write qcv_uid for FID {fid}")
         elif provider is not None and provider_index >= 0:
             changes = {
                 int(fid): {int(provider_index): uid}
                 for fid, uid in updates.items()
             }
             if not bool(provider.changeAttributeValues(changes)):
-                raise RuntimeError("écriture provider qcv_uid refusée")
+                raise RuntimeError('provider rejected qcv_uid write')
         else:
-            raise RuntimeError("champ qcv_uid non éditable")
+            raise RuntimeError('qcv_uid field is not editable')
     except Exception as exc:
         qcv_log(
-            f"Initialisation des qcv_uid impossible: {exc}; "
-            "le style 40.20.3 sera conservé.",
+            f"Unable to initialise qcv_uid values: {exc}; "
+            "the existing style will be preserved.",
             "PDV/FOV",
             "WARNING",
         )
@@ -256,7 +256,7 @@ def _ensure_auxiliary_layer(layer, uid_name):
             layer.setAuxiliaryLayer(auxiliary)
         except Exception as exc:
             qcv_log(
-                f"Création du stockage auxiliaire FOV impossible: {exc}",
+                f"Unable to create auxiliary FOV storage: {exc}",
                 "PDV/FOV",
                 "WARNING",
             )
@@ -285,7 +285,7 @@ def _ensure_auxiliary_layer(layer, uid_name):
         try:
             if not bool(auxiliary.addAttribute(field)):
                 qcv_log(
-                    f"Champ auxiliaire {name} non créé.",
+                    f"Auxiliary field {name} not created.",
                     "PDV/FOV",
                     "WARNING",
                 )
@@ -293,7 +293,7 @@ def _ensure_auxiliary_layer(layer, uid_name):
             added = True
         except Exception as exc:
             qcv_log(
-                f"Champ auxiliaire {name} non créé: {exc}",
+                f"Auxiliary field {name} not created: {exc}",
                 "PDV/FOV",
                 "WARNING",
             )
@@ -303,14 +303,14 @@ def _ensure_auxiliary_layer(layer, uid_name):
         try:
             if not bool(auxiliary.save()):
                 qcv_log(
-                    "Enregistrement du schéma auxiliaire FOV impossible.",
+                    'Unable to save the auxiliary FOV schema.',
                     "PDV/FOV",
                     "WARNING",
                 )
                 return None
         except Exception as exc:
             qcv_log(
-                f"Enregistrement du schéma auxiliaire FOV impossible: {exc}",
+                f"Unable to save auxiliary FOV schema: {exc}",
                 "PDV/FOV",
                 "WARNING",
             )
@@ -329,7 +329,7 @@ def _ensure_auxiliary_layer(layer, uid_name):
             missing.append(joined)
     if missing:
         qcv_log(
-            "Champs auxiliaires FOV non joints à la couche: " + ", ".join(missing),
+            'Auxiliary FOV fields not joined to the layer: ' + ", ".join(missing),
             "PDV/FOV",
             "WARNING",
         )
@@ -738,7 +738,7 @@ def _rebuild_layer(self, layer, auxiliary, work_crs, symbol_range, save=True):
     try:
         features = list(layer.getFeatures())
     except Exception as exc:
-        qcv_log(f"Lecture des PDV impossible: {exc}", "PDV/FOV", "WARNING")
+        qcv_log(f"Unable to read viewpoints: {exc}", "PDV/FOV", "WARNING")
         return False
 
     previous_guard = bool(getattr(self, "_qcv_fov_cache_write", False))
@@ -759,7 +759,7 @@ def _rebuild_layer(self, layer, auxiliary, work_crs, symbol_range, save=True):
                     count += 1
             except Exception as exc:
                 qcv_log(
-                    f"PDV {feature.id()}: calcul FOV impossible: {exc}",
+                    f"PDV {feature.id()}: FOV calculation failed: {exc}",
                     "PDV/FOV",
                     "WARNING",
                 )
@@ -780,14 +780,14 @@ def _rebuild_layer(self, layer, auxiliary, work_crs, symbol_range, save=True):
         _qcv_suppress(exc, "core/_fov_geometry.py:suppressed")
     if not _validate_cache(layer, auxiliary):
         qcv_log(
-            "Cache FOV créé mais non lisible depuis la couche; "
-            "renderer 40.20.3 conservé.",
+            "FOV cache created but not readable from the layer; "
+            "existing renderer preserved.",
             "PDV/FOV",
             "WARNING",
         )
         return False
 
-    qcv_log(f"Cache FOV validé pour {count} PDV.", "PDV/FOV", "INFO")
+    qcv_log(f"FOV cache validated for {count} viewpoints.", "PDV/FOV", "INFO")
     return ok
 
 
@@ -823,7 +823,7 @@ def qcv_fov_prepare_layer(self, layer, rebuild=True):
             return False
     else:
         qcv_log(
-            "Cache FOV existant réutilisé; aucune reconstruction nécessaire.",
+            'Existing FOV cache reused; no rebuild required.',
             "PDV/FOV",
             "INFO",
         )
@@ -931,7 +931,7 @@ def _legacy_geometry_expressions(automatic=True):
             raise ValueError("QML XML parsing failed")
     except Exception as exc:
         qcv_log(
-            f"Lecture du renderer de secours impossible: {exc}",
+            f"Unable to read fallback renderer: {exc}",
             "PDV/FOV",
             "WARNING",
         )
@@ -990,7 +990,7 @@ def qcv_fov_restore_legacy_renderer(self, layer, automatic=True):
     }
     if not required.issubset(generators) or not required.issubset(expressions):
         qcv_log(
-            "Renderer FOV de secours incomplet; aucune modification appliquée.",
+            'Fallback FOV renderer incomplete; no changes applied.',
             "PDV/FOV",
             "WARNING",
         )
@@ -1010,14 +1010,14 @@ def qcv_fov_restore_legacy_renderer(self, layer, automatic=True):
         _clear_live_variables(layer)
         layer.triggerRepaint()
         qcv_log(
-            f"Renderer géométrique 40.20.3 restauré ({restored} GeometryGenerator).",
+            f"Previous geometry renderer restored ({restored} GeometryGenerator).",
             "PDV/FOV",
             "INFO",
         )
         return restored >= 4
     except Exception as exc:
         qcv_log(
-            f"Restauration du renderer 40.20.3 impossible: {exc}",
+            f"Unable to restore previous geometry renderer: {exc}",
             "PDV/FOV",
             "WARNING",
         )
@@ -1043,8 +1043,8 @@ def qcv_fov_patch_renderer(self, layer):
     }
     if not required.issubset(generators):
         qcv_log(
-            f"Renderer PDV incompatible: {len(generators)} générateurs QCALVIEW "
-            f"reconnus, {unknown} inconnu(s); renderer 40.20.3 conservé.",
+            f"Incompatible viewpoint renderer: {len(generators)} QCALVIEW generators "
+            f"reconnus, {unknown} inconnu(s); existing renderer preserved.",
             "PDV/FOV",
             "WARNING",
         )
@@ -1063,14 +1063,14 @@ def qcv_fov_patch_renderer(self, layer):
             patched += 1
         layer.triggerRepaint()
         qcv_log(
-            f"Renderer FOV allégé activé ({patched} GeometryGenerator pré-calculés).",
+            f"Simplified FOV renderer enabled ({patched} precomputed GeometryGenerator items).",
             "PDV/FOV",
             "INFO",
         )
         return patched >= 4
     except Exception as exc:
         qcv_log(
-            f"Migration du renderer FOV impossible: {exc}",
+            f"FOV renderer migration failed: {exc}",
             "PDV/FOV",
             "WARNING",
         )
@@ -1220,7 +1220,7 @@ def qcv_fov_sync_live(
             is360=is360,
         )
     except Exception as exc:
-        qcv_log(f"Calcul FOV Live impossible: {exc}", "PDV/FOV", "WARNING")
+        qcv_log(f"Live FOV calculation failed: {exc}", "PDV/FOV", "WARNING")
         _clear_live_variables(layer)
         return False
 

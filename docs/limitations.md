@@ -1,6 +1,6 @@
 # QCALVIEW — Current limitations
 
-This document describes the main technical constraints and known limitations of the current **ALPHA-40.20.5** release.
+This document describes the main technical constraints and known limitations of the current **40.21** release.
 
 QCALVIEW is under active development. These limitations may evolve as the rendering engine, panoramic projections, raster support and export workflows are consolidated.
 
@@ -35,6 +35,8 @@ The compressed size of a JPEG, PNG or WebP file does not represent the amount of
 For example, a photograph around **12000 × 6000 pixels** can require several hundred megabytes of memory during processing.
 
 QCALVIEW may use lower-resolution proxies for interactive display, but large source images can still increase memory consumption during loading, rendering and export.
+
+The QCALVIEW 40.21 monoplotting magnifier reads only a local native-resolution tile from the source image. To avoid accidental full-image decoding, the magnifier is disabled for an image codec that does not report safe rectangular-region (`ClipRect`) reading support.
 
 For interactive work, avoid unnecessarily oversized images when a lower working resolution is sufficient.
 
@@ -131,7 +133,7 @@ High-resolution exports can require substantially more memory and processing tim
 
 Before producing very large final images, test the scene at an intermediate output resolution.
 
-In the current alpha series, exported output should also be compared with the interactive view, particularly when using:
+With complex scenes, exported output should also be compared with the interactive view, particularly when using:
 
 - panoramic projections;
 - vertical offsets;
@@ -141,7 +143,7 @@ In the current alpha series, exported output should also be compared with the in
 
 ## Experimental tools
 
-The public experimental build intentionally exposes only a limited subset of development tools:
+The standard 40.21 build keeps a limited subset of advanced tools explicitly marked as experimental:
 
 - Projection grid
 - Azimuth ruler
@@ -168,7 +170,7 @@ Large scenes may therefore require simplified working data or reduced preview qu
 
 ## Production use
 
-QCALVIEW ALPHA releases should not be considered validated measurement software.
+QCALVIEW should not be considered certified or validated measurement software solely on the basis of plugin output.
 
 The operator remains responsible for checking:
 

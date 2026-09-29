@@ -617,7 +617,7 @@ def _split_triangle_longest_world(ctx, verts, dist_max=None):
 
 def panorama_faces_from_world_mesh(ctx, world_xyz, triangle_indices, dist_max=None, *, texture_uv=None,
                                    wrap_width=None, role='surface', metadata=None, render_quality='high',
-                                   extra_face_budget=None, pole_guard_px=2.0):
+                                   extra_face_budget=None, pole_guard_px=2.0, adaptive_split=True):
 
     xyz=np.asarray(world_xyz,dtype=np.float64)
     if xyz.ndim!=2 or xyz.shape[0]<3 or xyz.shape[1]<3: return []
@@ -653,7 +653,16 @@ def panorama_faces_from_world_mesh(ctx, world_xyz, triangle_indices, dist_max=No
             stack=[(seed,0,0)]
             while stack:
                 cur,depth,extras=stack.pop()
-                can_split=_triangle_quick_needs_split(ctx,cur,quality=q,wrap_width=W) and depth<max_depth and extras<max_extra_per_source
+                # Most QCALVIEW objects benefit from adaptive subdivision because panorama
+                # projections bend long 3D edges.  A continuous terrain texture is different:
+                # subdividing each source triangle independently creates non-conforming
+                # T-junctions along shared edges.  In cylindrical/equirectangular views those
+                # independently approximated curved edges no longer coincide exactly and thin
+                # transparent seams become visible.  Callers rendering a conforming mesh can
+                # therefore disable the per-triangle split and control tessellation at mesh level.
+                can_split=(bool(adaptive_split) and
+                           _triangle_quick_needs_split(ctx,cur,quality=q,wrap_width=W) and
+                           depth<max_depth and extras<max_extra_per_source)
                 if can_split:
                     budget_ok=True
                     if isinstance(extra_face_budget,dict):

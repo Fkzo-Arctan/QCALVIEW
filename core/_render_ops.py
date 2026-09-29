@@ -44,7 +44,7 @@ from ._panorama_primitives import (
     PanoramicPrimitive2D, PanoramicFace, is_panorama_context, project_panorama_primitive,
     unwrap_x_continuous, unwrap_closed_ring, iter_viewport_copies,
     surface_faces_from_primitive, wall_faces_from_primitives,
-    panorama_faces_from_world_mesh, project_panorama_path_safe,
+    panorama_faces_from_world_mesh, project_panorama_path_safe, project_panorama_primitive,
 )
 from ._memory_guard import (
     prepare_panorama_preview, format_guard_status, release_stale_panorama_buffers, prune_base_cache_for_size,
@@ -369,7 +369,7 @@ def _style_has_transparency(sty):
         _qcv_suppress(_qcv_exc, "core/_render_ops.py:395")
     return False
 
-def _make_pen_for_style(color, width_value, scale_factor, pen_style=QC.Qt_PenStyle_SolidLine, opacity_factor=1.0):
+def _make_pen_for_style(color, width_value, scale_factor, pen_style=QC.Qt_PenStyle_SolidLine, opacity_factor=1.0, dash_pattern=None):
     try:
         style = pen_style
     except Exception:
@@ -383,9 +383,24 @@ def _make_pen_for_style(color, width_value, scale_factor, pen_style=QC.Qt_PenSty
     pen = QPen(_color_with_opacity(color, opacity_factor))
     pen.setWidthF(max(1.0, float(wv) * float(scale_factor)))
     try:
-        pen.setStyle(style)
+        pattern = [float(v) for v in (dash_pattern or []) if float(v) > 0.0]
+    except Exception:
+        pattern = []
+    try:
+        if pattern:
+            base = max(0.01, abs(float(wv)))
+            qt_pattern = [max(0.1, float(v) / base) for v in pattern]
+            if len(qt_pattern) >= 2:
+                if len(qt_pattern) % 2:
+                    qt_pattern = qt_pattern[:-1]
+                pen.setStyle(QC.Qt_PenStyle_CustomDashLine)
+                pen.setDashPattern(qt_pattern)
+            else:
+                pen.setStyle(style)
+        else:
+            pen.setStyle(style)
     except Exception as _qcv_exc:
-        _qcv_suppress(_qcv_exc, "core/_render_ops.py:415")
+        _qcv_suppress(_qcv_exc, "core/_render_ops.py:make_pen_style")
     try:
         pen.setJoinStyle(QC.Qt_PenJoinStyle_RoundJoin)
         pen.setCapStyle(QC.Qt_PenCapStyle_RoundCap)
@@ -660,7 +675,7 @@ def _render_preview_now(self):
             self._memory_guard_runtime = guard_state
             self._memory_guard_last_state = guard_state
             if bool(guard_state.get('cancel', False)):
-                _label_budget_text(self, 'Rendu annulé — charge mémoire critique')
+                _label_budget_text(self, 'Rendering cancelled — critical memory load')
                 return
             W = max(192 if render_quality == 'low' else 256, int(guard_state.get('width', W)))
             H = max(128 if render_quality == 'low' else 256, int(guard_state.get('height', H)))
@@ -698,9 +713,15 @@ def _render_preview_now(self):
                         _qcv_suppress(_qcv_exc, "core/_render_ops.py:766")
         base = self._get_base_scaled(W, H)
         if base is None or base.isNull():
-            raise RuntimeError("Fond de vue indisponible")
+            raise RuntimeError('View background unavailable')
         composed = QImage(base)
-        qp = QPainter(composed); qp.drawImage(0, 0, overlay); qp.end()
+        qp = QPainter(composed)
+        qp.drawImage(0, 0, overlay)
+        try:
+            self._draw_monoplot_overlay(qp, W, H, apply_display_shift=True)
+        except Exception as _qcv_exc:
+            _qcv_suppress(_qcv_exc, "core/_render_ops.py:preview_monoplot_overlay")
+        qp.end()
         self.last_preview = composed
         preview_transform = QC.Qt_TransformationMode_FastTransformation if render_quality == 'low' else QC.Qt_TransformationMode_SmoothTransformation
         self.preview.setPixmap(QPixmap.fromImage(composed).scaled(self.preview.size(), QC.Qt_AspectRatioMode_KeepAspectRatio, preview_transform))
@@ -764,7 +785,7 @@ def _render_preview_now(self):
         err = QImage(820, 60, QC.QImage_Format_Format_ARGB32_Premultiplied)
         err.fill(QColor(0,0,0,0))
         p = QPainter(err); p.setPen(QPen(QColor(255,80,80,255))); p.setFont(QFont("Arial", 10))
-        p.drawText(10, 35, f"Erreur rendu: {e}"); p.end()
+        p.drawText(10, 35, f"Rendering error: {e}"); p.end()
         self.preview.setPixmap(QPixmap.fromImage(err))
     finally:
 
@@ -850,7 +871,7 @@ def _render_overlay(self, width, height):
             except Exception:
                 cam_feat = None
         if cam_feat is None or (not cam_feat.isValid()) or cam_feat.geometry() is None or cam_feat.geometry().isEmpty():
-            raise RuntimeError("Aucun point caméra valide pour le rendu")
+            raise RuntimeError('No valid camera point for rendering')
         try:
             cam_pt, cam_crs = self._camera_point_in_work_crs(cam_feat)
         except Exception:
@@ -858,7 +879,7 @@ def _render_overlay(self, width, height):
         if cam_pt is None or cam_crs is None:
             try: self._camera_warn_if_non_metric_project(notify=False)
             except Exception as _qcv_exc: _qcv_suppress(_qcv_exc, "core/_render_ops.py:944")
-            raise RuntimeError("CRS projet non métrique : choisissez un CRS projeté (par ex. Lambert-93) pour QCALVIEW")
+            raise RuntimeError('Non-metric project CRS: choose a projected CRS (e.g. Lambert-93) for QCALVIEW')
 
         yaw = self.d_yaw.value()
         yaw_eff = yaw + self.d_yaw_offset.value()
@@ -919,10 +940,15 @@ def _render_overlay(self, width, height):
         occ_group_ok = True
         relief_mode = self._relief_mode_id() if hasattr(self, '_relief_mode_id') else ('wireframe' if self.cb_show_dem.isChecked() else ('skyline' if self.cb_draw_skyline.isChecked() else 'none'))
         relief_active = relief_mode != 'none'
+        try:
+            raster_drape_active = bool(self._raster_drape_enabled())
+        except Exception:
+            raster_drape_active = False
         need_dem = (
             dem_group_ok and (
                 self.cb_use_dem_z.isChecked() or
-                relief_active
+                relief_active or
+                raster_drape_active
             )
         ) or (occ_group_ok and self.cb_occ_terrain.isChecked())
 
@@ -939,7 +965,7 @@ def _render_overlay(self, width, height):
         vector_z_sampler_raw = z_sampler if bool(getattr(self, "cb_use_dem_z", None) and self.cb_use_dem_z.isChecked()) else None
         vector_z_sampler = _make_pov_curved_sampler(self, vector_z_sampler_raw, cam_pt, k_refraction=0.0)
         self._draw_gcps_overlay(p, width, height)
-        need_horizon_for_anything = bool(relief_active and z_sampler is not None and not cam_crs.isGeographic())
+        need_horizon_for_anything = bool((relief_active or raster_drape_active) and z_sampler is not None and not cam_crs.isGeographic())
         if need_horizon_for_anything:
             curvature_enabled = bool(getattr(self, 'cb_curvature', None).isChecked()) if hasattr(self, 'cb_curvature') else True
             earth_radius_m = float(getattr(self, 'd_earth_radius_km', None).value() * 1000.0) if hasattr(self, 'd_earth_radius_km') else 6370000.0
@@ -984,7 +1010,7 @@ def _render_overlay(self, width, height):
         else:
             self._horizon = None
 
-        occ_relief = (relief_active
+        occ_relief = ((relief_active or raster_drape_active)
                       and self._horizon is not None
                       and not (self.cb_debug_no_occ.isChecked()))
         eps = float(self.d_eps.value())
@@ -996,6 +1022,7 @@ def _render_overlay(self, width, height):
         _pano_zbuffer_enabled = bool(panoramic_overlay_mode)
         _pano_deferred_edges = []
         _pano_deferred_labels = []
+        _pano_deferred_ground_surfaces = []
         _pano_defer_calib_grid = bool(_pano_zbuffer_enabled)
         def _emit_feature_label(text, anchor_uv, sty_label):
             if not text or anchor_uv is None or sty_label is None:
@@ -1058,6 +1085,17 @@ def _render_overlay(self, width, height):
 
         if topo_draw_before_vectors and not _pano_zbuffer_enabled:
             _draw_topography_group()
+
+        if raster_drape_active and z_sampler is not None and not _pano_zbuffer_enabled:
+            try:
+                _draw_raster_drape_pinhole(
+                    self, p, cam_pt, cam_z, cam_crs, proj, width, height,
+                    yaw_eff, pitch, roll, HFOV, VFOV, is360, maxdist, z_sampler,
+                    render_quality=render_quality
+                )
+            except Exception as _exc:
+                try: qcv_log(f"Raster drape PINHOLE: {_exc}", 'RASTER/DRAPE', 'WARNING')
+                except Exception: pass
 
         if not _pano_defer_calib_grid:
             self._draw_calib_grid(p, cam_pt, cam_z, cam_crs, proj, width, height,
@@ -1129,6 +1167,15 @@ def _render_overlay(self, width, height):
         _pano_ctx_common = (build_camera_context(cam_pt, cam_z, proj, width, height, yaw_eff, pitch, roll, HFOV, VFOV, is360)
                             if panoramic_overlay_mode else None)
         _pano_zfaces = []
+        if raster_drape_active and z_sampler is not None and panoramic_overlay_mode:
+            try:
+                _pano_zfaces.extend(_build_raster_drape_faces(
+                    self, cam_pt, cam_z, cam_crs, proj, width, height, yaw_eff, pitch, roll,
+                    HFOV, VFOV, is360, maxdist, z_sampler, render_quality=render_quality, panoramic=True
+                ))
+            except Exception as _exc:
+                try: qcv_log(f"Raster drape PANORAMA: {_exc}", 'RASTER/DRAPE', 'WARNING')
+                except Exception: pass
         if panoramic_overlay_mode:
             _extra = 3000 if render_quality == 'low' else 8000 if render_quality == 'normal' else 16000
             if not bool(getattr(self,'_memory_guard_in_preview',False)):
@@ -1161,7 +1208,7 @@ def _render_overlay(self, width, height):
                 if not lyr: continue
                 src_crs = lyr.crs()
                 tr = None if src_crs == cam_crs else QgsCoordinateTransform(src_crs, cam_crs, QgsProject.instance())
-                pen = _make_pen_for_style(sty.color, getattr(sty, 'width', 0.0), (width/4000.0 if width<4000 else width/6000.0), getattr(sty, 'pen_style', QC.Qt_PenStyle_SolidLine), _style_opacity_factor(sty))
+                pen = _make_pen_for_style(sty.color, getattr(sty, 'width', 0.0), (width/4000.0 if width<4000 else width/6000.0), getattr(sty, 'pen_style', QC.Qt_PenStyle_SolidLine), _style_opacity_factor(sty), getattr(sty, 'qgis_dash_pattern', None))
                 p.setPen(pen)
                 font = QFont("Arial", max(6, int(sty.label_size * max(0.5, width/4000.0))))
                 p.setFont(font)
@@ -1205,7 +1252,7 @@ def _render_overlay(self, width, height):
                 for feat in _features:
                     geom = feat.geometry()
                     sty_eff = _feature_local_style(self, sty, feat)
-                    pen = _make_pen_for_style(sty_eff.color, getattr(sty_eff, 'width', 0.0), (width/4000.0 if width<4000 else width/6000.0), getattr(sty_eff, 'pen_style', QC.Qt_PenStyle_SolidLine), _style_opacity_factor(sty_eff))
+                    pen = _make_pen_for_style(sty_eff.color, getattr(sty_eff, 'width', 0.0), (width/4000.0 if width<4000 else width/6000.0), getattr(sty_eff, 'pen_style', QC.Qt_PenStyle_SolidLine), _style_opacity_factor(sty_eff), getattr(sty_eff, 'qgis_dash_pattern', None))
                     font = QFont("Arial", max(6, int(getattr(sty_eff, 'label_size', sty.label_size) * max(0.5, width/4000.0))))
                     p.setPen(pen)
                     p.setFont(font)
@@ -1255,6 +1302,47 @@ def _render_overlay(self, width, height):
                                     feat,_schematic_parts,gtype,sty_eff,vector_z_sampler,h,_plugin_dir,camera_xy,
                                     runtime_overrides=_runtime_overrides
                                 )
+                                # Kilometre-scale vegetation masses do not
+                                # triangulate one huge canopy polygon.  Keep their vertical
+                                # boundary primitives, but render the canopy itself as a
+                                # screen-space mask on a DEM+height surface.
+                                if (_definition is not None and
+                                        gtype == QC.QgsWkbTypes_GeometryType_PolygonGeometry and
+                                        vector_z_sampler is not None and _primitives):
+                                    _kept_primitives=[]
+                                    for _spr in _primitives:
+                                        _role=str(getattr(_spr,'role','') or '')
+                                        if isinstance(_spr,Polygon3D) and _role=='vegetation_canopy':
+                                            try:
+                                                _sxyz=np.asarray(_spr.xyz,dtype=np.float64)
+                                                _sxy=_sxyz[:,:2]
+                                            except Exception:
+                                                _sxyz=None; _sxy=None
+                                            if (_sxy is not None and _sxy.ndim==2 and _sxy.shape[0]>=3 and
+                                                    _is_large_ground_polygon_4208(_sxy,camera_xy,effective_maxdist)):
+                                                try:
+                                                    _gz=_sample_z_array(vector_z_sampler,_sxy)
+                                                    _off=np.asarray(_sxyz[:,2],dtype=np.float64)-np.asarray(_gz,dtype=np.float64)
+                                                    _off=_off[np.isfinite(_off)]
+                                                    _hoff=float(np.median(_off)) if _off.size else float(h)
+                                                except Exception:
+                                                    _hoff=float(h)
+                                                _fill,_line=schematic_role_colors(sty_eff,_definition,_role)
+                                                _fill=QColor(_fill)
+                                                if transparent_objects:
+                                                    _fill.setAlpha(min(_fill.alpha(),110))
+                                                _pano_deferred_ground_surfaces.append({
+                                                    'rings':[_sxy.copy()],
+                                                    'height_offset':float(_hoff),
+                                                    'fill_spec':{'kind':'simple','color':_fill,
+                                                                 'target_alpha':int(_fill.alpha()),
+                                                                 'depth_alpha_threshold':1},
+                                                    'role':_role,'layer_id':lyr.id(),'fid':int(feat.id()),
+                                                    'maxdist':float(effective_maxdist),
+                                                })
+                                                continue
+                                        _kept_primitives.append(_spr)
+                                    _primitives=_kept_primitives
                                 if _definition is not None:
                                     handled=True
                                     _append_schematic_primitives_for_panorama_zbuffer_419(
@@ -1263,7 +1351,8 @@ def _render_overlay(self, width, height):
                                         transparent_objects=transparent_objects,extra_budget=_pano_surface_extra_budget,
                                         visibility_test=None,painter=p,
                                         terrain_face_culler=None,
-                                        deferred_edges=_pano_deferred_edges
+                                        deferred_edges=_pano_deferred_edges,
+                                        export_mode=(not bool(getattr(self, '_memory_guard_in_preview', False)))
                                     )
                             except Exception as _exc:
                                 try: qcv_log(f"{lyr.name()} | FID {feat.id()} | PANORAMA z-buffer AVR : {_exc}",'SCHEMATIC/RENDER','WARNING')
@@ -1462,39 +1551,53 @@ def _render_overlay(self, width, height):
                             ctx_poly = _pano_ctx_common
                             xyz_base = np.column_stack([arr_ring, base_z_ring])
                             xyz_top = (np.column_stack([arr_ring, base_z_ring + float(h)]) if pano_is_volume else None)
-                            tri_indices = _panorama_tri_indices_cached(self,lyr,feat,_part_idx,arr_ring)
-                            if not tri_indices:
-                                continue
                             wrap_width = float(width) if bool(is360) else None
-                            surface_xyz = xyz_top if xyz_top is not None else xyz_base
-                            surface_faces = panorama_faces_from_world_mesh(
-                                ctx_poly, surface_xyz, tri_indices, effective_maxdist,
-                                wrap_width=wrap_width,
-                                role=('roof' if xyz_top is not None else 'ground_surface'),
-                                metadata={'projection_family':'PANORAMA','layer_id':lyr.id(),'fid':int(feat.id())},
-                                render_quality=render_quality, extra_face_budget=_pano_surface_extra_budget,
-                                pole_guard_px=2.5
+                            _defer_ground = bool(
+                                _pano_zbuffer_enabled and xyz_top is None and vector_z_sampler is not None and
+                                bool(getattr(sty_eff,'fill_polygons',True)) and
+                                _is_large_ground_polygon_4208(arr_ring,(float(cam_pt.x()),float(cam_pt.y())),effective_maxdist)
                             )
-
-                            wall_faces=[]
-                            if xyz_top is not None and bool(getattr(sty_eff,'fill_walls',True)):
-                                n=int(xyz_base.shape[0])
-                                wall_xyz=np.vstack([xyz_base,xyz_top])
-                                wall_tri=[]
-                                for i in range(n):
-                                    j=(i+1)%n
-                                    wall_tri.append((i,j,n+j)); wall_tri.append((i,n+j,n+i))
-                                wall_faces=panorama_faces_from_world_mesh(
-                                    ctx_poly,wall_xyz,wall_tri,effective_maxdist,wrap_width=wrap_width,
-                                    role='wall',metadata={'projection_family':'PANORAMA','layer_id':lyr.id(),'fid':int(feat.id())},
-                                    render_quality=render_quality,extra_face_budget=_pano_surface_extra_budget,
+                            surface_faces=[]; wall_faces=[]
+                            _top_fill=_normalized_fill_spec_for_sty(sty_eff,transparent_objects=transparent_objects)
+                            if _defer_ground:
+                                _pano_deferred_ground_surfaces.append({
+                                    'rings':[arr_ring.copy()],
+                                    'height_offset':0.0,
+                                    'fill_spec':_top_fill,
+                                    'role':'ground_surface','layer_id':lyr.id(),'fid':int(feat.id()),
+                                    'maxdist':float(effective_maxdist),
+                                })
+                            else:
+                                tri_indices = _panorama_tri_indices_cached(self,lyr,feat,_part_idx,arr_ring)
+                                if not tri_indices:
+                                    continue
+                                surface_xyz = xyz_top if xyz_top is not None else xyz_base
+                                surface_faces = panorama_faces_from_world_mesh(
+                                    ctx_poly, surface_xyz, tri_indices, effective_maxdist,
+                                    wrap_width=wrap_width,
+                                    role=('roof' if xyz_top is not None else 'ground_surface'),
+                                    metadata={'projection_family':'PANORAMA','layer_id':lyr.id(),'fid':int(feat.id())},
+                                    render_quality=render_quality, extra_face_budget=_pano_surface_extra_budget,
                                     pole_guard_px=2.5
                                 )
 
+                                if xyz_top is not None and bool(getattr(sty_eff,'fill_walls',True)):
+                                    n=int(xyz_base.shape[0])
+                                    wall_xyz=np.vstack([xyz_base,xyz_top])
+                                    wall_tri=[]
+                                    for i in range(n):
+                                        j=(i+1)%n
+                                        wall_tri.append((i,j,n+j)); wall_tri.append((i,n+j,n+i))
+                                    wall_faces=panorama_faces_from_world_mesh(
+                                        ctx_poly,wall_xyz,wall_tri,effective_maxdist,wrap_width=wrap_width,
+                                        role='wall',metadata={'projection_family':'PANORAMA','layer_id':lyr.id(),'fid':int(feat.id())},
+                                        render_quality=render_quality,extra_face_budget=_pano_surface_extra_budget,
+                                        pole_guard_px=2.5
+                                    )
+
                             poly_visible=True
                             if _pano_zbuffer_enabled:
-                                if bool(getattr(sty_eff,'fill_polygons',True)):
-                                    _top_fill=_normalized_fill_spec_for_sty(sty_eff,transparent_objects=transparent_objects)
+                                if bool(getattr(sty_eff,'fill_polygons',True)) and (not _defer_ground):
                                     _mix_culler = None
                                     _append_panorama_faces_for_zbuffer_419(_pano_zfaces,surface_faces,_top_fill, terrain_culler=_mix_culler)
                                     if wall_faces and bool(getattr(sty_eff,'fill_walls',True)):
@@ -1552,16 +1655,92 @@ def _render_overlay(self, width, height):
                             if (not layer_labels_hidden) and sty.show_labels and (anchor_uv_global is not None) and text_global:
                                 _emit_feature_label(text_global,anchor_uv_global,sty_eff)
 
-        if _pano_zbuffer_enabled and (_pano_zfaces or _pano_deferred_edges):
+        if _pano_zbuffer_enabled and (_pano_zfaces or _pano_deferred_edges or _pano_deferred_ground_surfaces):
             try:
-                _has_tex=any(bool((f.get('fill_spec') or {}).get('schematic_billboard_texture',False)) for f in _pano_zfaces)
-                _zscale=_panorama_zbuffer_scale_for_preview_419(self,width,height,has_texture=_has_tex)
-                _rgba,_depth,_zscale=_compose_panorama_faces_zbuffer_40191(width,height,_pano_zfaces,scale=_zscale,owner=self)
+                _has_tex=any((f.get('fill_spec') or {}).get('texture_img') is not None for f in _pano_zfaces)
+                _has_raster_drape=any(bool((f.get('fill_spec') or {}).get('raster_drape_texture',False)) for f in _pano_zfaces)
+                _zscale=_panorama_zbuffer_scale_for_preview_419(
+                    self,width,height,has_texture=_has_tex,has_raster_drape=_has_raster_drape
+                )
+
+                # Terrain, deferred large ground polygons and ordinary objects are
+                # composed as three explicit stages.  Large polygons are not
+                # triangulated across their kilometre-scale interior; instead a
+                # DEM(+height) surface supplies depth and world XY is tested against
+                # the source polygon in screen space.
+                _terrain_faces=[]
+                _object_faces=[]
+                for _zf in _pano_zfaces:
+                    if bool((_zf.get('fill_spec') or {}).get('raster_drape_texture',False)):
+                        _terrain_faces.append(_zf)
+                    else:
+                        _object_faces.append(_zf)
+
+                if _terrain_faces:
+                    _rgba,_depth,_zscale=_compose_panorama_faces_zbuffer_40191(
+                        width,height,_terrain_faces,scale=_zscale,owner=None
+                    )
+                    try:
+                        _dfs=(_terrain_faces[0].get('fill_spec') or {}) if _terrain_faces else {}
+                        _dtex=_dfs.get('deferred_raster_texture')
+                        _dext=_dfs.get('deferred_raster_extent')
+                        if _dtex is not None and _dext is not None and len(_dext)==4:
+                            _drect=QgsRectangle(float(_dext[0]),float(_dext[1]),
+                                                float(_dext[2]),float(_dext[3]))
+                            _rgba=_apply_deferred_panorama_raster_texture_4207(
+                                _rgba,_depth,_zscale,_pano_ctx_common,_dtex,_drect
+                            )
+                    except Exception as _exc:
+                        try: qcv_log(f"Deferred panorama raster texture: {_exc}",'RASTER/DRAPE','WARNING')
+                        except Exception: pass
+                else:
+                    _sw=max(1,int(round(float(width)*float(_zscale))))
+                    _sh=max(1,int(round(float(height)*float(_zscale))))
+                    _rgba=np.zeros((_sh,_sw,4),dtype=np.uint8)
+                    _depth=np.full((_sh,_sw),np.inf,dtype=np.float32)
+
+                _deferred_preserve=None
+                if _pano_deferred_ground_surfaces:
+                    _surface_cache={}
+                    for _desc in _pano_deferred_ground_surfaces:
+                        try: _dmax=float(_desc.get('maxdist',maxdist) or maxdist)
+                        except Exception: _dmax=float(maxdist)
+                        _pm=_apply_deferred_panorama_polygon_surface_4208(
+                            self,_rgba,_depth,_zscale,_pano_ctx_common,_desc,cam_pt,
+                            _dmax,yaw_eff,HFOV,is360,z_sampler,render_quality,_surface_cache
+                        )
+                        if isinstance(_pm,np.ndarray):
+                            if _deferred_preserve is None:
+                                _deferred_preserve=_pm.copy()
+                            else:
+                                _deferred_preserve |= _pm
+                    _surface_cache.clear()
+
+                if _object_faces:
+                    _rgba,_depth,_zscale=_compose_panorama_faces_zbuffer_40191(
+                        width,height,_object_faces,scale=_zscale,owner=self,
+                        rgba_seed=_rgba,depth_seed=_depth
+                    )
+                elif not _terrain_faces:
+                    try:
+                        self._panorama_zbuffer_runtime_stats={
+                            'faces_total':0,'faces_processed':0,'depth_tiles_skipped':0,
+                            'aborted_memory':False,'width':int(_depth.shape[1]),
+                            'height':int(_depth.shape[0]),'scale':float(_zscale),
+                        }
+                    except Exception:
+                        pass
+
                 _compose_panorama_strokes_zbuffer(
                     _rgba, _depth, _zscale, _pano_deferred_edges)
-                if occ_relief and self._horizon is not None:
+                # The raster-drape terrain depth is already authoritative.  Without
+                # raster drape we still use the historical horizon mask for ordinary
+                # objects, but pixels produced by the new deferred polygon surface are
+                # protected from the second, differently sampled terrain test.
+                if (not _terrain_faces) and occ_relief and self._horizon is not None:
                     _rgba=_mask_panorama_zbuffer_by_horizon(
-                        _rgba,_depth,_zscale,_pano_ctx_common,self._horizon,eps
+                        _rgba,_depth,_zscale,_pano_ctx_common,self._horizon,eps,
+                        preserve_mask=_deferred_preserve
                     )
                 _zimg=_rgba_owned_array_to_qimage(_rgba)
                 if _zimg is None or _zimg.isNull():
@@ -1579,9 +1758,9 @@ def _render_overlay(self, width, height):
                     self._panorama_last_zbuffer_scale=float(_zscale)
                     self._panorama_last_terrain_culled_faces=int(_pano_terrain_cull_stats.get('objects_culled',0))
                 except Exception as _qcv_exc: _qcv_suppress(_qcv_exc, "core/_render_ops.py:1741")
-                _rgba=None; _zimg=None
+                _rgba=None; _zimg=None; _deferred_preserve=None
             except Exception as _exc:
-                try: qcv_log(f"PANORAMA z-buffer 40.19.2 : {_exc}",'PANORAMA/ZBUFFER','WARNING')
+                try: qcv_log(f"PANORAMA z-buffer 40.21 : {_exc}",'PANORAMA/ZBUFFER','WARNING')
                 except Exception as _qcv_exc: _qcv_suppress(_qcv_exc, "core/_render_ops.py:1745")
 
                 _panorama_depth_error = _exc
@@ -1589,6 +1768,8 @@ def _render_overlay(self, width, height):
             finally:
                 try: _pano_zfaces.clear()
                 except Exception as _qcv_exc: _qcv_suppress(_qcv_exc, "core/_render_ops.py:1751")
+                try: _pano_deferred_ground_surfaces.clear()
+                except Exception: pass
 
         if topo_draw_before_vectors and _pano_zbuffer_enabled:
             p.save()
@@ -1615,7 +1796,7 @@ def _render_overlay(self, width, height):
             blocked = sum(1 for s in snaps if not s.get('accepted', True))
             active = [s for s in snaps if s.get('accepted', True)]
             if blocked and not active:
-                _label_budget_text(self, f"Rendu bloqué • {blocked} couche(s) trop lourde(s)")
+                _label_budget_text(self, f"Rendering blocked • {blocked} layer(s) too heavy")
             elif active:
                 shown = min(len(active), 3)
                 main = active[:shown]
@@ -1624,18 +1805,18 @@ def _render_overlay(self, width, height):
                 labels_off = any(bool(s.get('labels_off', False)) for s in active)
                 simplified = any(bool(s.get('simplify', False) or s.get('style_light', False)) for s in active)
                 forced = any(str(s.get('reason', 'ok')) == 'forced_light' for s in active)
-                msg = f"Aperçu : {max_count} objets • distance auto {min_dist:.0f} m"
+                msg = f"Preview: {max_count} objects • auto distance {min_dist:.0f} m"
                 if labels_off:
-                    msg += ' • labels coupés'
+                    msg += ' • labels hidden'
                 if simplified:
-                    msg += ' • rendu allégé'
+                    msg += ' • simplified rendering'
                 if forced:
-                    msg += ' • couche(s) contraintes'
+                    msg += ' • constrained layer(s)'
                 if blocked:
-                    msg += f" • {blocked} couche(s) bloquée(s)"
+                    msg += f" • {blocked} blocked layer(s)"
                 _label_budget_text(self, msg)
             else:
-                _label_budget_text(self, 'Budget : -')
+                _label_budget_text(self, 'Budget: -')
         except Exception as _qcv_exc:
             _qcv_suppress(_qcv_exc, "core/_render_ops.py:1806")
 
@@ -1654,8 +1835,8 @@ def _render_overlay(self, width, height):
                 _ex=bool(_pano_schematic_budget.get('exhausted',False))
                 if _ex or _cul>0:
                     bits=[]
-                    if _ex: bits.append(f"motifs plafonnés à {int(_pano_schematic_budget.get('initial',0)):,}".replace(',', ' '))
-                    if _cul>0: bits.append(f"{_cul:,} sous-pixel ignorés".replace(',', ' '))
+                    if _ex: bits.append(f"symbols capped at {int(_pano_schematic_budget.get('initial',0)):,}".replace(',', ' '))
+                    if _cul>0: bits.append(f"{_cul:,} sub-pixel items ignored".replace(',', ' '))
                     _cur=self.lbl_render_budget.text() if hasattr(self,'lbl_render_budget') else ''
                     _label_budget_text(self,(str(_cur)+' • '+' • '.join(bits)).strip(' •'))
         except Exception as _qcv_exc:
@@ -1667,9 +1848,9 @@ def _render_overlay(self, width, height):
             _sc=int(_pano_terrain_cull_stats.get('schematic_preculled',0)) if panoramic_overlay_mode else 0
             _ec=int(getattr(self,'_panorama_last_edge_terrain_culled',0)) if panoramic_overlay_mode else 0
             bits=[]
-            if _tc>0: bits.append(f'{_tc:,} objets rejetés avant faces'.replace(',', ' '))
-            if _sc>0: bits.append(f'{_sc:,} objets AVR non générés'.replace(',', ' '))
-            if _ec>0: bits.append(f'{_ec:,} segments masqués par relief'.replace(',', ' '))
+            if _tc>0: bits.append(f'{_tc:,} objects rejected before face generation'.replace(',', ' '))
+            if _sc>0: bits.append(f'{_sc:,} AVR objects not generated'.replace(',', ' '))
+            if _ec>0: bits.append(f'{_ec:,} segments hidden by terrain'.replace(',', ' '))
             if bits:
                 _cur=self.lbl_render_budget.text() if hasattr(self,'lbl_render_budget') else ''
                 _label_budget_text(self,(str(_cur)+' • '+' • '.join(bits)).strip(' •'))
@@ -1679,7 +1860,7 @@ def _render_overlay(self, width, height):
             _zrs=getattr(self,'_panorama_zbuffer_runtime_stats',None)
             if isinstance(_zrs,dict) and bool(_zrs.get('aborted_memory',False)):
                 _cur=self.lbl_render_budget.text() if hasattr(self,'lbl_render_budget') else ''
-                _label_budget_text(self,(str(_cur)+' • z-buffer arrêté avant limite mémoire critique').strip(' •'))
+                _label_budget_text(self,(str(_cur)+' • z-buffer stopped before critical memory limit').strip(' •'))
         except Exception as _qcv_exc:
             _qcv_suppress(_qcv_exc, "core/_render_ops.py:1850")
 
@@ -1707,18 +1888,13 @@ def _render_overlay(self, width, height):
         except Exception as _qcv_exc:
             _qcv_suppress(_qcv_exc, "core/_render_ops.py:1874")
 
-        try:
-            self._draw_monoplot_overlay(p, width, height)
-        except Exception as _qcv_exc:
-            _qcv_suppress(_qcv_exc, "core/_render_ops.py:1879")
-
     except Exception as e:
         try:
             import traceback
             from qgis.core import QgsMessageLog
             _tb = traceback.format_exc()
             QgsMessageLog.logMessage(
-                tr(f"QCALVIEW overlay error: {e}\n--- Python traceback complet ---\n{_tb}"),
+                tr(f"QCALVIEW overlay error: {e}\n--- Full Python traceback ---\n{_tb}"),
                 "QCALVIEW", 2
             )
         except Exception as _qcv_exc:
@@ -1792,6 +1968,9 @@ def _overlay_params_key(self, width: int, height: int):
         getattr(self, '_dem_color', QColor()).rgba() if hasattr(self, '_dem_color') else None,
         getattr(self, '_dem_color', QColor()).rgba() if hasattr(self, '_dem_color') else None,
         (self.cmb_dem.currentLayer().id() if getattr(self, 'cmb_dem', None) and self.cmb_dem.currentLayer() else None),
+        bool(getattr(self, 'cb_dem_show_all_rasters', None) and self.cb_dem_show_all_rasters.isChecked()),
+        bool(getattr(self, 'cb_drape_rasters', None) and self.cb_drape_rasters.isChecked()),
+        tuple(self._drape_layer_ids()) if hasattr(self, '_drape_layer_ids') else tuple(),
         bool(self.cb_use_dem_z.isChecked()) if hasattr(self, 'cb_use_dem_z') else False,
         round(float(self.d_az_step.value()), 4) if hasattr(self, 'd_az_step') else 0.5,
         round(float(self.d_rad_step.value()), 3) if hasattr(self, 'd_rad_step') else 50.0,
@@ -1877,10 +2056,10 @@ def _perf_profile_name(self):
     try:
         txt = str(self.cmb_perf_budget.currentText()).strip().lower()
     except Exception:
-        txt = 'équilibré'
+        txt = 'balanced'
     if txt.startswith('s'):
         return 'safe'
-    if 'max' in txt or 'détail' in txt or 'detail' in txt:
+    if 'max' in txt or 'detail' in txt or 'detail' in txt:
         return 'detail'
     return 'balanced'
 
@@ -3358,6 +3537,7 @@ def _feature_local_style(self, base_sty, feat):
         eff.fill_color = qsty.get('fill_color', getattr(base_sty, 'fill_color', eff.color))
         eff.width = qsty.get('width', getattr(base_sty, 'width', 1.0))
         eff.pen_style = qsty.get('pen_style', getattr(base_sty, 'pen_style', QC.Qt_PenStyle_SolidLine))
+        eff.qgis_dash_pattern = list(qsty.get('dash_pattern', getattr(base_sty, 'qgis_dash_pattern', [])) or [])
         eff.opacity = qsty.get('opacity', getattr(base_sty, 'opacity', 1.0))
         eff.fill_polygons = bool(qsty.get('fill_polygons', getattr(base_sty, 'fill_polygons', True)))
         eff.qgis_fill_style = qsty.get('fill_style', getattr(base_sty, 'qgis_fill_style', None))
@@ -3446,19 +3626,59 @@ def _sample_rgba_from_fill_spec(fill_spec, xs, ys, bbox, texture_uv=None):
                     mapped_uv = (uu, vv)
             except Exception:
                 mapped_uv = None
+        uv_inside = None
+        sampled = None
         if mapped_uv is not None:
             uu, vv = mapped_uv
-            tx = np.clip(np.round(uu * max(0, tw - 1)), 0, max(0, tw - 1)).astype(np.int64)
-            ty = np.clip(np.round(vv * max(0, th - 1)), 0, max(0, th - 1)).astype(np.int64)
+            is_drape = bool((fill_spec or {}).get('raster_drape_texture', False))
+            finite_uv = np.isfinite(uu) & np.isfinite(vv)
+            if is_drape:
+                # Raster drape UVs can become extremely large close to the camera or
+                # behind clipped triangles.  Do not run these values through np.clip
+                # followed by an int64 conversion: on large QGIS 4 previews this has
+                # triggered native NumPy access violations.  Only valid [0,1] pixels
+                # are converted to texture indices; everything else stays transparent.
+                uv_inside = (finite_uv &
+                             (uu >= 0.0) & (uu <= 1.0) &
+                             (vv >= 0.0) & (vv <= 1.0))
+                sampled = np.zeros((h, w, 4), dtype=np.uint8)
+                if bool(np.any(uv_inside)):
+                    uvals = np.asarray(uu[uv_inside], dtype=np.float32)
+                    vvals = np.asarray(vv[uv_inside], dtype=np.float32)
+                    txv = np.floor(uvals * np.float32(max(0, tw - 1)) + np.float32(0.5)).astype(np.int32, copy=False)
+                    tyv = np.floor(vvals * np.float32(max(0, th - 1)) + np.float32(0.5)).astype(np.int32, copy=False)
+                    # Values are mathematically within bounds, but guard round-off
+                    # without allocating another full tile-sized clipped array.
+                    if txv.size:
+                        txv[txv < 0] = 0; txv[txv >= tw] = max(0, tw - 1)
+                        tyv[tyv < 0] = 0; tyv[tyv >= th] = max(0, th - 1)
+                        sampled[uv_inside] = tex_rgba[tyv, txv]
+            else:
+                # Generic mapped textures: sanitize non-finite values before index
+                # conversion and use int32 indices to halve temporary memory.
+                us = np.where(finite_uv, uu, 0.0).astype(np.float32, copy=False)
+                vs = np.where(finite_uv, vv, 0.0).astype(np.float32, copy=False)
+                us[us < 0.0] = 0.0; us[us > 1.0] = 1.0
+                vs[vs < 0.0] = 0.0; vs[vs > 1.0] = 1.0
+                tx = np.floor(us * np.float32(max(0, tw - 1)) + np.float32(0.5)).astype(np.int32, copy=False)
+                ty = np.floor(vs * np.float32(max(0, th - 1)) + np.float32(0.5)).astype(np.int32, copy=False)
+                sampled = tex_rgba[ty, tx].copy()
+                sampled[~finite_uv, 3] = 0
         elif mode == 'stretch':
             sx = max(1.0, float(bx1 - bx0))
             sy = max(1.0, float(by1 - by0))
-            tx = np.clip(np.round(((xs - bx0) / sx) * max(0, tw - 1)), 0, max(0, tw - 1)).astype(np.int64)
-            ty = np.clip(np.round(((ys - by0) / sy) * max(0, th - 1)), 0, max(0, th - 1)).astype(np.int64)
+            us = (((xs - bx0) / sx)).astype(np.float32, copy=False)
+            vs = (((ys - by0) / sy)).astype(np.float32, copy=False)
+            us[~np.isfinite(us)] = 0.0; vs[~np.isfinite(vs)] = 0.0
+            us[us < 0.0] = 0.0; us[us > 1.0] = 1.0
+            vs[vs < 0.0] = 0.0; vs[vs > 1.0] = 1.0
+            tx = np.floor(us * np.float32(max(0, tw - 1)) + np.float32(0.5)).astype(np.int32, copy=False)
+            ty = np.floor(vs * np.float32(max(0, th - 1)) + np.float32(0.5)).astype(np.int32, copy=False)
+            sampled = tex_rgba[ty, tx].copy()
         else:
-            tx = np.mod(np.floor(xs - float(bx0)).astype(np.int64), tw)
-            ty = np.mod(np.floor(ys - float(by0)).astype(np.int64), th)
-        sampled = tex_rgba[ty, tx].copy()
+            tx = np.mod(np.floor(xs - float(bx0)).astype(np.int32), tw)
+            ty = np.mod(np.floor(ys - float(by0)).astype(np.int32), th)
+            sampled = tex_rgba[ty, tx].copy()
         preserve_alpha = bool((fill_spec or {}).get('preserve_texture_alpha', False))
         if (not preserve_alpha) and sampled[:, :, 3].min() < 250:
             bg = _color_to_rgba_arr(_background_fill_color_from_spec(fill_spec or {}, fallback=QColor(225,225,225,255))).astype(np.float32)
@@ -3751,12 +3971,25 @@ def _compose_panorama_strokes_zbuffer(rgba, depth, scale, edges):
                             rgba[y0:y1,x0:x1],depth[y0:y1,x0:x1],cols,xx,yy,p0,p1,d0,d1)
 
 
-def _compose_panorama_faces_zbuffer_40191(width, height, faces, scale=1.0, owner=None):
+def _compose_panorama_faces_zbuffer_40191(width, height, faces, scale=1.0, owner=None,
+                                             rgba_seed=None, depth_seed=None):
 
     sw = max(1, int(round(float(width) * float(scale))))
     sh = max(1, int(round(float(height) * float(scale))))
-    depth = np.full((sh, sw), np.inf, dtype=np.float32)
-    rgba = np.zeros((sh, sw, 4), dtype=np.uint8)
+    # Allow a terrain pass to seed the scene depth independently from its
+    # texture colour.  The second (objects) pass then reuses these same arrays,
+    # so terrain occlusion is resolved by the z-buffer itself rather than by an
+    # additional horizon mask which could incorrectly erase terrain pixels.
+    if (isinstance(depth_seed, np.ndarray) and depth_seed.shape == (sh, sw) and
+            depth_seed.dtype == np.float32 and depth_seed.flags.writeable):
+        depth = depth_seed
+    else:
+        depth = np.full((sh, sw), np.inf, dtype=np.float32)
+    if (isinstance(rgba_seed, np.ndarray) and rgba_seed.shape == (sh, sw, 4) and
+            rgba_seed.dtype == np.uint8 and rgba_seed.flags.writeable):
+        rgba = rgba_seed
+    else:
+        rgba = np.zeros((sh, sw, 4), dtype=np.uint8)
     sc = float(scale)
     tile_px = 160
     A = np.empty((tile_px, tile_px), dtype=np.float32)
@@ -3847,7 +4080,12 @@ def _compose_panorama_faces_zbuffer_40191(width, height, faces, scale=1.0, owner
 
 
         kind = str(fill_spec.get('kind', 'simple') or 'simple').lower()
-        fast_simple = (kind == 'simple' and fill_spec.get('texture_img', None) is None)
+        # A terrain-depth face may intentionally have no texture or colour at all.
+        # It still has to rasterize into the depth buffer, so it must not take the
+        # fast-simple branch which rejects fully transparent colours before depth is written.
+        terrain_depth_surface = bool(fill_spec.get('terrain_depth_surface', False))
+        fast_simple = (kind == 'simple' and fill_spec.get('texture_img', None) is None
+                       and not terrain_depth_surface)
         simple_rgba = None
         if fast_simple:
             try:
@@ -3861,6 +4099,7 @@ def _compose_panorama_faces_zbuffer_40191(width, height, faces, scale=1.0, owner
         ath = max(0,min(255,int(fill_spec.get('depth_alpha_threshold',1) or 1)))
         intrinsic = bool(fill_spec.get('depth_uses_intrinsic_alpha',False))
         target = max(0,min(255,int(fill_spec.get('target_alpha',255) or 0)))
+        # Terrain geometry writes depth independently from raster colour/NoData.
 
         for tri_s, dep_s in _clip_triangle_to_viewport(pts_s, dep, sw, sh):
             xs3=(tri_s[0][0],tri_s[1][0],tri_s[2][0]); ys3=(tri_s[0][1],tri_s[1][1],tri_s[2][1])
@@ -3900,7 +4139,11 @@ def _compose_panorama_faces_zbuffer_40191(width, height, faces, scale=1.0, owner
                     np.multiply(XX,a_x,out=av); np.multiply(YY,a_y,out=tv); np.add(av,tv,out=av); av += a_c
                     np.multiply(XX,b_x,out=bv); np.multiply(YY,b_y,out=tv); np.add(bv,tv,out=bv); bv += b_c
                     np.add(av,bv,out=cv); np.subtract(np.float32(1.0),cv,out=cv)
-                    epsb=np.float32(1e-6)
+                    # Shared terrain edges should rasterize without pinholes.  The normal
+                    # epsilon stays tiny for vector/schematic objects; the draped raster gets a
+                    # slightly conservative edge test so floating-point rounding cannot reveal
+                    # one-pixel cracks after panorama mapping.
+                    epsb=np.float32(1e-4 if bool(fill_spec.get('raster_drape_texture',False)) else 1e-6)
                     np.greater_equal(av,-epsb,out=mv)
                     np.greater_equal(bv,-epsb,out=m2); np.logical_and(mv,m2,out=mv)
                     np.greater_equal(cv,-epsb,out=m2); np.logical_and(mv,m2,out=mv)
@@ -3957,6 +4200,11 @@ def _compose_panorama_faces_zbuffer_40191(width, height, faces, scale=1.0, owner
                         for ch in range(4):
                             cc=sl_rgba[:,:,ch]; cc[mv]=simple_rgba[ch]
                     else:
+                        # Keep the geometric visibility mask before applying texture alpha.
+                        # For a terrain-depth surface this mask is the DEM coverage and must
+                        # update depth even when the raster colour at that pixel is transparent.
+                        if terrain_depth_surface:
+                            np.copyto(m3, mv)
                         cols=_sample_rgba_from_fill_spec(fill_spec,XX,YY,pb,texture_uv=mapped_texture_uv)
                         aa=cols[:,:,3]
                         if intrinsic:
@@ -3969,10 +4217,22 @@ def _compose_panorama_faces_zbuffer_40191(width, height, faces, scale=1.0, owner
                                 np.greater_equal(aa,ath,out=m2); np.logical_and(mv,m2,out=mv)
                         else:
                             np.greater_equal(aa,ath,out=m2); np.logical_and(mv,m2,out=mv)
-                        if not np.any(mv): continue
-                        sl_depth[mv]=zv[mv]
-                        for ch in range(4):
-                            cc=sl_rgba[:,:,ch]; cc[mv]=cols[:,:,ch][mv]
+                        if terrain_depth_surface:
+                            # Depth follows the DEM, not the raster alpha.  Clear colour on
+                            # transparent/NoData terrain fragments so the source photograph
+                            # remains visible there, while objects behind the terrain stay hidden.
+                            sl_depth[m3]=zv[m3]
+                            np.logical_not(mv,out=m2); np.logical_and(m3,m2,out=m2)
+                            if np.any(m2):
+                                sl_rgba[m2]=0
+                            if np.any(mv):
+                                for ch in range(4):
+                                    cc=sl_rgba[:,:,ch]; cc[mv]=cols[:,:,ch][mv]
+                        else:
+                            if not np.any(mv): continue
+                            sl_depth[mv]=zv[mv]
+                            for ch in range(4):
+                                cc=sl_rgba[:,:,ch]; cc[mv]=cols[:,:,ch][mv]
         processed += 1
 
     if owner is not None:
@@ -4739,7 +4999,7 @@ def _panorama_fragment_visible_by_horizon(ctx, horizon, eps_deg, x, y, radial_de
         return True
 
 
-def _mask_panorama_zbuffer_by_horizon(rgba, depth_buf, depth_scale, ctx, horizon, eps_deg):
+def _mask_panorama_zbuffer_by_horizon(rgba, depth_buf, depth_scale, ctx, horizon, eps_deg, preserve_mask=None):
 
     if rgba is None or depth_buf is None or not horizon or ctx is None:
         return rgba
@@ -4831,6 +5091,13 @@ def _mask_panorama_zbuffer_by_horizon(rgba, depth_buf, depth_scale, ctx, horizon
                         e2=env.copy(); e2[hp]=ec[ai[hp],lo[hp]]; env=e2
                     env=np.where(hp,env,-np.inf)
                 hidden=valid&np.isfinite(env)&(el<(env-float(eps_deg)))
+                if preserve_mask is not None:
+                    try:
+                        pm=np.asarray(preserve_mask[y0:y1,x0:x1],dtype=np.bool_)
+                        if pm.shape==ds.shape:
+                            hidden &= ~pm[yy,xx]
+                    except Exception:
+                        pass
                 if not np.any(hidden):
                     continue
                 hy=yy[hidden]; hx=xx[hidden]
@@ -5045,7 +5312,7 @@ def _draw_filled_projected_polygon(self, painter, sty, uv_base, uv_top=None, tra
         return
     top_fill = _normalized_fill_spec_for_sty(sty, transparent_objects=transparent_objects)
     edge_col = QColor(getattr(sty, 'color', getattr(sty, 'fill_color', QColor(0,255,0,255))))
-    pen = _make_pen_for_style(edge_col, getattr(sty, 'width', 0.0), 1.0, getattr(sty, 'pen_style', QC.Qt_PenStyle_SolidLine), _style_opacity_factor(sty))
+    pen = _make_pen_for_style(edge_col, getattr(sty, 'width', 0.0), 1.0, getattr(sty, 'pen_style', QC.Qt_PenStyle_SolidLine), _style_opacity_factor(sty), getattr(sty, 'qgis_dash_pattern', None))
     wrap_width = _wrap_width_from_painter(self, painter)
     painter.save()
 
@@ -5417,10 +5684,12 @@ _SCHEMATIC_SVG_TEXTURE_CACHE = {}
 
 def _schematic_svg_texture(primitive, target_w_px=256, target_h_px=None):
 
-    target_w_px = max(16, min(1536, int(round(target_w_px))))
+    # Keep preview textures bounded, but allow high-resolution exports to request
+    # the actual projected SVG size (callers still bucket/cap the requested size).
+    target_w_px = max(16, min(6144, int(round(target_w_px))))
     if target_h_px is None:
         target_h_px = target_w_px
-    target_h_px = max(16, min(1536, int(round(target_h_px))))
+    target_h_px = max(16, min(6144, int(round(target_h_px))))
     path = str(getattr(primitive, 'svg_path', '') or '')
     fallback = str((getattr(primitive, 'metadata', {}) or {}).get('fallback', 'generic') or 'generic').lower()
     try:
@@ -5506,10 +5775,1073 @@ def _schematic_svg_texture(primitive, target_w_px=256, target_h_px=None):
 
     _SCHEMATIC_SVG_TEXTURE_CACHE[key] = img
 
-    if len(_SCHEMATIC_SVG_TEXTURE_CACHE) > 128:
-        for k in list(_SCHEMATIC_SVG_TEXTURE_CACHE.keys())[:40]:
-            _SCHEMATIC_SVG_TEXTURE_CACHE.pop(k, None)
+    # Large export SVGs can be several tens of MB each. Keep the cache useful without
+    # allowing high-resolution exports to accumulate gigabytes of QImage buffers.
+    try:
+        def _img_bytes(_img):
+            fn = getattr(_img, 'sizeInBytes', None)
+            if callable(fn):
+                return int(fn())
+            fn = getattr(_img, 'byteCount', None)
+            return int(fn()) if callable(fn) else int(_img.width()) * int(_img.height()) * 4
+        total_bytes = sum(_img_bytes(v) for v in _SCHEMATIC_SVG_TEXTURE_CACHE.values() if v is not None and not v.isNull())
+        while len(_SCHEMATIC_SVG_TEXTURE_CACHE) > 128 or total_bytes > (256 * 1024 * 1024):
+            old_key = next(iter(_SCHEMATIC_SVG_TEXTURE_CACHE))
+            old_img = _SCHEMATIC_SVG_TEXTURE_CACHE.pop(old_key, None)
+            if old_img is not None and not old_img.isNull():
+                total_bytes -= _img_bytes(old_img)
+    except Exception:
+        if len(_SCHEMATIC_SVG_TEXTURE_CACHE) > 128:
+            for k in list(_SCHEMATIC_SVG_TEXTURE_CACHE.keys())[:40]:
+                _SCHEMATIC_SVG_TEXTURE_CACHE.pop(k, None)
     return img
+
+
+
+
+def _apply_deferred_panorama_raster_texture_4207(rgba, depth, scale, ctx, texture, extent):
+    """Colour an already-rasterized panoramic DEM using screen-pixel rays.
+
+    Geometry and texturing are deliberately separated. The terrain mesh only
+    produces radial depth.  For every terrain pixel, this routine inverts the
+    panorama projection, reconstructs the world XY position from the camera ray
+    and radial depth, then samples the QGIS-rendered raster texture directly.
+    No texture coordinate is transported through terrain triangles, so texture
+    seams/T-junctions cannot create gaps in the draped raster.
+    """
+    try:
+        if not isinstance(rgba, np.ndarray) or not isinstance(depth, np.ndarray):
+            return rgba
+        if rgba.ndim != 3 or rgba.shape[2] != 4 or depth.ndim != 2:
+            return rgba
+        if rgba.shape[:2] != depth.shape:
+            return rgba
+        if texture is None or texture.isNull() or extent is None or extent.isEmpty():
+            return rgba
+        tex = _qimage_rgba_owned_array(texture)
+        if tex is None or tex.ndim != 3 or tex.shape[2] != 4 or tex.size == 0:
+            return rgba
+        sh, sw = depth.shape
+        if sh <= 0 or sw <= 0:
+            return rgba
+        sc = max(1.0e-9, float(scale))
+        W = max(1.0, float(ctx.get('width', sw)))
+        H = max(1.0, float(ctx.get('height', sh)))
+        proj = str(ctx.get('proj', '') or '').upper()
+        hf = math.radians(max(1.0e-6, float(ctx.get('HFOV', 360.0))))
+        vf = math.radians(max(1.0e-6, float(ctx.get('VFOV', 180.0))))
+        is360 = bool(ctx.get('is360', False))
+
+        # Pixel centres in full-resolution panorama coordinates. Horizontal ray
+        # angles depend only on X, so compute that part once for the whole frame.
+        x_full = (np.arange(sw, dtype=np.float32) + np.float32(0.5)) / np.float32(sc)
+        if is360:
+            alpha = x_full.astype(np.float64) * (2.0 * math.pi / W) - math.pi
+        else:
+            alpha = (x_full.astype(np.float64) - 0.5 * W) * (hf / W)
+        sin_a = np.sin(alpha).astype(np.float32, copy=False)
+        cos_a = np.cos(alpha).astype(np.float32, copy=False)
+
+        r = np.asarray(ctx.get('r'), dtype=np.float64)
+        up = np.asarray(ctx.get('u'), dtype=np.float64)
+        fwd = np.asarray(ctx.get('f'), dtype=np.float64)
+        if r.size < 3 or up.size < 3 or fwd.size < 3:
+            return rgba
+        # Horizontal component of the unit ray in world coordinates.
+        hx = (sin_a * np.float32(r[0]) + cos_a * np.float32(fwd[0])).astype(np.float32, copy=False)
+        hy = (sin_a * np.float32(r[1]) + cos_a * np.float32(fwd[1])).astype(np.float32, copy=False)
+
+        if proj == 'CYLINDRICAL':
+            vf = float(_validated_vfov_for_cylindrical(float(ctx.get('VFOV', 0.0)),
+                                                        float(ctx.get('HFOV', 0.0)),
+                                                        int(round(W)), int(round(H))))
+            # The projector helper returns radians.
+            if not (math.isfinite(vf) and 1.0e-6 < vf < math.pi - 1.0e-3):
+                vf = math.radians(max(1.0e-6, float(ctx.get('VFOV', 90.0))))
+            fy = (H * 0.5) / max(1.0e-9, math.tan(vf * 0.5))
+        else:
+            fy = None
+
+        xmin = float(extent.xMinimum()); xmax = float(extent.xMaximum())
+        ymin = float(extent.yMinimum()); ymax = float(extent.yMaximum())
+        ew = max(1.0e-12, xmax - xmin); eh = max(1.0e-12, ymax - ymin)
+        th, tw = int(tex.shape[0]), int(tex.shape[1])
+        cx = np.float32(float(ctx.get('cx', 0.0)))
+        cy = np.float32(float(ctx.get('cy', 0.0)))
+        upx = np.float32(up[0]); upy = np.float32(up[1])
+
+        # Keep peak memory bounded on large 360° exports.  A 192-row tile needs
+        # only a handful of temporary float arrays instead of duplicating the
+        # complete panorama several times.
+        tile_rows = 192
+        for y0 in range(0, sh, tile_rows):
+            y1 = min(sh, y0 + tile_rows)
+            dep = depth[y0:y1]
+            valid = np.isfinite(dep) & (dep > np.float32(0.0))
+            if not np.any(valid):
+                continue
+            y_full = (np.arange(y0, y1, dtype=np.float32) + np.float32(0.5)) / np.float32(sc)
+            if proj in ('EQUIRECT', 'EQUIRECTANGULAR'):
+                if is360:
+                    beta = (math.pi * 0.5 - y_full.astype(np.float64) * (math.pi / H))
+                else:
+                    beta = ((0.5 * H - y_full.astype(np.float64)) * (vf / H))
+            elif proj == 'CYLINDRICAL':
+                beta = np.arctan((0.5 * H - y_full.astype(np.float64)) / max(1.0e-9, float(fy)))
+            else:
+                return rgba
+            cos_b = np.cos(beta).astype(np.float32, copy=False)[:, None]
+            sin_b = np.sin(beta).astype(np.float32, copy=False)[:, None]
+            # world_dir = cos(beta)*(sin(alpha)*right + cos(alpha)*forward)
+            #             + sin(beta)*up
+            dir_x = cos_b * hx[None, :] + sin_b * upx
+            dir_y = cos_b * hy[None, :] + sin_b * upy
+            world_x = cx + dep * dir_x
+            world_y = cy + dep * dir_y
+            uu = (world_x - np.float32(xmin)) / np.float32(ew)
+            vv = (np.float32(ymax) - world_y) / np.float32(eh)
+            valid &= np.isfinite(uu) & np.isfinite(vv)
+            valid &= (uu >= 0.0) & (uu <= 1.0) & (vv >= 0.0) & (vv <= 1.0)
+            if not np.any(valid):
+                continue
+            tx = np.clip(np.rint(uu * np.float32(max(0, tw - 1))), 0, max(0, tw - 1)).astype(np.int32)
+            ty = np.clip(np.rint(vv * np.float32(max(0, th - 1))), 0, max(0, th - 1)).astype(np.int32)
+            cols = tex[ty, tx]
+            # Alpha/NoData affects colour only.  Terrain depth was already written
+            # in the previous pass and remains available for object occlusion.
+            colour_mask = valid & (cols[:, :, 3] > 0)
+            if np.any(colour_mask):
+                tile = rgba[y0:y1]
+                tile[colour_mask] = cols[colour_mask]
+        return rgba
+    except Exception as exc:
+        try:
+            qcv_log(f"Deferred panorama raster texture: {exc}", 'RASTER/DRAPE', 'WARNING')
+        except Exception:
+            pass
+        return rgba
+
+def _raster_drape_mesh_shape(self, extent, render_quality='high'):
+    try:
+        ew=max(1e-9,float(extent.width())); eh=max(1e-9,float(extent.height()))
+        aspect=ew/eh
+    except Exception:
+        aspect=1.0
+    preview=bool(getattr(self,'_memory_guard_in_preview',False))
+    q=str(render_quality or 'high').lower()
+    if preview:
+        longest=34 if q=='low' else 50 if q=='normal' else 68
+    else:
+        longest=96
+    if aspect>=1.0:
+        nx=int(longest); ny=max(12,int(round(longest/aspect)))
+    else:
+        ny=int(longest); nx=max(12,int(round(longest*aspect)))
+    return max(12,min(112,nx)),max(12,min(112,ny))
+
+
+def _raster_drape_panorama_mesh(self, extent, cam_pt, maxdist, yaw, HFOV, is360, z_sampler,
+                                  render_quality='high', export_mode=False):
+    """Build a camera-centred polar terrain mesh for panoramic draping.
+
+    A rectangular XY grid is efficient for PINHOLE, but cells which straddle the
+    panorama seam or pass close to the observer can project to enormous wedges.
+    A polar mesh keeps angular edges aligned with the cylindrical/equirectangular
+    projection and uses progressively larger radial cells away from the camera.
+    """
+    try:
+        cx=float(cam_pt.x()); cy=float(cam_pt.y())
+        xmin=float(extent.xMinimum()); xmax=float(extent.xMaximum())
+        ymin=float(extent.yMinimum()); ymax=float(extent.yMaximum())
+    except Exception:
+        return None
+    try:
+        radius=float(maxdist) if maxdist is not None and float(maxdist)>0.0 else 20000.0
+    except Exception:
+        radius=20000.0
+    radius=max(25.0,min(radius,50000.0))
+    # Panorama terrain depth must remain continuous even outside the draped
+    # raster's own extent.  Keep the terrain mesh out to QCALVIEW's view radius;
+    # texture UVs outside [0,1] simply produce transparent colour, while the DEM
+    # still contributes depth for correct object occlusion.
+
+    q=str(render_quality or 'high').lower()
+    preview=bool(getattr(self,'_memory_guard_in_preview',False)) and not bool(export_mode)
+    # Interactive panorama draping must stay substantially lighter than the
+    # final export. A denser polar mesh is visually clean, but its
+    # 0.75--1.5 degree angular sampling generated tens of thousands of faces
+    # on wide panoramas and made every refresh prohibitively expensive.
+    # Texture interpolation hides a much coarser terrain tessellation very well,
+    # so keep previews intentionally sparse and reserve the finer mesh for export.
+    if preview:
+        ang_step=6.0 if q=='low' else 4.5 if q=='normal' else 3.0
+        radial_count=16 if q=='low' else 20 if q=='normal' else 24
+    else:
+        ang_step=3.0 if q=='low' else 2.0 if q=='normal' else 1.5
+        radial_count=28 if q=='low' else 34 if q=='normal' else 40
+
+    if bool(is360):
+        span=360.0
+        start=float(yaw)-180.0
+    else:
+        span=max(1.0,min(360.0,float(HFOV)))
+        # A small side margin avoids tiny holes exactly on the viewport borders.
+        margin=max(ang_step*2.0,min(4.0,0.025*span))
+        span=min(360.0,span+2.0*margin)
+        start=float(yaw)-0.5*span
+    n_ang=max(12,int(math.ceil(span/max(0.1,ang_step))))
+    n_ang=min(180 if preview else 360,n_ang)
+    az=np.radians(np.linspace(start,start+span,n_ang+1,dtype=np.float64))
+
+    # Do not create a vertex exactly below the camera.  At r=0 all azimuths map
+    # to one world point with different texture UVs, which is the source of the
+    # large triangular wedges seen in panoramic previews.
+    rmin=max(0.75,min(3.0,radius*0.00025))
+    radial_count=max(12,int(radial_count))
+    rr=np.geomspace(rmin,radius,radial_count,dtype=np.float64)
+    # Insert a few almost-linear near rings for smoother foreground/nadir coverage.
+    near_end=min(radius,max(8.0,rmin*8.0))
+    near=np.linspace(rmin,near_end,5 if preview else 7,dtype=np.float64)
+    rr=np.unique(np.concatenate((near,rr)))
+
+    # QCALVIEW azimuth convention: 0° north (+Y), 90° east (+X).
+    sin_a=np.sin(az); cos_a=np.cos(az)
+    X=cx+rr[:,None]*sin_a[None,:]
+    Y=cy+rr[:,None]*cos_a[None,:]
+    pts=np.column_stack((X.ravel(),Y.ravel()))
+    try:
+        batch=getattr(z_sampler,'batch',None)
+        if callable(batch):
+            z=np.asarray(batch(pts),dtype=np.float64).reshape(-1)
+        else:
+            z=np.asarray([float(z_sampler(QgsPointXY(float(x),float(y)))) for x,y in pts],dtype=np.float64)
+    except Exception:
+        return None
+    if z.size!=pts.shape[0]:
+        try: z=np.resize(z,pts.shape[0]).astype(np.float64,copy=False)
+        except Exception: return None
+
+    curvature_enabled=bool(getattr(self,'cb_curvature',None) and self.cb_curvature.isChecked())
+    earth_radius_m=float(getattr(self,'d_earth_radius_km',None).value()*1000.0) if hasattr(self,'d_earth_radius_km') else 6370000.0
+    z=_apply_pov_curvature_to_z(
+        self,pts,z,cam_pt,curvature_enabled=curvature_enabled,
+        earth_radius_m=earth_radius_m,k_refraction=0.0
+    )
+    ew=max(1e-9,float(extent.width())); eh=max(1e-9,float(extent.height()))
+    texuv=np.column_stack(((pts[:,0]-xmin)/ew,(ymax-pts[:,1])/eh))
+
+    cols=n_ang+1; rows=len(rr); tris=[]
+    for ir in range(rows-1):
+        row=ir*cols; row2=(ir+1)*cols
+        for ia in range(n_ang):
+            a=row+ia; b=a+1; c=row2+ia+1; d=row2+ia
+            # Do not discard cells outside the texture extent.  They carry no
+            # raster colour (UV alpha is transparent) but they are still part of the
+            # continuous DEM depth surface used to occlude projected objects.
+            if not (math.isfinite(z[a]) and math.isfinite(z[b]) and math.isfinite(z[c]) and math.isfinite(z[d])):
+                continue
+            tris.append((a,b,c)); tris.append((a,c,d))
+    if not tris:
+        return None
+    return pts,z,texuv,tris
+
+
+
+def _polygon_area_xy_4208(ring):
+    try:
+        arr=np.asarray(ring,dtype=np.float64)
+        if arr.ndim!=2 or arr.shape[0]<3 or arr.shape[1]<2:
+            return 0.0
+        xy=arr[:,:2]
+        if np.hypot(xy[0,0]-xy[-1,0],xy[0,1]-xy[-1,1])<1e-9:
+            xy=xy[:-1]
+        if xy.shape[0]<3:
+            return 0.0
+        x=xy[:,0]; y=xy[:,1]
+        return abs(float(np.dot(x,np.roll(y,-1))-np.dot(y,np.roll(x,-1))))*0.5
+    except Exception:
+        return 0.0
+
+
+def _is_large_ground_polygon_4208(ring, camera_xy=None, maxdist=None):
+    """Heuristic for the screen-space/deferred polygon path.
+
+    Small polygons are cheaper and more exact through the historical triangulation.
+    Kilometre-scale polygons close to the camera are the pathological case: a few
+    huge terrain-spanning triangles interpolate Z through the polygon interior and
+    can fall below the real DEM, creating triangular holes after terrain occlusion.
+    """
+    try:
+        arr=np.asarray(ring,dtype=np.float64)
+        if arr.ndim!=2 or arr.shape[0]<3:
+            return False
+        x=arr[:,0]; y=arr[:,1]
+        minx=float(np.nanmin(x)); maxx=float(np.nanmax(x)); miny=float(np.nanmin(y)); maxy=float(np.nanmax(y))
+        diag=math.hypot(maxx-minx,maxy-miny)
+        area=_polygon_area_xy_4208(arr)
+        if diag>=1200.0 or area>=350000.0:
+            return True
+        # Also catch broad polygons which occupy a significant fraction of the
+        # active render radius even if their area is small (river/road slivers).
+        try:
+            if maxdist is not None and float(maxdist)>0.0 and diag>=0.28*float(maxdist):
+                return True
+        except Exception:
+            pass
+        return False
+    except Exception:
+        return False
+
+
+def _point_in_ring_mask_4208(world_x, world_y, ring):
+    """Vectorised even/odd point-in-polygon test for one exterior ring."""
+    try:
+        rr=np.asarray(ring,dtype=np.float64)
+        if rr.ndim!=2 or rr.shape[0]<3 or rr.shape[1]<2:
+            return np.zeros(world_x.shape,dtype=np.bool_)
+        rr=rr[:,:2]
+        if np.hypot(rr[0,0]-rr[-1,0],rr[0,1]-rr[-1,1])<1e-9:
+            rr=rr[:-1]
+        if rr.shape[0]<3:
+            return np.zeros(world_x.shape,dtype=np.bool_)
+        minx=float(np.min(rr[:,0])); maxx=float(np.max(rr[:,0])); miny=float(np.min(rr[:,1])); maxy=float(np.max(rr[:,1]))
+        candidate=(world_x>=minx)&(world_x<=maxx)&(world_y>=miny)&(world_y<=maxy)
+        if not np.any(candidate):
+            return candidate
+        inside=np.zeros(world_x.shape,dtype=np.bool_)
+        xj=float(rr[-1,0]); yj=float(rr[-1,1])
+        eps=1e-15
+        for i in range(rr.shape[0]):
+            xi=float(rr[i,0]); yi=float(rr[i,1])
+            cross=((yi>world_y)!=(yj>world_y))
+            den=(yj-yi)
+            if abs(den)<eps:
+                den=eps if den>=0.0 else -eps
+            xcross=(xj-xi)*(world_y-yi)/den+xi
+            inside ^= candidate & cross & (world_x<=xcross)
+            xj,yj=xi,yi
+        return inside
+    except Exception:
+        return np.zeros(world_x.shape,dtype=np.bool_)
+
+
+
+def _repair_internal_panorama_depth_gaps_4208(depth):
+    """Fill only *internal* holes in a panorama terrain depth image.
+
+    The polar DEM mesh is intentionally sparse for interactive rendering.  In a
+    nonlinear panorama projection a sparse, otherwise valid terrain mesh can leave
+    uncovered screen pixels between projected faces.  Those holes are not DEM
+    NoData: they are rasterisation/tessellation gaps.  We seed them by interpolating
+    between finite terrain samples in the same screen column (and only between the
+    first/last finite sample, never into the sky/outside the terrain envelope).
+
+    A boolean mask is returned so the seeded pixels can subsequently be snapped
+    back to the real DEM by ray/DEM intersection without touching the already valid
+    terrain depth.
+    """
+    try:
+        d=np.asarray(depth,dtype=np.float32)
+        if d.ndim!=2 or d.size==0:
+            return d, np.zeros_like(d,dtype=np.bool_)
+        out=d.copy()
+        valid=np.isfinite(out)&(out>np.float32(0.0))
+        repaired=np.zeros_like(valid,dtype=np.bool_)
+        h,w=out.shape
+        # Vertical interpolation is deliberately preferred: for ordinary landscape
+        # panoramas the terrain is a continuous surface below the local horizon,
+        # while the sky must remain untouched.  Filling only bounded runs prevents
+        # extrapolation above the horizon or below an unobserved nadir/pole.
+        for x in range(w):
+            ids=np.flatnonzero(valid[:,x])
+            if ids.size<2:
+                continue
+            lo=int(ids[0]); hi=int(ids[-1])
+            if hi<=lo+1:
+                continue
+            seg_valid=valid[lo:hi+1,x]
+            if bool(seg_valid.all()):
+                continue
+            known_y=ids.astype(np.float64,copy=False)
+            known_d=out[ids,x].astype(np.float64,copy=False)
+            miss=np.flatnonzero(~seg_valid)+lo
+            if miss.size==0:
+                continue
+            vals=np.interp(miss.astype(np.float64),known_y,known_d)
+            good=np.isfinite(vals)&(vals>0.0)
+            if not np.any(good):
+                continue
+            mi=miss[good]
+            out[mi,x]=vals[good].astype(np.float32,copy=False)
+            repaired[mi,x]=True
+        return out,repaired
+    except Exception:
+        try:
+            d=np.asarray(depth,dtype=np.float32)
+            return d,np.zeros_like(d,dtype=np.bool_)
+        except Exception:
+            return depth,None
+
+
+def _refine_repaired_panorama_depth_tile_4208(self, sd, repaired, y0, scale, ctx,
+                                                 z_sampler, height_offset, maxdist, cam_pt):
+    """Snap interpolated depth-gap seeds back onto DEM(+offset) along camera rays.
+
+    Only pixels marked as repaired are evaluated.  A finite-difference Newton step
+    accounts for terrain slope along the ray, so repaired pixels follow the actual
+    DEM rather than a screen-space interpolation.  Failure to converge leaves the
+    harmless interpolated seed in place; existing valid mesh depth is never changed.
+    """
+    try:
+        if z_sampler is None or repaired is None:
+            return sd
+        arr=np.asarray(sd,dtype=np.float32)
+        rep=np.asarray(repaired,dtype=np.bool_)
+        cand=rep & np.isfinite(arr) & (arr>np.float32(0.0))
+        iy,ix=np.nonzero(cand)
+        if iy.size==0:
+            return arr
+        sc=max(1e-9,float(scale))
+        W=max(1.0,float(ctx.get('width',arr.shape[1]))); H=max(1.0,float(ctx.get('height',arr.shape[0])))
+        proj=str(ctx.get('proj','') or '').upper(); full360=bool(ctx.get('is360',False))
+        hf=math.radians(max(1e-6,float(ctx.get('HFOV',360.0)))); vf=math.radians(max(1e-6,float(ctx.get('VFOV',180.0))))
+        x_full=(ix.astype(np.float64)+0.5)/sc
+        y_full=(iy.astype(np.float64)+float(y0)+0.5)/sc
+        if full360:
+            alpha=x_full*(2.0*math.pi/W)-math.pi
+        else:
+            alpha=(x_full-0.5*W)*(hf/W)
+        if proj in ('EQUIRECT','EQUIRECTANGULAR'):
+            if full360:
+                beta=math.pi*0.5-y_full*(math.pi/H)
+            else:
+                beta=(0.5*H-y_full)*(vf/H)
+        elif proj=='CYLINDRICAL':
+            vf2=float(_validated_vfov_for_cylindrical(float(ctx.get('VFOV',90.0)),float(ctx.get('HFOV',360.0)),int(round(W)),int(round(H))))
+            if not (math.isfinite(vf2) and 1e-6<vf2<math.pi-1e-3):
+                vf2=vf
+            fy=(H*0.5)/max(1e-9,math.tan(vf2*0.5))
+            beta=np.arctan((0.5*H-y_full)/max(1e-9,fy))
+        else:
+            return arr
+        r=np.asarray(ctx.get('r'),dtype=np.float64); up=np.asarray(ctx.get('u'),dtype=np.float64); fwd=np.asarray(ctx.get('f'),dtype=np.float64)
+        if r.size<3 or up.size<3 or fwd.size<3:
+            return arr
+        sa=np.sin(alpha); ca=np.cos(alpha); cb=np.cos(beta); sb=np.sin(beta)
+        hx=sa*r[0]+ca*fwd[0]; hy=sa*r[1]+ca*fwd[1]; hz=sa*r[2]+ca*fwd[2]
+        dx=cb*hx+sb*up[0]; dy=cb*hy+sb*up[1]; dz=cb*hz+sb*up[2]
+        norm=np.sqrt(dx*dx+dy*dy+dz*dz)
+        ok=np.isfinite(norm)&(norm>1e-12)
+        dx=np.divide(dx,norm,out=np.zeros_like(dx),where=ok)
+        dy=np.divide(dy,norm,out=np.zeros_like(dy),where=ok)
+        dz=np.divide(dz,norm,out=np.zeros_like(dz),where=ok)
+        dist=arr[iy,ix].astype(np.float64,copy=True)
+        cx=float(ctx.get('cx',float(cam_pt.x()))); cy=float(ctx.get('cy',float(cam_pt.y()))); cz=float(ctx.get('cam_z',0.0))
+        batch=getattr(z_sampler,'batch',None)
+        if not callable(batch):
+            # Scalar fallback is intentionally avoided here: thousands of Python
+            # calls would defeat the purpose of the deferred renderer.  The seed is
+            # still much better than a transparent gap.
+            return arr
+        try:
+            md=float(maxdist) if maxdist is not None and float(maxdist)>0.0 else 50000.0
+        except Exception:
+            md=50000.0
+        md=max(25.0,md)
+        cam_xy=QgsPointXY(cx,cy)
+
+        def sample_surface(dd):
+            wx=cx+dd*dx; wy=cy+dd*dy
+            pts=np.column_stack((wx,wy))
+            zz=np.asarray(batch(pts),dtype=np.float64).reshape(-1)
+            if zz.size!=dd.size:
+                zz=np.resize(zz,dd.size).astype(np.float64,copy=False)
+            zz=_apply_pov_curvature_to_z(self,pts,zz,cam_xy,k_refraction=0.0)
+            return np.asarray(zz,dtype=np.float64)+float(height_offset),wx,wy
+
+        # One Newton step in preview, two for export/high-cost paths.  Finite
+        # differencing captures local DEM slope along the ray unlike dz alone.
+        iters=1 if bool(getattr(self,'_memory_guard_in_preview',False)) else 2
+        active=ok & np.isfinite(dist) & (dist>0.0)
+        for _ in range(max(1,iters)):
+            if not np.any(active):
+                break
+            zsurf,_,_=sample_surface(dist)
+            f0=(cz+dist*dz)-zsurf
+            delta=np.maximum(1.0,np.minimum(20.0,0.003*np.maximum(dist,1.0)))
+            zsurf2,_,_=sample_surface(dist+delta)
+            f1=(cz+(dist+delta)*dz)-zsurf2
+            deriv=(f1-f0)/delta
+            good=active & np.isfinite(f0)&np.isfinite(deriv)&(np.abs(deriv)>1e-5)
+            if not np.any(good):
+                break
+            nd=dist.copy()
+            nd[good]=dist[good]-f0[good]/deriv[good]
+            horiz=nd*np.sqrt(dx*dx+dy*dy)
+            good &= np.isfinite(nd)&(nd>0.25)&(horiz<=md*1.02)
+            dist[good]=nd[good]
+            active=good
+        final_good=np.isfinite(dist)&(dist>0.0)&ok
+        if np.any(final_good):
+            arr[iy[final_good],ix[final_good]]=dist[final_good].astype(np.float32,copy=False)
+        return arr
+    except Exception as exc:
+        try: qcv_log(f"Deferred polygon depth refine: {exc}",'PANORAMA/POLYGON','WARNING')
+        except Exception: pass
+        return sd
+
+
+
+def _deferred_polygon_screen_bbox_4208(self, rings, ctx, z_sampler, height_offset, cam_pt, maxdist, scale):
+    """Return a generous scaled-screen bbox for a deferred ground polygon.
+
+    This bbox is only a performance guard for direct ray/DEM intersection; it does
+    not define polygon visibility. Boundary segments are densified in map space so
+    long river/territory edges do not under-estimate their panorama footprint.
+    """
+    try:
+        samples=[]
+        max_pts=1200
+        for ring in rings or ():
+            rr=np.asarray(ring,dtype=np.float64)
+            if rr.ndim!=2 or rr.shape[0]<3 or rr.shape[1]<2:
+                continue
+            rr=rr[:,:2]
+            if np.hypot(rr[0,0]-rr[-1,0],rr[0,1]-rr[-1,1])<1e-9:
+                rr=rr[:-1]
+            for i in range(rr.shape[0]):
+                a=rr[i]; b=rr[(i+1)%rr.shape[0]]
+                L=float(np.hypot(*(b-a)))
+                n=max(1,min(24,int(math.ceil(L/120.0))))
+                tt=np.linspace(0.0,1.0,n,endpoint=False,dtype=np.float64)
+                seg=a[None,:]*(1.0-tt[:,None])+b[None,:]*tt[:,None]
+                samples.append(seg)
+                if sum(x.shape[0] for x in samples)>=max_pts:
+                    break
+            if sum(x.shape[0] for x in samples)>=max_pts:
+                break
+        if not samples:
+            return None
+        xy=np.vstack(samples)[:max_pts]
+        batch=getattr(z_sampler,'batch',None)
+        if callable(batch):
+            zz=np.asarray(batch(xy),dtype=np.float64).reshape(-1)
+        else:
+            zz=np.asarray([float(z_sampler(QgsPointXY(float(x),float(y)))) for x,y in xy],dtype=np.float64)
+        if zz.size!=xy.shape[0]:
+            return None
+        zz=_apply_pov_curvature_to_z(self,xy,zz,cam_pt,k_refraction=0.0)+float(height_offset)
+        uv=project_points_batch(ctx,xy,zz,dist_max=float(maxdist) if maxdist is not None else None)
+        if uv.ndim!=2 or uv.shape[0]==0:
+            return None
+        good=np.isfinite(uv[:,0])&np.isfinite(uv[:,1])
+        if not np.any(good):
+            return None
+        u=uv[good,0]*float(scale); v=uv[good,1]*float(scale)
+        sw=max(1,int(round(float(ctx.get('width',1))*float(scale))))
+        sh=max(1,int(round(float(ctx.get('height',1))*float(scale))))
+        # Very wide full-360 footprints are cheaper/safer as a full-width window;
+        # vertical limits still remove the large sky region.
+        x0=float(np.min(u)); x1=float(np.max(u)); y0=float(np.min(v)); y1=float(np.max(v))
+        mx=max(10.0,0.025*sw); my=max(12.0,0.08*sh)
+        if bool(ctx.get('is360',False)) and (x1-x0)>0.70*sw:
+            ix0,ix1=0,sw
+        else:
+            ix0=max(0,int(math.floor(x0-mx))); ix1=min(sw,int(math.ceil(x1+mx))+1)
+        iy0=max(0,int(math.floor(y0-my))); iy1=min(sh,int(math.ceil(y1+my))+1)
+        if ix1<=ix0 or iy1<=iy0:
+            return None
+        return (ix0,ix1,iy0,iy1)
+    except Exception:
+        return None
+
+
+def _direct_ground_depth_for_missing_pixels_4208(self, sd, missing_mask, x0, y0, scale, ctx,
+                                                   z_sampler, height_offset, maxdist, cam_pt):
+    """Resolve missing panorama ground depth by direct ray/DEM intersection.
+
+    The solve is expressed in horizontal distance from the camera.  For ordinary
+    ground surfaces (height_offset ~= 0), f(s)=rayZ(s)-DEM(s) starts above ground;
+    the first positive-to-negative crossing is bracketed on logarithmic distance
+    samples and refined by bisection.  This path is used only for pixels where the
+    sparse panorama terrain mesh produced no depth.
+    """
+    try:
+        arr=np.asarray(sd,dtype=np.float32)
+        miss=np.asarray(missing_mask,dtype=np.bool_)
+        iy,ix=np.nonzero(miss)
+        if iy.size==0 or z_sampler is None:
+            return arr
+        # Raised canopy surfaces can place the camera below the mathematical
+        # DEM+offset surface outside the polygon. Keep the legacy mesh path for
+        # those; this path targets true ground/fill polygons only.
+        if abs(float(height_offset))>1e-6:
+            return arr
+        sc=max(1e-9,float(scale)); W=max(1.0,float(ctx.get('width',arr.shape[1]))); H=max(1.0,float(ctx.get('height',arr.shape[0])))
+        proj=str(ctx.get('proj','') or '').upper(); full360=bool(ctx.get('is360',False))
+        hf=math.radians(max(1e-6,float(ctx.get('HFOV',360.0)))); vf=math.radians(max(1e-6,float(ctx.get('VFOV',180.0))))
+        x_full=(ix.astype(np.float64)+float(x0)+0.5)/sc
+        y_full=(iy.astype(np.float64)+float(y0)+0.5)/sc
+        if full360:
+            alpha=x_full*(2.0*math.pi/W)-math.pi
+        else:
+            alpha=(x_full-0.5*W)*(hf/W)
+        if proj in ('EQUIRECT','EQUIRECTANGULAR'):
+            beta=(math.pi*0.5-y_full*(math.pi/H)) if full360 else ((0.5*H-y_full)*(vf/H))
+        elif proj=='CYLINDRICAL':
+            vf2=float(_validated_vfov_for_cylindrical(float(ctx.get('VFOV',90.0)),float(ctx.get('HFOV',360.0)),int(round(W)),int(round(H))))
+            if not (math.isfinite(vf2) and 1e-6<vf2<math.pi-1e-3): vf2=vf
+            fy=(H*0.5)/max(1e-9,math.tan(vf2*0.5)); beta=np.arctan((0.5*H-y_full)/max(1e-9,fy))
+        else:
+            return arr
+        r=np.asarray(ctx.get('r'),dtype=np.float64); up=np.asarray(ctx.get('u'),dtype=np.float64); fwd=np.asarray(ctx.get('f'),dtype=np.float64)
+        if r.size<3 or up.size<3 or fwd.size<3:
+            return arr
+        sa=np.sin(alpha); ca=np.cos(alpha); cb=np.cos(beta); sb=np.sin(beta)
+        hx=sa*r[0]+ca*fwd[0]; hy=sa*r[1]+ca*fwd[1]; hz=sa*r[2]+ca*fwd[2]
+        dx=cb*hx+sb*up[0]; dy=cb*hy+sb*up[1]; dz=cb*hz+sb*up[2]
+        norm=np.sqrt(dx*dx+dy*dy+dz*dz); ok=np.isfinite(norm)&(norm>1e-12)
+        dx=np.divide(dx,norm,out=np.zeros_like(dx),where=ok); dy=np.divide(dy,norm,out=np.zeros_like(dy),where=ok); dz=np.divide(dz,norm,out=np.zeros_like(dz),where=ok)
+        horiz=np.hypot(dx,dy); ok &= np.isfinite(horiz)&(horiz>1e-5)
+        ux=np.divide(dx,horiz,out=np.zeros_like(dx),where=ok); uy=np.divide(dy,horiz,out=np.zeros_like(dy),where=ok); slope=np.divide(dz,horiz,out=np.zeros_like(dz),where=ok)
+        md=max(5.0,float(maxdist) if maxdist is not None and float(maxdist)>0 else 20000.0)
+        cx=float(ctx.get('cx',float(cam_pt.x()))); cy=float(ctx.get('cy',float(cam_pt.y()))); cz=float(ctx.get('cam_z',0.0))
+        batch=getattr(z_sampler,'batch',None)
+        def sample_f(ids,svals):
+            wx=cx+svals*ux[ids]; wy=cy+svals*uy[ids]
+            pts=np.column_stack((wx,wy))
+            if callable(batch): zz=np.asarray(batch(pts),dtype=np.float64).reshape(-1)
+            else: zz=np.asarray([float(z_sampler(QgsPointXY(float(x),float(y)))) for x,y in pts],dtype=np.float64)
+            zz=_apply_pov_curvature_to_z(self,pts,zz,cam_pt,k_refraction=0.0)+float(height_offset)
+            rayz=cz+svals*slope[ids]
+            return rayz-zz
+        ids_all=np.flatnonzero(ok)
+        if ids_all.size==0: return arr
+        # Camera is expected above the ground.  Evaluate a short first step rather
+        # than s=0 to avoid repeated sampling of the same camera pixel.
+        prev_s=np.full(ids_all.size,0.25,dtype=np.float64)
+        prev_f=sample_f(ids_all,prev_s)
+        active=np.isfinite(prev_f)&(prev_f>0.0)
+        lo=np.zeros(ids_all.size,dtype=np.float64); hi=np.zeros(ids_all.size,dtype=np.float64); found=np.zeros(ids_all.size,dtype=np.bool_)
+        # Logarithmic distances capture both near-camera foreground and kilometre
+        # scale terrain with a small, predictable number of DEM batch reads.
+        steps=np.geomspace(0.75,md,15,dtype=np.float64)
+        for ss in steps:
+            pos=np.flatnonzero(active & ~found)
+            if pos.size==0: break
+            ids=ids_all[pos]; cur_s=np.full(pos.size,float(ss),dtype=np.float64); cur_f=sample_f(ids,cur_s)
+            cross=np.isfinite(cur_f)&(cur_f<=0.0)&np.isfinite(prev_f[pos])&(prev_f[pos]>0.0)
+            if np.any(cross):
+                pp=pos[cross]; lo[pp]=prev_s[pp]; hi[pp]=float(ss); found[pp]=True
+            cont=np.isfinite(cur_f)&(cur_f>0.0)
+            pp2=pos[cont]; prev_s[pp2]=float(ss); prev_f[pp2]=cur_f[cont]
+            bad=pos[~(cross|cont)]; active[bad]=False
+        fp=np.flatnonzero(found)
+        if fp.size==0: return arr
+        ids=ids_all[fp]; a=lo[fp].copy(); b=hi[fp].copy()
+        for _ in range(6):
+            m=0.5*(a+b); fm=sample_f(ids,m); left=np.isfinite(fm)&(fm>0.0); a[left]=m[left]; b[~left]=m[~left]
+        sroot=0.5*(a+b); troot=np.divide(sroot,horiz[ids],out=np.full_like(sroot,np.nan),where=horiz[ids]>1e-9)
+        good=np.isfinite(troot)&(troot>0.0)&(sroot<=md*1.001)
+        if np.any(good):
+            target=np.flatnonzero(miss)
+            # ids index the flattened miss list / ray arrays, not the tile itself.
+            gy=iy[ids[good]]; gx=ix[ids[good]]
+            arr[gy,gx]=troot[good].astype(np.float32,copy=False)
+        return arr
+    except Exception as exc:
+        try: qcv_log(f"Deferred direct ground depth: {exc}",'PANORAMA/POLYGON','WARNING')
+        except Exception: pass
+        return sd
+
+def _deferred_panorama_surface_depth_4208(self, ctx, scale, cam_pt, maxdist, yaw, HFOV, is360,
+                                           z_sampler, render_quality, height_offset, cache):
+    """Return a panorama depth surface for DEM + constant vertical offset.
+
+    The mesh is independent from polygon topology.  It is therefore shared by all
+    large polygons using the same height during one render and cannot create the
+    long cross-polygon triangles which caused gaps on kilometre-scale polygons.
+    """
+    try:
+        key=(round(float(height_offset),3),str(render_quality or 'high').lower(),round(float(scale),5),
+             round(float(maxdist or 0.0),2),round(float(yaw),3),round(float(HFOV),3),bool(is360))
+        cached=cache.get(key) if isinstance(cache,dict) else None
+        if (isinstance(cached,tuple) and len(cached)==2 and
+                isinstance(cached[0],np.ndarray) and isinstance(cached[1],np.ndarray)):
+            return cached
+        if isinstance(cached,np.ndarray):
+            return cached, np.zeros_like(cached,dtype=np.bool_)
+        cx=float(cam_pt.x()); cy=float(cam_pt.y())
+        extent=QgsRectangle(cx-1.0,cy-1.0,cx+1.0,cy+1.0)
+        mesh=_raster_drape_panorama_mesh(
+            self,extent,cam_pt,maxdist,yaw,HFOV,is360,z_sampler,
+            render_quality=render_quality,export_mode=(not bool(getattr(self,'_memory_guard_in_preview',False)))
+        )
+        if mesh is None:
+            return None
+        pts,z,_texuv,tris=mesh
+        z=np.asarray(z,dtype=np.float64)+float(height_offset)
+        xyz=np.column_stack((pts,z))
+        extra={'remaining':max(16000,min(180000,len(tris)*4))}
+        pf=panorama_faces_from_world_mesh(
+            ctx,xyz,tris,float(maxdist) if maxdist is not None else None,
+            texture_uv=None,wrap_width=(float(ctx.get('width',0)) if bool(is360) else None),
+            role='deferred_ground_surface',metadata={'projection_family':'PANORAMA','deferred_polygon_surface':True},
+            render_quality=render_quality,extra_face_budget=extra,pole_guard_px=2.5,adaptive_split=False
+        )
+        spec={'kind':'simple','color':QColor(0,0,0,0),'target_alpha':0,
+              'depth_alpha_threshold':1,'depth_uses_intrinsic_alpha':False,
+              'terrain_depth_surface':True,'deferred_polygon_surface':True}
+        faces=[]
+        for face in pf or ():
+            item=_panorama_face_fill_dict_419(face,spec)
+            if item is not None:
+                faces.append(item)
+        if not faces:
+            return None
+        _tmp_rgba,depth,_sc=_compose_panorama_faces_zbuffer_40191(
+            int(ctx.get('width',1)),int(ctx.get('height',1)),faces,scale=scale,owner=None
+        )
+        _tmp_rgba=None
+        repaired=np.zeros_like(depth,dtype=np.bool_) if isinstance(depth,np.ndarray) else None
+        if isinstance(depth,np.ndarray):
+            depth,repaired=_repair_internal_panorama_depth_gaps_4208(depth)
+        result=(depth,repaired)
+        if isinstance(cache,dict) and isinstance(depth,np.ndarray) and isinstance(repaired,np.ndarray):
+            cache[key]=result
+        return result
+    except Exception as exc:
+        try: qcv_log(f"Deferred polygon depth: {exc}",'PANORAMA/POLYGON','WARNING')
+        except Exception: pass
+        return None
+
+
+def _apply_deferred_panorama_polygon_surface_4208(self, rgba, depth, scale, ctx, descriptor,
+                                                    cam_pt, maxdist, yaw, HFOV, is360,
+                                                    z_sampler, render_quality, surface_cache):
+    """Paint a large terrain-conforming polygon in screen space.
+
+    A DEM(+height) surface supplies depth.  For each visible surface pixel we
+    reconstruct world XY from the panorama ray, test that XY against the polygon,
+    then apply the QCALVIEW fill.  No polygon-wide triangulation is involved.
+    Returns a mask of pixels which belong to this deferred surface so the legacy
+    horizon mask cannot erase the correctly depth-tested surface afterwards.
+    """
+    try:
+        if rgba is None or depth is None or ctx is None or z_sampler is None:
+            return None
+        rings=[np.asarray(r,dtype=np.float64) for r in (descriptor.get('rings') or [])]
+        rings=[r for r in rings if r.ndim==2 and r.shape[0]>=3 and r.shape[1]>=2]
+        if not rings:
+            return None
+        offset=float(descriptor.get('height_offset',0.0) or 0.0)
+        _surface_result=_deferred_panorama_surface_depth_4208(
+            self,ctx,scale,cam_pt,maxdist,yaw,HFOV,is360,z_sampler,render_quality,offset,surface_cache
+        )
+        if isinstance(_surface_result,tuple) and len(_surface_result)==2:
+            surface_depth,repaired_depth=_surface_result
+        else:
+            surface_depth=_surface_result
+            repaired_depth=(np.zeros_like(surface_depth,dtype=np.bool_) if isinstance(surface_depth,np.ndarray) else None)
+        if not isinstance(surface_depth,np.ndarray) or surface_depth.shape!=depth.shape:
+            return None
+        if not isinstance(repaired_depth,np.ndarray) or repaired_depth.shape!=depth.shape:
+            repaired_depth=np.zeros_like(surface_depth,dtype=np.bool_)
+        sh,sw=depth.shape; sc=max(1e-9,float(scale))
+        _direct_bbox=_deferred_polygon_screen_bbox_4208(
+            self,rings,ctx,z_sampler,offset,cam_pt,maxdist,sc
+        ) if abs(float(offset))<=1e-6 else None
+        W=max(1.0,float(ctx.get('width',sw))); H=max(1.0,float(ctx.get('height',sh)))
+        proj=str(ctx.get('proj','') or '').upper()
+        hf=math.radians(max(1e-6,float(ctx.get('HFOV',360.0)))); vf=math.radians(max(1e-6,float(ctx.get('VFOV',180.0))))
+        full360=bool(ctx.get('is360',False))
+        x_full=(np.arange(sw,dtype=np.float32)+np.float32(0.5))/np.float32(sc)
+        if full360:
+            alpha=x_full.astype(np.float64)*(2.0*math.pi/W)-math.pi
+        else:
+            alpha=(x_full.astype(np.float64)-0.5*W)*(hf/W)
+        sin_a=np.sin(alpha).astype(np.float32,copy=False); cos_a=np.cos(alpha).astype(np.float32,copy=False)
+        r=np.asarray(ctx.get('r'),dtype=np.float64); up=np.asarray(ctx.get('u'),dtype=np.float64); fwd=np.asarray(ctx.get('f'),dtype=np.float64)
+        if r.size<3 or up.size<3 or fwd.size<3:
+            return None
+        hx=(sin_a*np.float32(r[0])+cos_a*np.float32(fwd[0])).astype(np.float32,copy=False)
+        hy=(sin_a*np.float32(r[1])+cos_a*np.float32(fwd[1])).astype(np.float32,copy=False)
+        if proj=='CYLINDRICAL':
+            vf2=float(_validated_vfov_for_cylindrical(float(ctx.get('VFOV',90.0)),float(ctx.get('HFOV',360.0)),int(round(W)),int(round(H))))
+            if not (math.isfinite(vf2) and 1e-6<vf2<math.pi-1e-3):
+                vf2=vf
+            fy=(H*0.5)/max(1e-9,math.tan(vf2*0.5))
+        else:
+            fy=None
+        cx=np.float32(float(ctx.get('cx',float(cam_pt.x())))); cy=np.float32(float(ctx.get('cy',float(cam_pt.y()))))
+        upx=np.float32(up[0]); upy=np.float32(up[1])
+        fill_spec=descriptor.get('fill_spec') or {'kind':'simple','color':QColor(0,255,0,180),'target_alpha':180}
+        preserve=np.zeros((sh,sw),dtype=np.bool_)
+        tile_rows=128
+        for y0 in range(0,sh,tile_rows):
+            y1=min(sh,y0+tile_rows); sd=np.asarray(surface_depth[y0:y1],dtype=np.float32).copy()
+            _rep_tile=repaired_depth[y0:y1]
+            if np.any(_rep_tile):
+                sd=_refine_repaired_panorama_depth_tile_4208(
+                    self,sd,_rep_tile,y0,sc,ctx,z_sampler,offset,maxdist,cam_pt
+                )
+            # Sparse panorama terrain meshes can leave large wedges which touch
+            # the surface boundary; they are not "internal" gaps and therefore cannot be
+            # repaired by internal-gap interpolation. Resolve only still-missing pixels by direct
+            # ray/DEM intersection, restricted to the polygon's screen footprint.
+            if _direct_bbox is not None:
+                bx0,bx1,by0,by1=_direct_bbox
+                iy0=max(y0,by0); iy1=min(y1,by1)
+                if iy1>iy0 and bx1>bx0:
+                    local=np.zeros_like(sd,dtype=np.bool_)
+                    sy0=iy0-y0; sy1=iy1-y0
+                    local[sy0:sy1,bx0:bx1]=~(np.isfinite(sd[sy0:sy1,bx0:bx1])&(sd[sy0:sy1,bx0:bx1]>np.float32(0.0)))
+                    if np.any(local):
+                        sd=_direct_ground_depth_for_missing_pixels_4208(
+                            self,sd,local,0,y0,sc,ctx,z_sampler,offset,maxdist,cam_pt
+                        )
+            valid=np.isfinite(sd)&(sd>np.float32(0.0))
+            if not np.any(valid):
+                continue
+            y_full=(np.arange(y0,y1,dtype=np.float32)+np.float32(0.5))/np.float32(sc)
+            if proj in ('EQUIRECT','EQUIRECTANGULAR'):
+                if full360:
+                    beta=(math.pi*0.5-y_full.astype(np.float64)*(math.pi/H))
+                else:
+                    beta=((0.5*H-y_full.astype(np.float64))*(vf/H))
+            elif proj=='CYLINDRICAL':
+                beta=np.arctan((0.5*H-y_full.astype(np.float64))/max(1e-9,float(fy)))
+            else:
+                return None
+            cb=np.cos(beta).astype(np.float32,copy=False)[:,None]; sb=np.sin(beta).astype(np.float32,copy=False)[:,None]
+            dir_x=cb*hx[None,:]+sb*upx; dir_y=cb*hy[None,:]+sb*upy
+            world_x=cx+sd*dir_x; world_y=cy+sd*dir_y
+            inside=np.zeros(valid.shape,dtype=np.bool_)
+            for ring in rings:
+                inside |= _point_in_ring_mask_4208(world_x,world_y,ring)
+            front=valid&inside&np.isfinite(world_x)&np.isfinite(world_y)
+            # The surface itself must be in front of (or coincide with) the scene
+            # depth accumulated so far. A small metric epsilon handles equal DEM
+            # samples without allowing visibly rear geometry to leak through.
+            main_d=depth[y0:y1]
+            front &= (sd <= (main_d + np.float32(0.05)))
+            if not np.any(front):
+                continue
+            yy=np.arange(y0,y1,dtype=np.float32)[:,None]+np.float32(0.5)
+            xx=np.arange(sw,dtype=np.float32)[None,:]+np.float32(0.5)
+            XX=np.broadcast_to(xx,front.shape); YY=np.broadcast_to(yy,front.shape)
+            cols=_sample_rgba_from_fill_spec(fill_spec,XX,YY,(0.0,float(sw),0.0,float(sh)))
+            ath=max(1,int(fill_spec.get('depth_alpha_threshold',1) or 1))
+            front &= (cols[:,:,3]>=ath)
+            if not np.any(front):
+                continue
+            tile=rgba[y0:y1]
+            main_d[front]=sd[front]
+            for ch in range(4):
+                cc=tile[:,:,ch]; cc[front]=cols[:,:,ch][front]
+            preserve[y0:y1][front]=True
+        return preserve
+    except Exception as exc:
+        try: qcv_log(f"Deferred polygon surface: {exc}",'PANORAMA/POLYGON','WARNING')
+        except Exception: pass
+        return None
+
+
+def _build_raster_drape_faces(self, cam_pt, cam_z, cam_crs, proj, width, height,
+                               yaw, pitch, roll, HFOV, VFOV, is360, maxdist, z_sampler,
+                               render_quality='high', panoramic=False):
+    try:
+        layers=list(self._selected_drape_layers())
+    except Exception:
+        layers=[]
+    if not layers or z_sampler is None:
+        return []
+    extent=self._drape_texture_extent(layers,cam_crs,cam_pt,maxdist)
+    if extent is None or extent.isEmpty():
+        return []
+    texture=self._render_combined_raster_texture(
+        layers,cam_crs,extent,width,height,render_quality=render_quality
+    )
+    if texture is None or texture.isNull():
+        return []
+
+    radius=float(maxdist) if maxdist is not None and float(maxdist)>0.0 else 20000.0
+    if panoramic:
+        _preview=bool(getattr(self,'_memory_guard_in_preview',False))
+        try:
+            _dem_layer=getattr(self,'cmb_dem',None).currentLayer() if getattr(self,'cmb_dem',None) else None
+            _dem_id=str(_dem_layer.id()) if _dem_layer is not None else ''
+        except Exception:
+            _dem_id=''
+        try:
+            _curv=bool(getattr(self,'cb_curvature',None) and self.cb_curvature.isChecked())
+            _radius_km=round(float(getattr(self,'d_earth_radius_km',None).value()),6) if hasattr(self,'d_earth_radius_km') else 6370.0
+        except Exception:
+            _curv=True; _radius_km=6370.0
+        _mesh_key=(
+            _dem_id, round(float(cam_pt.x()),3), round(float(cam_pt.y()),3),
+            round(float(extent.xMinimum()),2), round(float(extent.yMinimum()),2),
+            round(float(extent.xMaximum()),2), round(float(extent.yMaximum()),2),
+            round(float(maxdist or 0.0),2), round(float(yaw),3), round(float(HFOV),3),
+            bool(is360), str(render_quality or 'high').lower(), bool(_preview),
+            bool(_curv), float(_radius_km),
+        )
+        _mesh_cache=getattr(self,'_raster_drape_mesh_cache',None)
+        if not isinstance(_mesh_cache,dict):
+            _mesh_cache={}; self._raster_drape_mesh_cache=_mesh_cache
+        mesh=_mesh_cache.get(_mesh_key)
+        if mesh is None:
+            mesh=_raster_drape_panorama_mesh(
+                self,extent,cam_pt,maxdist,yaw,HFOV,is360,z_sampler,
+                render_quality=render_quality, export_mode=(not _preview)
+            )
+            _mesh_cache.clear()
+            if mesh is not None:
+                _mesh_cache[_mesh_key]=mesh
+        if mesh is None:
+            return []
+        pts,z,texuv,tris=mesh
+    else:
+        nx,ny=_raster_drape_mesh_shape(self,extent,render_quality=render_quality)
+        xs=np.linspace(float(extent.xMinimum()),float(extent.xMaximum()),int(nx)+1,dtype=np.float64)
+        ys=np.linspace(float(extent.yMinimum()),float(extent.yMaximum()),int(ny)+1,dtype=np.float64)
+        X,Y=np.meshgrid(xs,ys)
+        pts=np.column_stack((X.ravel(),Y.ravel()))
+        try:
+            z=np.asarray(z_sampler.batch(pts),dtype=np.float64).reshape(-1)
+        except Exception:
+            z=np.asarray([float(z_sampler(QgsPointXY(float(x),float(y)))) for x,y in pts],dtype=np.float64)
+        if z.size!=pts.shape[0]:
+            z=np.resize(z,pts.shape[0]).astype(np.float64,copy=False)
+        curvature_enabled=bool(getattr(self,'cb_curvature',None) and self.cb_curvature.isChecked())
+        earth_radius_m=float(getattr(self,'d_earth_radius_km',None).value()*1000.0) if hasattr(self,'d_earth_radius_km') else 6370000.0
+        z=_apply_pov_curvature_to_z(
+            self,pts,z,cam_pt,curvature_enabled=curvature_enabled,
+            earth_radius_m=earth_radius_m,k_refraction=0.0
+        )
+        ew=max(1e-9,float(extent.width())); eh=max(1e-9,float(extent.height()))
+        texuv=np.column_stack(((pts[:,0]-float(extent.xMinimum()))/ew,
+                               (float(extent.yMaximum())-pts[:,1])/eh))
+        try:
+            cx=float(cam_pt.x()); cy=float(cam_pt.y())
+        except Exception:
+            cx=cy=0.0
+        r2=radius*radius
+        tris=[]
+        stride=int(nx)+1
+        for iy in range(int(ny)):
+            row=iy*stride; row2=(iy+1)*stride
+            for ix in range(int(nx)):
+                a=row+ix; b=a+1; c=row2+ix+1; d=row2+ix
+                mx=0.25*(pts[a,0]+pts[b,0]+pts[c,0]+pts[d,0])
+                my=0.25*(pts[a,1]+pts[b,1]+pts[c,1]+pts[d,1])
+                if (mx-cx)*(mx-cx)+(my-cy)*(my-cy)>r2:
+                    continue
+                if not (math.isfinite(z[a]) and math.isfinite(z[b]) and math.isfinite(z[c]) and math.isfinite(z[d])):
+                    continue
+                tris.append((a,b,c)); tris.append((a,c,d))
+        if not tris:
+            return []
+
+    if panoramic:
+        # Deferred texturing: panorama terrain triangles carry geometry/depth only.
+        # Raster colour is sampled afterwards from reconstructed screen-pixel world XY.
+        fill_spec={
+            'kind':'simple','color':QColor(0,0,0,0),
+            'target_alpha':255,'depth_alpha_threshold':1,
+            'depth_uses_intrinsic_alpha':False,'raster_drape_texture':True,
+            'terrain_depth_surface':True,'deferred_raster_drape':True,
+            'deferred_raster_texture':texture,
+            'deferred_raster_extent':(float(extent.xMinimum()),float(extent.yMinimum()),
+                                      float(extent.xMaximum()),float(extent.yMaximum())),
+        }
+    else:
+        fill_spec={
+            'kind':'simple','texture_img':texture,'texture_mode':'stretch',
+            'preserve_texture_alpha':True,'target_alpha':255,'depth_alpha_threshold':1,
+            'depth_uses_intrinsic_alpha':True,'raster_drape_texture':True,
+            'terrain_depth_surface':True,
+        }
+    ctx=build_camera_context(cam_pt,cam_z,proj,width,height,yaw,pitch,roll,HFOV,VFOV,is360)
+    if panoramic:
+        xyz=np.column_stack((pts,z))
+        extra={'remaining':max(16000,min(180000,len(tris)*4))}
+        wrap_width=float(width) if bool(is360) else None
+        # The polar mesh is already tessellated coherently.  Do NOT adaptively split
+        # individual terrain triangles here: on cylindrical/equirectangular projections an
+        # independently split shared edge becomes a T-junction and produces visible empty
+        # seams between adjacent textured cells.  Keeping the source mesh conforming also
+        # preserves the performance benefit of the conforming source mesh.
+        pfaces=panorama_faces_from_world_mesh(
+            ctx,xyz,tris,radius,texture_uv=None,wrap_width=wrap_width,
+            role='raster_drape',metadata={'projection_family':'PANORAMA','raster_drape':True},
+            render_quality=render_quality,extra_face_budget=extra,pole_guard_px=2.5,
+            adaptive_split=False
+        )
+        out=[]
+        for face in pfaces or ():
+            item=_panorama_face_fill_dict_419(face,fill_spec)
+            if item is not None:
+                out.append(item)
+        return out
+
+    uv,depth=_project_uv_depth_batch(ctx,pts,z,dist_max=radius)
+    out=[]
+    W=float(width); H=float(height)
+    for tri in tris:
+        ids=tuple(int(i) for i in tri)
+        tuv=tuple((float(texuv[i,0]),float(texuv[i,1])) for i in ids)
+        puv=tuple((float(uv[i,0]),float(uv[i,1])) for i in ids)
+        dep=tuple(float(depth[i]) for i in ids)
+        if not all(math.isfinite(v) for pp in puv for v in pp):
+            continue
+        if not all(math.isfinite(v) and v>1e-6 for v in dep):
+            continue
+        minx=min(v[0] for v in puv); maxx=max(v[0] for v in puv)
+        miny=min(v[1] for v in puv); maxy=max(v[1] for v in puv)
+        if maxx<0.0 or minx>W or maxy<0.0 or miny>H:
+            continue
+        out.append({'uv':puv,'depths':dep,'fill_spec':fill_spec,'texture_uv':tuv})
+    return out
+
+
+def _draw_raster_drape_pinhole(self, painter, cam_pt, cam_z, cam_crs, proj, width, height,
+                                yaw, pitch, roll, HFOV, VFOV, is360, maxdist, z_sampler,
+                                render_quality='high'):
+    faces=_build_raster_drape_faces(
+        self,cam_pt,cam_z,cam_crs,proj,width,height,yaw,pitch,roll,HFOV,VFOV,is360,
+        maxdist,z_sampler,render_quality=render_quality,panoramic=False
+    )
+    if not faces:
+        return False
+    q=str(render_quality or 'high').lower()
+    if bool(getattr(self,'_memory_guard_in_preview',False)):
+        scale=0.50 if q=='low' else 0.70 if q=='normal' else 0.85
+    else:
+        scale=1.0
+    # PINHOLE previews previously had no dedicated memory guard.  A very large
+    # source image (e.g. 50+ MP) combined with a DEM/BD ALTI drape could allocate
+    # hundreds of MB for RGBA+depth before texture sampling, and QGIS 4/NumPy
+    # could terminate natively instead of raising MemoryError.  Cap only the
+    # interactive drape buffer; final exports keep full requested resolution.
+    if bool(getattr(self, '_rendering_now', False)):
+        target_px = 3_000_000 if q=='low' else 5_000_000 if q=='normal' else 8_000_000
+        px = max(1.0, float(width) * float(height) * float(scale) * float(scale))
+        if px > float(target_px):
+            scale *= math.sqrt(float(target_px) / px)
+        scale=max(0.12,min(1.0,float(scale)))
+    rgba,_depth,_scale=_compose_faces_zbuffer(width,height,faces,scale=scale)
+    img=_rgba_owned_array_to_qimage(rgba)
+    if img is None or img.isNull():
+        return False
+    painter.save()
+    try:
+        painter.setRenderHint(QC.QPainter_RenderHint_SmoothPixmapTransform,True)
+        painter.setCompositionMode(QC.QPainter_CompositionMode_CompositionMode_SourceOver)
+        painter.drawImage(QRect(0,0,int(width),int(height)),img)
+    finally:
+        painter.restore()
+    return True
 
 
 def _panorama_face_fill_dict_419(face, fill_spec, pattern_bbox=None):
@@ -5580,16 +6912,22 @@ def _draw_panorama_zfaces_fallback_419(painter, faces):
     finally:
         painter.restore()
 
-def _panorama_zbuffer_scale_for_preview_419(self,width,height,has_texture=False):
+def _panorama_zbuffer_scale_for_preview_419(self,width,height,has_texture=False,has_raster_drape=False):
 
     pixels=max(1,int(width))*max(1,int(height))
     q=str(getattr(self,'_current_render_quality','high') or 'high').lower()
     preview=bool(getattr(self,'_memory_guard_in_preview',False))
     if preview:
-        target=3_000_000 if q=='low' else 7_000_000 if q=='normal' else 24_000_000
-        if has_texture and q=='high': target=26_000_000
+        if has_raster_drape:
+            # A terrain texture covers a large fraction of the viewport. Rasterizing
+            # its z-buffer close to the source photograph resolution is extremely
+            # expensive and brings little benefit in the interactive viewer.
+            target=2_500_000 if q=='low' else 4_500_000 if q=='normal' else 8_000_000
+        else:
+            target=3_000_000 if q=='low' else 7_000_000 if q=='normal' else 24_000_000
+            if has_texture and q=='high': target=26_000_000
     else:
-        target=56_000_000 if has_texture else 72_000_000
+        target=56_000_000 if (has_texture or has_raster_drape) else 72_000_000
     try:
         st=getattr(self,'_memory_guard_runtime',None)
         if preview and isinstance(st,dict) and bool(st.get('safe_mode',False)):
@@ -5600,7 +6938,7 @@ def _panorama_zbuffer_scale_for_preview_419(self,width,height,has_texture=False)
     return max(0.20,min(1.0,math.sqrt(float(target)/float(pixels))))
 
 
-def _schematic_texture_size_419(pr, ctx, camera_xy, quality='high'):
+def _schematic_texture_size_419(pr, ctx, camera_xy, quality='high', export_mode=False):
     try:
         cx,cy=float(camera_xy[0]),float(camera_xy[1])
         dx=float(pr.x)-cx; dy=float(pr.y)-cy; dz=float(pr.z)-float(ctx['cam_z'])
@@ -5608,12 +6946,14 @@ def _schematic_texture_size_419(pr, ctx, camera_xy, quality='high'):
         hf=math.radians(max(1e-6,float(ctx.get('HFOV',360.0)))); vf=math.radians(max(1e-6,float(ctx.get('VFOV',180.0))))
         ppr=max(float(ctx['width'])/max(1e-9,hf),float(ctx['height'])/max(1e-9,vf))
         hp=max(8.0,float(pr.height)/d*ppr); wp=max(8.0,float(pr.width)/d*ppr)
-        mul=1.0 if str(quality).lower()=='low' else 1.2 if str(quality).lower()=='normal' else 1.45
+        mul=1.75 if export_mode else (1.0 if str(quality).lower()=='low' else 1.2 if str(quality).lower()=='normal' else 1.45)
+        cap=4096.0 if export_mode else 1024.0
+        buckets=(32,48,64,96,128,192,256,384,512,768,1024,1536,2048,3072,4096)
         def bucket(v):
-            need=max(24.0,min(768.0,float(v)*mul))
-            for b in (32,48,64,96,128,192,256,384,512,768):
+            need=max(24.0,min(cap,float(v)*mul))
+            for b in buckets:
                 if need<=b: return b
-            return 768
+            return int(cap)
         return bucket(wp),bucket(hp)
     except Exception:
         return 128,192
@@ -5624,7 +6964,7 @@ def _append_schematic_primitives_for_panorama_zbuffer_419(faces, primitives, sty
                                                             render_quality='high', transparent_objects=False,
                                                             extra_budget=None, visibility_test=None,
                                                             painter=None, terrain_face_culler=None,
-                                                            deferred_edges=None):
+                                                            deferred_edges=None, export_mode=False):
 
     if not primitives: return False
     handled=False; W=float(width) if bool(ctx.get('is360',False)) else 0.0
@@ -5653,7 +6993,7 @@ def _append_schematic_primitives_for_panorama_zbuffer_419(faces, primitives, sty
                 extra_face_budget=extra_budget,pole_guard_px=2.5
             )
             if not pf: handled=True; continue
-            tw,th=_schematic_texture_size_419(pr,ctx,camera_xy,quality=render_quality)
+            tw,th=_schematic_texture_size_419(pr,ctx,camera_xy,quality=render_quality,export_mode=export_mode)
             teximg=_schematic_svg_texture(pr,tw,th)
             fill,_line=schematic_role_colors(style,definition,pr.role)
             try: nominal=int(appearance.get('fill_alpha',255)) if 'fill_alpha' in appearance else int(QColor(fill).alpha())
@@ -5685,7 +7025,29 @@ def _append_schematic_primitives_for_panorama_zbuffer_419(faces, primitives, sty
             if pr.role=='wall' and not bool(getattr(style,'fill_walls',True)): do_fill=False
             if do_fill: _append_panorama_faces_for_zbuffer_419(faces,pf,{'kind':'simple','color':fill,'target_alpha':fill.alpha(),'depth_alpha_threshold':1},terrain_culler=terrain_face_culler)
             if bool(getattr(pr,'outline',False)):
-                path=project_panorama_path_safe(ctx,xyz,maxdist,closed=True,render_quality=render_quality,wrap_width=W,max_points=900,pole_guard_px=2.5)
+                # Closed schematic outlines can become pathological in panorama when a large
+                # polygon lies close to the camera. The adaptive midpoint projector used for
+                # general polylines may repeatedly subdivide such segments and has caused
+                # native access violations under Qt5/QGIS 3.44. For polygon outlines we do
+                # not need that subdivision: the fill already carries the projected surface.
+                # Project the sanitized vertices in one vectorized pass instead.
+                try:
+                    _outline_xyz=np.asarray(xyz,dtype=np.float64)
+                    if _outline_xyz.ndim==2 and _outline_xyz.shape[0]>=2:
+                        _finite=np.isfinite(_outline_xyz[:,:3]).all(axis=1)
+                        _outline_xyz=_outline_xyz[_finite]
+                    if _outline_xyz.ndim==2 and _outline_xyz.shape[0]>=2:
+                        path=project_panorama_primitive(
+                            ctx,_outline_xyz,maxdist,kind='polyline',closed=True,
+                            role=str(getattr(pr,'role','outline') or 'outline'),
+                            metadata={'schematic':True,'safe_outline':True},
+                            clip_to_fov=True
+                        )
+                    else:
+                        path=None
+                except Exception as _qcv_exc:
+                    _qcv_suppress(_qcv_exc, "core/_render_ops.py:panorama_safe_polygon_outline")
+                    path=None
                 pen=QPen(line); pen.setWidthF(max(0.6,float(getattr(style,'width',1.0) or 1.0)))
                 if deferred_edges is not None and path is not None:
                     try:
@@ -5726,7 +7088,7 @@ def _append_schematic_primitives_for_panorama_zbuffer_419(faces, primitives, sty
 
 def _append_schematic_primitives_for_zbuffer(faces, deferred_edges, primitives, style, definition,
                                               ctx, maxdist, camera_xy, width, fast_preview=False,
-                                              transparent_objects=False):
+                                              transparent_objects=False, export_mode=False):
 
     if not primitives:
         return False
@@ -5773,15 +7135,16 @@ def _append_schematic_primitives_for_zbuffer(faces, deferred_edges, primitives, 
 
             bw = max(1.0, float(right - left))
             bh = max(1.0, float(bottom - top))
-            tex_quality = 1.35 if fast_preview else 1.75
+            tex_quality = 2.0 if export_mode else (1.35 if fast_preview else 1.75)
 
             def _texture_bucket(px):
 
-                need = max(24.0, min(1536.0, float(px)))
-                for bucket in (32, 48, 64, 96, 128, 192, 256, 384, 512, 768, 1024, 1536):
+                cap = 4096.0 if export_mode else 1536.0
+                need = max(24.0, min(cap, float(px)))
+                for bucket in (32, 48, 64, 96, 128, 192, 256, 384, 512, 768, 1024, 1536, 2048, 3072, 4096):
                     if need <= bucket:
                         return bucket
-                return 1536
+                return int(cap)
 
             tex_w = _texture_bucket(bw * tex_quality)
             tex_h = _texture_bucket(bh * tex_quality)
@@ -5949,7 +7312,7 @@ def _render_vector_layers_fast(self, painter, cam_pt, cam_z, cam_crs, proj, widt
             parts = item['parts']
 
             sty_eff = _feature_local_style(self, sty, feat)
-            pen = _make_pen_for_style(sty_eff.color, getattr(sty_eff, 'width', 0.0), (width/4000.0 if width < 4000 else width/6000.0), getattr(sty_eff, 'pen_style', QC.Qt_PenStyle_SolidLine), _style_opacity_factor(sty_eff))
+            pen = _make_pen_for_style(sty_eff.color, getattr(sty_eff, 'width', 0.0), (width/4000.0 if width < 4000 else width/6000.0), getattr(sty_eff, 'pen_style', QC.Qt_PenStyle_SolidLine), _style_opacity_factor(sty_eff), getattr(sty_eff, 'qgis_dash_pattern', None))
             font = QFont(font_base)
             font.setPointSize(max(6, int(getattr(sty_eff, 'label_size', sty.label_size) * max(0.5, width/4000.0))))
             draw_2p5d = global_draw_2p5d and bool(getattr(sty_eff, 'enable_25d', True))
@@ -6006,7 +7369,8 @@ def _render_vector_layers_fast(self, painter, cam_pt, cam_z, cam_crs, proj, widt
                         handled = _append_schematic_primitives_for_zbuffer(
                             face_primitives, deferred_edges, primitives, sty_eff, definition,
                             ctx, effective_maxdist, camera_xy, width, fast_preview=fast_preview,
-                            transparent_objects=transparent_objects
+                            transparent_objects=transparent_objects,
+                            export_mode=(not bool(getattr(self, '_memory_guard_in_preview', False)))
                         )
                 except Exception as exc:
                     try:
@@ -6019,7 +7383,7 @@ def _render_vector_layers_fast(self, painter, cam_pt, cam_z, cam_crs, proj, widt
                         deferred_labels.append((font, text_global, anchor_uv_global, sty_eff))
                     continue
                 try:
-                    qcv_log(f"{lyr.name()} | FID {feat.id()} : état AVR invalide neutralisé ({getattr(sty_eff,'schematic_symbol_id','')})", 'SCHEMATIC/STATE', 'WARNING')
+                    qcv_log(f"{lyr.name()} | FID {feat.id()} : invalid AVR state neutralized ({getattr(sty_eff,'schematic_symbol_id','')})", 'SCHEMATIC/STATE', 'WARNING')
                 except Exception as _qcv_exc:
                     _qcv_suppress(_qcv_exc, "core/_render_ops.py:6324")
 
@@ -6233,17 +7597,30 @@ def export_overlay(self):
         _d = _default_export_dir(self)
     except Exception:
         _d = ""
-    path, _ = QFileDialog.getSaveFileName(self, tr("Exporter overlay seul PNG transparent"), os.path.join(_d, "qcalview_overlay.png") if _d else "qcalview_overlay.png", tr("PNG (*.png)"))
+    path, _ = QFileDialog.getSaveFileName(self, tr('Export transparent overlay-only PNG'), os.path.join(_d, "qcalview_overlay.png") if _d else "qcalview_overlay.png", tr("PNG (*.png)"))
     if not path: return
     overlay = self._render_overlay(width=self.spin_w.value(), height=self.spin_h.value())
-    if not overlay.save(path, "PNG"):
+    overlay_export = QImage(overlay)
+    qp = None
+    try:
+        qp = QPainter(overlay_export)
+        self._draw_monoplot_overlay(qp, overlay_export.width(), overlay_export.height(), apply_display_shift=True)
+        qp.end()
+    except Exception as _qcv_exc:
+        try:
+            if qp is not None:
+                qp.end()
+        except Exception:
+            pass
+        _qcv_suppress(_qcv_exc, "core/_render_ops.py:export_overlay_monoplot")
+    if not overlay_export.save(path, "PNG"):
         return
     try:
         from ._export_ops import _write_metadata_with_exiftool
         from ._camera_layer_ops import _camera_layer, _camera_current_feature, _camera_set_status
         ok_meta, err_meta = _write_metadata_with_exiftool(self, path, _camera_layer(self), _camera_current_feature(self))
         if not ok_meta:
-            _camera_set_status(self, err_meta or 'Échec écriture métadonnées.', '#c44')
+            _camera_set_status(self, err_meta or 'Metadata write failed.', '#c44')
     except Exception as _qcv_exc:
         _qcv_suppress(_qcv_exc, "core/_render_ops.py:6555")
 
@@ -6255,7 +7632,7 @@ def _pick_dem_color(self):
         dlg.setOption(QC.QColorDialog_ColorDialogOption_ShowAlphaChannel, True)
     except Exception as _qcv_exc:
         _qcv_suppress(_qcv_exc, "core/_render_ops.py:6565")
-    dlg.setWindowTitle(tr("Couleur du relief"))
+    dlg.setWindowTitle(tr('Relief color'))
     if dialog_exec(dlg):
         c = dlg.selectedColor()
         if c.isValid():
@@ -6364,7 +7741,7 @@ def _build_horizon_cache(self, *args, **kwargs):
             if cam_z is None:
                 cam_z = float(getattr(self, "d_camheight", None).value()) if hasattr(self, "d_camheight") else 1.7
         except Exception:
-            raise RuntimeError("Camera point non défini pour _build_horizon_cache")
+            raise RuntimeError('Camera point not defined for _build_horizon_cache')
 
     if z_sampler is None:
         dem_layer = self.cmb_dem.currentLayer() if hasattr(self, 'cmb_dem') else None

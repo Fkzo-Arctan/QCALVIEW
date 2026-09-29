@@ -157,7 +157,7 @@ def _schematic_target_height(dock, target_layer, feature) -> Tuple[Optional[floa
     if generator in ("billboard_svg", "vegetation_ribbon", "vegetation_adaptive"):
         h = _finite_float(_symbol_param_value(feature, style, definition, "height_m", None), None)
         if h is not None:
-            return max(0.0, h), f"AVR {symbol_id}: hauteur"
+            return max(0.0, h), f"AVR {symbol_id}: height"
 
     if generator == "pv_surface":
         low = _finite_float(_symbol_param_value(feature, style, definition, "low_height_m", 0.8), None)
@@ -175,7 +175,7 @@ def _schematic_target_height(dock, target_layer, feature) -> Tuple[Optional[floa
     if "height_m" in params:
         h = _finite_float(_symbol_param_value(feature, style, definition, "height_m", None), None)
         if h is not None:
-            return max(0.0, h), f"AVR {symbol_id}: hauteur"
+            return max(0.0, h), f"AVR {symbol_id}: height"
     return None, ""
 
 def _target_height(dock, target_layer, feature, explicit_field: str, default_h: float, use_avr: bool):
@@ -193,21 +193,21 @@ def _target_height(dock, target_layer, feature, explicit_field: str, default_h: 
         h, src = _schematic_target_height(dock, target_layer, feature)
         if h is not None:
             return h, src
-    return max(0.0, float(default_h)), "défaut"
+    return max(0.0, float(default_h)), 'default'
 
 def _hedge_min_render_ratio(dock, hedge_layer, symbol_id=None, params_override=None):
 
     style = _find_qcalview_style(dock, hedge_layer)
     sid = str(symbol_id or getattr(style, "schematic_symbol_id", "") or "").strip()
     if not sid:
-        return 1.0, "aucun motif AVR détecté", True
+        return 1.0, 'no AVR symbol detected', True
     try:
         plugin_dir = os.path.dirname(os.path.dirname(__file__))
         definition = get_symbol_library(plugin_dir).get(sid)
     except Exception:
         definition = None
     if not definition:
-        return 1.0, "motif AVR introuvable", True
+        return 1.0, 'AVR pattern not found', True
     generator = str(definition.get("generator", "") or "")
     overrides = dict(params_override or getattr(style, "schematic_params", {}) or {})
 
@@ -222,14 +222,14 @@ def _hedge_min_render_ratio(dock, hedge_layer, symbol_id=None, params_override=N
     if generator == "vegetation_adaptive":
         line_mode = str(pval("line_mode", "alignment") or "alignment").strip().lower()
         if line_mode not in ("ribbon", "continuous", "ruban", "haie"):
-            return 1.0, "motif adaptatif en alignement d’individus", False
+            return 1.0, "adaptive individual-alignment symbol", False
     elif generator != "vegetation_ribbon":
         return 1.0, f"motif {sid} non continu", False
 
     irr = max(0.0, min(0.45, _finite_float(pval("irregularity", 0.12), 0.12)))
     crown_min = max(0.2, min(1.0, _finite_float(pval("crown_min_ratio", 0.72), 0.72)))
     ratio = max(crown_min, 1.0 - irr)
-    return max(0.05, min(1.0, ratio)), f"cime AVR min. {ratio:.3f} (irrégularité {irr:.3f})", True
+    return max(0.05, min(1.0, ratio)), f"minimum AVR canopy {ratio:.3f} (irregularity {irr:.3f})", True
 
 def _diagnostic_layer(cam_crs, hedge_layer, target_layer, records):
 
@@ -243,7 +243,7 @@ def _diagnostic_layer(cam_crs, hedge_layer, target_layer, records):
     uri = "Point"
     if authid:
         uri += f"?crs={authid}"
-    layer = QgsVectorLayer(uri, tr("QCALVIEW - diagnostic occultation"), "memory")
+    layer = QgsVectorLayer(uri, tr('QCALVIEW - occlusion diagnostics'), "memory")
     if not layer.isValid():
         return None
     provider = layer.dataProvider()
@@ -302,17 +302,17 @@ def calculate_hedge_occlusion_dialog(
 ):
 
     if hedge_layer is None or QgsWkbTypes.geometryType(hedge_layer.wkbType()) != QC.QgsWkbTypes_GeometryType_LineGeometry:
-        QMessageBox.warning(dock, tr("Hauteur d'occultation"), tr("La couche de haie doit être une couche linéaire."))
+        QMessageBox.warning(dock, tr('Screening height'), tr('The hedge layer must be a line layer.'))
         return None
 
     dlg = QDialog(dock)
-    dlg.setWindowTitle(tr("Calculer la hauteur d'occultation"))
+    dlg.setWindowTitle(tr('Calculate screening height'))
     dlg.resize(590, 430)
     root = QVBoxLayout(dlg)
     info = QLabel(
-        tr("Calcule la hauteur nécessaire à l'intersection exacte entre chaque ligne de visée "
-        "PDV→cible et la haie. Pour une même cible, seule la première intersection rencontrée "
-        "depuis le PDV est utilisée.")
+        tr("Calculates the height required at the exact intersection between each sight line "
+        "viewpoint→target and the hedge. For a given target, only the first intersection encountered "
+        "from the viewpoint is used.")
     )
     info.setWordWrap(True); root.addWidget(info)
     form = QFormLayout(); root.addLayout(form)
@@ -321,31 +321,31 @@ def calculate_hedge_occlusion_dialog(
         cmb_target.setExceptedLayerList([hedge_layer])
     except Exception as _qcv_exc:
         _qcv_suppress(_qcv_exc, "core/_schematic_tools.py:339")
-    le_target_hfield = QLineEdit(); le_target_hfield.setPlaceholderText(tr("optionnel — prioritaire sur le motif AVR"))
-    cb_avr_height = QCheckBox(tr("Utiliser automatiquement la hauteur du motif QCALVIEW si disponible"))
+    le_target_hfield = QLineEdit(); le_target_hfield.setPlaceholderText(tr('optional — takes priority over AVR symbol'))
+    cb_avr_height = QCheckBox(tr('Automatically use the QCALVIEW symbol height when available'))
     cb_avr_height.setChecked(True)
     sp_target_h = QDoubleSpinBox(); sp_target_h.setRange(0.0, 1000.0); sp_target_h.setDecimals(2); sp_target_h.setValue(2.0); sp_target_h.setSuffix(tr(" m"))
     sp_margin = QDoubleSpinBox(); sp_margin.setRange(0.0, 50.0); sp_margin.setDecimals(2); sp_margin.setValue(0.20); sp_margin.setSuffix(tr(" m"))
     le_out = QLineEdit(str(initial_output_field or "qcv_h_req"))
-    cb_compensate = QCheckBox(tr("Compenser l’irrégularité de cime du ruban AVR"))
+    cb_compensate = QCheckBox(tr('Compensate for AVR canopy-top irregularity'))
     cb_compensate.setChecked(True)
-    cb_diag = QCheckBox(tr("Créer/actualiser la couche de diagnostic des intersections"))
+    cb_diag = QCheckBox(tr('Create/update intersection diagnostic layer'))
     cb_diag.setChecked(True)
-    form.addRow(tr("Couche projet à masquer"), cmb_target)
-    form.addRow(tr("Champ hauteur cible"), le_target_hfield)
-    form.addRow(tr("Hauteur AVR"), cb_avr_height)
-    form.addRow(tr("Hauteur cible par défaut"), sp_target_h)
-    form.addRow(tr("Marge géométrique"), sp_margin)
-    form.addRow(tr("Champ résultat dans la haie"), le_out)
-    form.addRow(tr("Garantie visuelle"), cb_compensate)
-    form.addRow(tr("Contrôle"), cb_diag)
+    form.addRow(tr('Target layer to screen'), cmb_target)
+    form.addRow(tr('Target height field'), le_target_hfield)
+    form.addRow(tr('AVR height'), cb_avr_height)
+    form.addRow(tr('Default target height'), sp_target_h)
+    form.addRow(tr('Geometric margin'), sp_margin)
+    form.addRow(tr('Result field in hedge'), le_out)
+    form.addRow(tr('Visual safety margin'), cb_compensate)
+    form.addRow(tr('Diagnostic'), cb_diag)
     note = QLabel(
-        tr("Priorité hauteur : champ explicite > motif AVR QCALVIEW > valeur par défaut. "
-        "Pour une éolienne AVR, la cible est le bout de pale théorique (hauteur moyeu + rayon). "
-        "Si la compensation AVR est activée, qcv_h_req est augmenté pour que les creux de la "
-        "cime irrégulière restent au-dessus de la ligne de visée. Le champ résultat reste une "
-        "hauteur unique par entité de haie : si une longue entité intercepte plusieurs cibles, "
-        "le maximum est appliqué à toute cette entité.")
+        tr("Height priority: explicit field > QCALVIEW AVR symbol > default value. "
+        "For an AVR wind turbine, the target is the theoretical blade tip (hub height + radius). "
+        "If AVR compensation is enabled, qcv_h_req is increased so that dips in the "
+        "irregular canopy top remain above the line of sight. The result field remains a "
+        "single height per hedge feature: if a long feature intercepts several targets, "
+        "the maximum is applied to the whole feature.")
     )
     note.setWordWrap(True); root.addWidget(note)
     bb = QDialogButtonBox(QC.QDialogButtonBox_StandardButton_Ok | QC.QDialogButtonBox_StandardButton_Cancel); root.addWidget(bb)
@@ -355,7 +355,7 @@ def calculate_hedge_occlusion_dialog(
 
     target_layer = cmb_target.currentLayer()
     if target_layer is None:
-        QMessageBox.warning(dock, tr("Hauteur d'occultation"), tr("Sélectionnez une couche cible."))
+        QMessageBox.warning(dock, tr('Screening height'), tr('Select a target layer.'))
         return None
     out_field = le_out.text().strip() or "qcv_h_req"
 
@@ -367,7 +367,7 @@ def calculate_hedge_occlusion_dialog(
             raise RuntimeError("PDV courant indisponible")
         cam_pt, cam_crs = dock._camera_point_in_work_crs(cam_feat)
         if cam_pt is None or cam_crs is None:
-            raise RuntimeError("CRS projet non métrique")
+            raise RuntimeError('Non-metric project CRS')
         dem = dock.cmb_dem.currentLayer() if hasattr(dock, "cmb_dem") else None
         z_sampler = None
         if dem is not None and dem.isValid():
@@ -375,7 +375,7 @@ def calculate_hedge_occlusion_dialog(
         cam_ground = float(z_sampler(cam_pt)) if z_sampler is not None else 0.0
         cam_z = cam_ground + float(dock.d_camheight.value())
     except Exception as e:
-        QMessageBox.warning(dock, tr("Hauteur d'occultation"), tr(f"Impossible de déterminer le PDV courant : {e}"))
+        QMessageBox.warning(dock, tr('Screening height'), tr(f"Unable to determine the current viewpoint: {e}"))
         return None
 
     def ground_z(x, y):
@@ -388,7 +388,7 @@ def calculate_hedge_occlusion_dialog(
         tr_hedge = None if hedge_layer.crs() == cam_crs else QgsCoordinateTransform(hedge_layer.crs(), cam_crs, QgsProject.instance())
         tr_target = None if target_layer.crs() == cam_crs else QgsCoordinateTransform(target_layer.crs(), cam_crs, QgsProject.instance())
     except Exception as e:
-        QMessageBox.warning(dock, tr("Hauteur d'occultation"), tr(f"Transformation CRS impossible : {e}"))
+        QMessageBox.warning(dock, tr('Screening height'), tr(f"CRS transformation failed: {e}"))
         return None
 
     target_hfield = le_target_hfield.text().strip()
@@ -420,7 +420,7 @@ def calculate_hedge_occlusion_dialog(
                 _qcv_suppress(_qcv_exc, "core/_schematic_tools.py:438")
                 continue
     if not targets:
-        QMessageBox.warning(dock, tr("Hauteur d'occultation"), tr("Aucun point cible exploitable dans la couche sélectionnée."))
+        QMessageBox.warning(dock, tr('Screening height'), tr('No usable target point was found in the selected layer.'))
         return None
 
     started_edit = False
@@ -430,11 +430,11 @@ def calculate_hedge_occlusion_dialog(
             started_edit = bool(hedge_layer.startEditing())
         if out_field not in hedge_layer.fields().names():
             if not hedge_layer.addAttribute(QgsField(out_field, QC.QMetaType_Type_Double, "double", 12, 3)):
-                raise RuntimeError("Impossible de créer le champ résultat")
+                raise RuntimeError('Unable to create the result field')
             hedge_layer.updateFields()
         idx_out = hedge_layer.fields().indexOf(out_field)
         if idx_out < 0:
-            raise RuntimeError("Impossible de créer le champ résultat")
+            raise RuntimeError('Unable to create the result field')
 
         updated = 0; no_cross = 0; max_value = 0.0
         camera_xy = (float(cam_pt.x()), float(cam_pt.y()))
@@ -500,21 +500,21 @@ def calculate_hedge_occlusion_dialog(
 
         if started_edit:
             if not hedge_layer.commitChanges():
-                raise RuntimeError("Échec de l'enregistrement des hauteurs calculées")
+                raise RuntimeError('Failed to save calculated heights')
         hedge_layer.triggerRepaint()
 
         diag_layer = _diagnostic_layer(cam_crs, hedge_layer, target_layer, diagnostic_records) if create_diag else None
         src_txt = ", ".join(f"{k}: {v}" for k, v in sorted(source_counts.items())) or "inconnue"
-        diag_txt = "\nCouche « QCALVIEW - diagnostic occultation » créée/actualisée." if diag_layer is not None else ""
-        crown_txt = f"\nCompensation cime : {crown_desc}; ratio appliqué {effective_ratio:.3f}."
+        diag_txt = "\nLayer “QCALVIEW - screening diagnostic” created/updated." if diag_layer is not None else ""
+        crown_txt = f"\nCanopy compensation: {crown_desc}; applied ratio {effective_ratio:.3f}."
         if not continuous_screen:
-            crown_txt += " ATTENTION : le motif de haie n’est pas un ruban continu; l’occultation complète n’est pas garantie."
+            crown_txt += " WARNING: the hedge symbol is not a continuous ribbon; complete screening is not guaranteed."
         QMessageBox.information(
-            dock, tr("Hauteur d'occultation"),
-            tr(f"Calcul terminé : {updated} entité(s) renseignée(s) dans « {out_field} ».\n"
-            f"Hauteur maximale calculée : {max_value:.2f} m.\n"
-            f"{no_cross} entité(s) sans intersection utile avec les lignes de visée.\n"
-            f"Source des hauteurs cibles — {src_txt}."
+            dock, tr('Screening height'),
+            tr(f"Calculation complete: {updated} feature(s) populated in “{out_field}”.\n"
+            f"Maximum calculated height: {max_value:.2f} m.\n"
+            f"{no_cross} feature(s) had no useful intersection with the sight lines.\n"
+            f"Target height source — {src_txt}."
             f"{crown_txt}"
             f"{diag_txt}")
         )
@@ -525,5 +525,5 @@ def calculate_hedge_occlusion_dialog(
                 hedge_layer.rollBack()
         except Exception as _qcv_exc:
             _qcv_suppress(_qcv_exc, "core/_schematic_tools.py:549")
-        QMessageBox.warning(dock, tr("Hauteur d'occultation"), tr(f"Calcul interrompu : {e}"))
+        QMessageBox.warning(dock, tr('Screening height'), tr(f"Calculation interrupted: {e}"))
         return None

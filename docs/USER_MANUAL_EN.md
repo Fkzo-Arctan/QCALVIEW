@@ -25,8 +25,8 @@ QCALVIEW brings photographic calibration and visual simulation workflows directl
 7. Use the Export tab for the required output.
 
 ## Important
-This manual is intentionally concise for the experimental release. Detailed workflows, screenshots and methodological guidance will be expanded as QCALVIEW stabilises.
+This manual remains intentionally concise for QCALVIEW 40.21. Detailed workflows, screenshots and methodological guidance will continue to be expanded.
 
-## Experimental tools in ALPHA-40.20.5
+## Experimental tools in QCALVIEW 40.21
 
-The public Alpha exposes the Projection grid, Azimuth ruler and Interactive monoplotting for testing. These tools remain under active development and their behaviour or interface may change. Other internal experimental modules are intentionally not exposed in public builds yet.
+QCALVIEW 40.21 is published on the standard QGIS channel. Some advanced tools remain explicitly marked as experimental, including the Projection grid, Azimuth ruler and Interactive monoplotting. While **Query terrain from image** is active, the full viewer now shows an automatic magnifier at **100% of the source photograph's native pixels**, including when the current viewer display uses a reduced proxy; the fixed reticle reports source pixel X/Y, azimuth and elevation, then the distance after a successful terrain intersection. These tools remain under active development and their behaviour or interface may change. Other internal development modules are intentionally not exposed in public builds yet.

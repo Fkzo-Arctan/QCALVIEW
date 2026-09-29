@@ -26,7 +26,7 @@ from .ui.widgets import CollapsibleBox
 from .core._cache_manager import SmartCacheManager
 from .core._adaptive_render import AdaptiveRenderScheduler
 from .core._profiler import get_profiler
-from .core._release import PUBLIC_EXPERIMENTAL_LIMITED
+from .core._release import PUBLIC_ADVANCED_TOOLS_LIMITED
 
 
 def _settings_key(*parts):
@@ -87,8 +87,8 @@ class QCalViewDock(QDockWidget):
         self._qcalview_icon_path = os.path.join(
             self._plugin_dir, "resources", "icons", "qcalview_icon.png"
         )
-        self._qcalview_alpha_path = os.path.join(
-            self._plugin_dir, "resources", "icons", "qcalview-alpha.png"
+        self._qcalview_brand_path = os.path.join(
+            self._plugin_dir, "resources", "icons", "qcalview_icon.png"
         )
         self._arctan_watermark_path = os.path.join(
             self._plugin_dir, "resources", "icons", "arctan_watermark.png"
@@ -110,10 +110,16 @@ class QCalViewDock(QDockWidget):
         self._base_cache = {}
         self._z_cache = {}
         self._overlay_cache = {}
+        # Temporary QGIS layer-tree visibility owned by the raster-drape UI.
+        # The original layer + parent-group checked states are restored when the
+        # selected drape raster changes, the sync option is disabled, draping is
+        # disabled, or QCALVIEW closes.
+        self._drape_qgis_visibility_snapshot = None
+        self._drape_qgis_visibility_layer_id = None
         try:
             self.cache_mgr = SmartCacheManager()
         except Exception as e:
-            print(f"Cache manager non disponible: {e}")
+            qcv_log(f"Cache manager non disponible: {e}", "CACHE", "WARNING")
             self.cache_mgr = None
 
         self._cam_layer = None
@@ -178,7 +184,7 @@ class QCalViewDock(QDockWidget):
         except Exception as _qcv_exc:
             _qcv_suppress(_qcv_exc, "qcalview_dock.py:196")
 
-        g_cam = CollapsibleBox("Paramètres caméra", checked=True)
+        g_cam = CollapsibleBox('Settings camera', checked=True)
         content_cam = QWidget()
         f = QGridLayout(content_cam)
         self._calage_grid_layout = f
@@ -186,10 +192,10 @@ class QCalViewDock(QDockWidget):
         f.setContentsMargins(0, 0, 0, 0)
         f.setHorizontalSpacing(10)
         f.setVerticalSpacing(8)
-        self.cb_show_center_axis = QCheckBox(tr("Afficher barre centrale"))
+        self.cb_show_center_axis = QCheckBox(tr('Show center line'))
         self.cb_show_center_axis.setChecked(True)
         self.cb_show_center_axis.toggled.connect(lambda checked: self._on_toggle_center_axis(checked))
-        self.cb_show_pdv_axis = QCheckBox(tr("Afficher barre azimut (PDV)"))
+        self.cb_show_pdv_axis = QCheckBox(tr('Show viewpoint azimuth line'))
         self.cb_show_pdv_axis.setChecked(False)
         self.cb_show_pdv_axis.toggled.connect(lambda checked: self._on_toggle_pdv_axis(checked))
         self.cmb_proj = QComboBox(); self.cmb_proj.addItems(tr(["PINHOLE", "EQUIRECT", "CYLINDRICAL"]))
@@ -205,7 +211,7 @@ class QCalViewDock(QDockWidget):
         self.cmb_orientation_step.addItem(tr("0,1°"), 0.1)
         self.cmb_orientation_step.addItem(tr("0,01°"), 0.01)
         self.cmb_orientation_step.setCurrentIndex(0)
-        self.cmb_orientation_step.setToolTip(tr("Pas des flèches/molette pour l’azimut et le tangage : grossier, fin ou précision."))
+        self.cmb_orientation_step.setToolTip(tr('Arrow/wheel step for azimuth and pitch: coarse, fine or precision.'))
         self.d_yaw.setSingleStep(1.0)
         self.d_pitch.setSingleStep(1.0)
         self.d_yaw_offset = QDoubleSpinBox(); self._deg(self.d_yaw_offset); self.d_yaw_offset.setValue(0.0)
@@ -213,18 +219,18 @@ class QCalViewDock(QDockWidget):
         self.d_vfov  = QDoubleSpinBox(); self._deg(self.d_vfov); self.d_vfov.setValue(40.0)
         self.cb_360  = QCheckBox(tr("Equirect 360x180")); self.cb_360.setChecked(False)
         self.d_maxdist = QDoubleSpinBox(); self.d_maxdist.setRange(0, 1000000); self.d_maxdist.setValue(5000.0); self.d_maxdist.setSuffix(tr(" m (0=∞)"))
-        self.d_symdist = QDoubleSpinBox(); self.d_symdist.setRange(5.0, 1000000.0); self.d_symdist.setDecimals(1); self.d_symdist.setValue(200.0); self.d_symdist.setSuffix(tr(" u.carte"))
-        self.cb_auto_depth = QCheckBox(tr("Profondeur auto (aperçu)")); self.cb_auto_depth.setChecked(True)
-        self.cmb_perf_budget = QComboBox(); self.cmb_perf_budget.addItems(tr(["Sûr", "Équilibré", "Max détail"])); self.cmb_perf_budget.setCurrentIndex(1)
-        self.cb_block_heavy_layers = QCheckBox(tr("Bloquer les couches trop lourdes")); self.cb_block_heavy_layers.setChecked(True)
-        self.lbl_render_budget = QLabel(tr("Budget : -")); self.lbl_render_budget.setStyleSheet("color:#666;")
+        self.d_symdist = QDoubleSpinBox(); self.d_symdist.setRange(5.0, 1000000.0); self.d_symdist.setDecimals(1); self.d_symdist.setValue(200.0); self.d_symdist.setSuffix(tr(' map units'))
+        self.cb_auto_depth = QCheckBox(tr('Auto depth (preview)')); self.cb_auto_depth.setChecked(True)
+        self.cmb_perf_budget = QComboBox(); self.cmb_perf_budget.addItems(tr(['Safe', 'Balanced', 'Max detail'])); self.cmb_perf_budget.setCurrentIndex(1)
+        self.cb_block_heavy_layers = QCheckBox(tr('Block overly heavy layers')); self.cb_block_heavy_layers.setChecked(True)
+        self.lbl_render_budget = QLabel(tr('Budget: -')); self.lbl_render_budget.setStyleSheet("color:#666;")
         self.d_focal = QDoubleSpinBox(); self.d_focal.setRange(0.1, 1000); self.d_focal.setDecimals(3); self.d_focal.setValue(35.0); self.d_focal.setSuffix(tr(" mm"))
         self.d_sensorw = QDoubleSpinBox(); self.d_sensorw.setRange(0.1, 100.0); self.d_sensorw.setDecimals(3); self.d_sensorw.setValue(36.0); self.d_sensorw.setSuffix(tr(" mm"))
         self.d_sensorw.setVisible(False)
-        self.cb_auto_hfov = QCheckBox(tr("HFOV auto (métadonnées optiques)")); self.cb_auto_hfov.setChecked(True)
+        self.cb_auto_hfov = QCheckBox(tr('Auto HFOV (optical metadata)')); self.cb_auto_hfov.setChecked(True)
         self.d_camheight = QDoubleSpinBox(); self.d_camheight.setRange(0.0, 2000.0); self.d_camheight.setDecimals(2); self.d_camheight.setValue(1.7); self.d_camheight.setSuffix(tr(" m"))
         self.btn_schematic_bg_color = QPushButton(tr("#F2F2F2"))
-        self.cb_schematic_bg_transparent = QCheckBox(tr("Fond transparent pour PNG"))
+        self.cb_schematic_bg_transparent = QCheckBox(tr('Transparent PNG background'))
         try:
             self._schematic_update_background_controls()
         except Exception as _qcv_exc:
@@ -238,39 +244,39 @@ class QCalViewDock(QDockWidget):
             except Exception as _qcv_exc:
                 _qcv_suppress(_qcv_exc, "qcalview_dock.py:268")
 
-        _tip(self.d_yaw, "Azimut central de la vue, en degrés. Il oriente l'axe principal de la caméra et décale directement les overlays projetés dans l'image.")
-        _tip(self.d_pitch, "Tangage de la caméra, en degrés. Une valeur positive/négative relève ou abaisse la visée et modifie la position verticale des overlays.")
-        _tip(self.d_roll, "Roulis de la caméra, en degrés. Il corrige l'inclinaison latérale de la photo et fait pivoter les overlays autour de l'axe optique.")
-        _tip(self.d_camheight, "Hauteur de la caméra au-dessus du terrain ou altitude Z utilisée selon le mode courant. Elle fixe l'origine 3D des rayons de projection.")
-        _tip(self.cmb_proj, "Type de projection de l'image. PINHOLE pour photo rectilinéaire, CYLINDRICAL pour panorama cylindrique, EQUIRECT pour panorama 360×180.")
-        _tip(self.cb_360, "Force le mode equirectangulaire complet 360° × 180°. À utiliser uniquement pour les panoramas sphériques complets.")
-        _tip(self.d_maxdist, "Distance maximale de projection des overlays depuis le point de vue. Réduit le territoire traité et améliore les performances.")
-        _tip(self.d_hfov, "Champ horizontal de l'image en degrés. C'est l'angle principal utilisé pour convertir les directions 3D des couches QGIS en positions X dans la photo.")
-        _tip(self.d_vfov, "Champ vertical de l'image en degrés. Il convertit les élévations 3D en positions Y dans la photo et doit rester cohérent avec le ratio de l'image.")
-        _tip(self.cb_auto_hfov, "Calcule automatiquement le HFOV à partir de la focale physique et de la largeur réelle du capteur lorsqu'elles sont disponibles ; l'équivalent 24×36 n'est utilisé qu'en repli.")
-        _tip(self.spin_w, "Largeur de l'image en pixels. Elle sert au ratio image et au placement précis des overlays sur l'axe horizontal.")
-        _tip(self.spin_h, "Hauteur de l'image en pixels. Elle sert au ratio image et au placement précis des overlays sur l'axe vertical.")
-        _tip(self.d_focal, "Focale utilisée par le calcul automatique. QCALVIEW privilégie la focale physique EXIF avec la largeur réelle du capteur ; une focale équivalente 24×36 n'est utilisée qu'en repli.")
-        _tip(self.d_sensorw, "Largeur physique du capteur utilisée en interne pour le HFOV. Elle est lue dans les métadonnées ; 36 mm sert uniquement au repli par focale équivalente 24×36.")
-        _tip(self.btn_schematic_bg_color, "Couleur globale utilisée pour toutes les vues sans photographie. Elle n'est pas enregistrée par point de vue.")
-        _tip(self.cb_schematic_bg_transparent, "Si activé, les vues schématiques exportées en PNG ont un véritable canal alpha. Dans l'aperçu, la transparence est matérialisée par un damier.")
+        _tip(self.d_yaw, "Central view azimuth in degrees. It orients the camera's main axis and directly shifts projected overlays within the image.")
+        _tip(self.d_pitch, 'Camera pitch in degrees. A positive/negative value raises or lowers the view and changes the vertical position of overlays.')
+        _tip(self.d_roll, 'Camera roll in degrees. It corrects lateral image tilt and rotates overlays around the optical axis.')
+        _tip(self.d_camheight, 'Camera height above terrain or Z elevation used by the current mode. It defines the 3D origin of the projection rays.')
+        _tip(self.cmb_proj, 'Image projection type. PINHOLE for rectilinear photos, CYLINDRICAL for cylindrical panoramas, EQUIRECT for 360×180 panoramas.')
+        _tip(self.cb_360, 'Forces full 360° × 180° equirectangular mode. Use only for complete spherical panoramas.')
+        _tip(self.d_maxdist, 'Maximum overlay projection distance from the viewpoint. Reduces the processed area and improves performance.')
+        _tip(self.d_hfov, 'Horizontal image field of view in degrees. This is the main angle used to convert 3D directions from QGIS layers into X positions in the photo.')
+        _tip(self.d_vfov, 'Vertical image field of view in degrees. It converts 3D elevations into Y positions in the photo and must remain consistent with the image aspect ratio.')
+        _tip(self.cb_auto_hfov, 'Automatically calculates HFOV from the physical focal length and actual sensor width when available; the 35 mm equivalent is used only as a fallback.')
+        _tip(self.spin_w, 'Image width in pixels. Used for the image aspect ratio and precise horizontal placement of overlays.')
+        _tip(self.spin_h, 'Image height in pixels. Used for the image aspect ratio and precise vertical placement of overlays.')
+        _tip(self.d_focal, 'Focal length used by the automatic calculation. QCALVIEW prioritises the physical EXIF focal length with the actual sensor width; a 35 mm equivalent focal length is used only as a fallback.')
+        _tip(self.d_sensorw, 'Physical sensor width used internally for HFOV. It is read from metadata; 36 mm is used only as a fallback with a 35 mm-equivalent focal length.')
+        _tip(self.btn_schematic_bg_color, 'Global color used for all views without a photograph. It is not stored per viewpoint.')
+        _tip(self.cb_schematic_bg_transparent, 'When enabled, schematic views exported as PNG use a true alpha channel. In the preview, transparency is represented by a checkerboard.')
 
         self.cmb_off_mode = QComboBox()
-        self.cmb_off_mode.addItems(tr(["Pixels", "Pourcentage"]))
+        self.cmb_off_mode.addItems(tr(["Pixels", "Percentage"]))
         self.spin_off_h = QDoubleSpinBox(); self.spin_off_h.setDecimals(3); self.spin_off_h.setRange(-5000.0, 5000.0); self.spin_off_h.setSingleStep(1.0); self.spin_off_h.setValue(0.0)
         self.spin_off_v = QDoubleSpinBox(); self.spin_off_v.setDecimals(3); self.spin_off_v.setRange(-5000.0, 5000.0); self.spin_off_v.setSingleStep(1.0); self.spin_off_v.setValue(0.0)
-        self.btn_reset_offsets = QPushButton(tr("Réinitialiser offsets"))
-        _tip(self.cmb_off_mode, "Unité des corrections de décalage image : pixels ou pourcentage de la largeur/hauteur.")
-        _tip(self.spin_off_h, "Décalage horizontal appliqué à l'image/aux overlays pour corriger un centrage résiduel après calage.")
-        _tip(self.spin_off_v, "Décalage vertical appliqué à l'image/aux overlays pour corriger une assiette résiduelle après calage.")
-        _tip(self.btn_reset_offsets, "Remet les décalages horizontal et vertical à zéro.")
-        _tip(self.cb_show_center_axis, "Affiche ou masque la barre centrale de l'image, utile pour contrôler le centre optique pendant le calage.")
-        _tip(self.cb_show_pdv_axis, "Affiche ou masque la barre d'azimut du point de vue, utile pour visualiser l'axe de visée calibré.")
-        _tip(self.d_symdist, "Longueur du symbole d'orientation sur la carte, exprimée en unités de la couche/projet.")
-        _tip(self.cb_auto_depth, "Ajuste automatiquement la profondeur de l'aperçu pour accélérer le rendu pendant le travail.")
-        _tip(self.cmb_perf_budget, "Profil de rendu utilisé pour équilibrer sécurité, vitesse et niveau de détail des overlays.")
-        _tip(self.cb_block_heavy_layers, "Empêche les couches trop lourdes de bloquer l'interface lors du rendu des overlays.")
-        _tip(self.lbl_render_budget, "Résumé du budget de rendu courant et de l'état des optimisations appliquées.")
+        self.btn_reset_offsets = QPushButton(tr('Reset offsets'))
+        _tip(self.cmb_off_mode, 'Unit for image-offset corrections: pixels or percentage of width/height.')
+        _tip(self.spin_off_h, 'Horizontal offset applied to the image/overlays to correct residual centring after calibration.')
+        _tip(self.spin_off_v, 'Vertical offset applied to the image/overlays to correct residual alignment after calibration.')
+        _tip(self.btn_reset_offsets, 'Resets horizontal and vertical offsets to zero.')
+        _tip(self.cb_show_center_axis, 'Shows or hides the image centre line, useful for checking the optical centre during calibration.')
+        _tip(self.cb_show_pdv_axis, 'Shows or hides the viewpoint azimuth line, useful for visualising the calibrated viewing axis.')
+        _tip(self.d_symdist, 'Length of the orientation symbol on the map, expressed in layer/project units.')
+        _tip(self.cb_auto_depth, 'Automatically adjusts preview depth to speed up rendering while working.')
+        _tip(self.cmb_perf_budget, 'Rendering profile used to balance safety, speed, and overlay detail level.')
+        _tip(self.cb_block_heavy_layers, 'Prevents overly heavy layers from blocking the interface while rendering overlays.')
+        _tip(self.lbl_render_budget, 'Summary of the current rendering budget and applied optimisation status.')
 
         if not hasattr(self, "_compact_rows"):
             self._compact_rows = []
@@ -344,13 +350,13 @@ class QCalViewDock(QDockWidget):
 
         _grid_card(0, 0, "Orientation", _compact_row(("Azim.", self.d_yaw), ("Tang.", self.d_pitch), ("Pas", self.cmb_orientation_step), ("Roul.", self.d_roll), ("Alt./Z", self.d_camheight)))
         _grid_card(0, 1, "Projection", _compact_row(self.cmb_proj, self.cb_360, ("Distance", self.d_maxdist)))
-        _grid_card(0, 2, "Paramètres caméra", _compact_row(("HFOV", self.d_hfov), ("VFOV", self.d_vfov), self.cb_auto_hfov, ("L", self.spin_w), ("H", self.spin_h), ("Focale", self.d_focal)))
+        _grid_card(0, 2, 'Settings camera', _compact_row(("HFOV", self.d_hfov), ("VFOV", self.d_vfov), self.cb_auto_hfov, ("L", self.spin_w), ("H", self.spin_h), ("Focale", self.d_focal)))
         _grid_card(1, 0, "Guides image", guides_row)
-        _grid_card(1, 1, "Offsets", _compact_row(("Unité", self.cmb_off_mode), ("H", self.spin_off_h), ("V", self.spin_off_v), self.btn_reset_offsets))
-        _grid_card(1, 2, "Symbole carte", self.d_symdist)
+        _grid_card(1, 1, "Offsets", _compact_row(('Unit', self.cmb_off_mode), ("H", self.spin_off_h), ("V", self.spin_off_v), self.btn_reset_offsets))
+        _grid_card(1, 2, 'Map symbol', self.d_symdist)
         _grid_card(2, 0, "Performance", _compact_row(self.cb_auto_depth, ("Profil", self.cmb_perf_budget), self.cb_block_heavy_layers), 2)
-        _grid_card(2, 2, "État rendu", self.lbl_render_budget)
-        _grid_card(3, 0, "Vue schématique (global)", _compact_row(("Fond", self.btn_schematic_bg_color), self.cb_schematic_bg_transparent), 3)
+        _grid_card(2, 2, 'Rendering status', self.lbl_render_budget)
+        _grid_card(3, 0, 'Schematic view (global)', _compact_row(('Background', self.btn_schematic_bg_color), self.cb_schematic_bg_transparent), 3)
         try:
             for _c in range(3):
                 f.setColumnStretch(_c, 1)
@@ -360,7 +366,7 @@ class QCalViewDock(QDockWidget):
 
         g_cam.setContentLayout(f)
         self.tab_calage_layout.addWidget(g_cam)
-        self.grp_camera_layer = CollapsibleBox("Couche caméra", checked=True)
+        self.grp_camera_layer = CollapsibleBox('Viewpoint layer', checked=True)
         content_campos = QWidget()
         f2 = QFormLayout(content_campos)
         self.cmb_camera = QgsMapLayerComboBox(); self.cmb_camera.setFilters(QC.QgsMapLayerProxyModel_Filter_PointLayer)
@@ -371,58 +377,58 @@ class QCalViewDock(QDockWidget):
         self.cmb_cam_feature = QComboBox()
         self.btn_cam_prev = QPushButton(tr("◀"))
         self.btn_cam_next = QPushButton(tr("▶"))
-        self.btn_cam_load = QPushButton(tr("Charger le point"))
-        self.btn_cam_save = QPushButton(tr("Enregistrer paramètres + état"))
-        self.btn_cam_fields = QPushButton(tr("Créer champs QCALVIEW"))
-        self.btn_cam_source_auto = QPushButton(tr("Photo du champ"))
-        self.btn_cam_source_photo = QPushButton(tr("Associer photo…"))
-        self.btn_cam_source_schema = QPushButton(tr("Vue schématique"))
-        self.btn_cam_batch_img = QPushButton(tr("Batch image+overlays…"))
-        self.btn_cam_batch_png = QPushButton(tr("Batch overlays PNG…"))
-        self.btn_cam_csv = QPushButton(tr("Exporter CSV variables…"))
-        self.cb_cam_show_all = QCheckBox(tr("Afficher tous les cônes enregistrés"))
+        self.btn_cam_load = QPushButton(tr('Load point'))
+        self.btn_cam_save = QPushButton(tr('Save parameters + state'))
+        self.btn_cam_fields = QPushButton(tr('Create QCALVIEW fields'))
+        self.btn_cam_source_auto = QPushButton(tr('Photo from field'))
+        self.btn_cam_source_photo = QPushButton(tr('Assign photo…'))
+        self.btn_cam_source_schema = QPushButton(tr('Schematic view'))
+        self.btn_cam_batch_img = QPushButton(tr('Batch image + overlays…'))
+        self.btn_cam_batch_png = QPushButton(tr('Batch PNG overlays…'))
+        self.btn_cam_csv = QPushButton(tr('Export camera variables CSV…'))
+        self.cb_cam_show_all = QCheckBox(tr('Show all saved view cones'))
         self.cb_cam_show_all.setChecked(False)
-        self.cb_cam_apply_style = QCheckBox(tr("Appliquer le style QCALVIEW à la couche PDV"))
+        self.cb_cam_apply_style = QCheckBox(tr('Apply QCALVIEW style to viewpoint layer'))
         self.cb_cam_apply_style.setChecked(False)
-        self.cb_cam_apply_style.setToolTip(tr("Désactivé par défaut. Si activé, le style QCALVIEW est appliqué uniquement à la couche explicitement choisie ci-dessus."))
-        self.cb_cam_auto_colors = QCheckBox(tr("Couleurs automatiques (hauteur / tangage)"))
+        self.cb_cam_apply_style.setToolTip(tr('Disabled by default. When enabled, the QCALVIEW style is applied only to the layer explicitly selected above.'))
+        self.cb_cam_auto_colors = QCheckBox(tr('Automatic colors (height / pitch)'))
         self.cb_cam_auto_colors.setChecked(True)
         self.cb_cam_auto_colors.setEnabled(False)
-        self.cb_cam_auto_colors.setToolTip(tr("Coché : couleurs QCALVIEW automatiques. Décoché : STYLE-MOD.qml et couleurs modifiables dans la symbologie QGIS ; les modifications sont conservées avec le projet pour cette couche."))
-        self.lbl_cam_status = QLabel(tr("Aucun point de vue chargé."))
+        self.cb_cam_auto_colors.setToolTip(tr('Checked: automatic QCALVIEW colors. Unchecked: STYLE-MOD.qml and colors editable in QGIS symbology; changes are stored with the project for this layer.'))
+        self.lbl_cam_status = QLabel(tr('No viewpoint loaded.'))
         self.lbl_cam_status.setStyleSheet("color:#666;")
-        f2.addRow(tr("Couche caméra"), self.cmb_camera)
+        f2.addRow(tr('Viewpoint layer'), self.cmb_camera)
         f2.addRow(tr(self.cb_cam_apply_style))
         f2.addRow(tr(self.cb_cam_auto_colors))
-        f2.addRow(tr("Champ identifiant"), self.cmb_cam_id_field)
-        f2.addRow(tr("Champ libellé"), self.cmb_cam_label_field)
-        f2.addRow(tr("Champ d’ordre"), self.cmb_cam_order_field)
-        f2.addRow(tr("Champ image"), self.cmb_cam_image_field)
-        f2.addRow(tr("Point de vue"), _compact_row(self.btn_cam_prev, self.cmb_cam_feature, self.btn_cam_next))
-        f2.addRow(tr("Source du PDV"), _compact_row(self.btn_cam_source_auto, self.btn_cam_source_photo, self.btn_cam_source_schema))
-        self.cmb_cam_id_field.setToolTip(tr("Identifiant court du point de vue."))
-        self.cmb_cam_label_field.setToolTip(tr("Libellé descriptif affiché dans la visionneuse. Peut être laissé vide."))
-        self.cmb_cam_order_field.setToolTip(tr("Champ utilisé pour l’ordre des flèches précédent/suivant. Si vide, QCALVIEW utilise l’identifiant puis le FID."))
-        self.cmb_cam_image_field.setToolTip(tr("Champ image utilisé en mode automatique. En « Vue schématique », la photo associée est conservée mais n'est pas affichée."))
-        self.btn_cam_source_auto.setToolTip(tr("Réutiliser la photographie indiquée par le Champ image / les champs historiques de la couche."))
-        self.btn_cam_source_photo.setToolTip(tr("Choisir ou remplacer explicitement la photographie de ce point de vue."))
-        self.btn_cam_source_schema.setToolTip(tr("Afficher et enregistrer une vue schématique sans supprimer la photographie associée au point de vue."))
+        f2.addRow(tr('ID field'), self.cmb_cam_id_field)
+        f2.addRow(tr('Label field'), self.cmb_cam_label_field)
+        f2.addRow(tr('Order field'), self.cmb_cam_order_field)
+        f2.addRow(tr('Image field'), self.cmb_cam_image_field)
+        f2.addRow(tr('Viewpoint'), _compact_row(self.btn_cam_prev, self.cmb_cam_feature, self.btn_cam_next))
+        f2.addRow(tr('Viewpoint source'), _compact_row(self.btn_cam_source_auto, self.btn_cam_source_photo, self.btn_cam_source_schema))
+        self.cmb_cam_id_field.setToolTip(tr('Short viewpoint identifier.'))
+        self.cmb_cam_label_field.setToolTip(tr('Descriptive label shown in the viewer. May be left empty.'))
+        self.cmb_cam_order_field.setToolTip(tr('Field used for previous/next ordering. If empty, QCALVIEW uses the identifier then the FID.'))
+        self.cmb_cam_image_field.setToolTip(tr('Image field used in automatic mode. A viewpoint set to “Schematic view” deliberately ignores all historical image paths.'))
+        self.btn_cam_source_auto.setToolTip(tr('Reuse the photograph referenced by the Image field / historical layer fields.'))
+        self.btn_cam_source_photo.setToolTip(tr('Explicitly choose or replace the photograph for this viewpoint.'))
+        self.btn_cam_source_schema.setToolTip(tr('Detach the photograph for this viewpoint and save a schematic view.'))
         f2.addRow(tr(self.cb_cam_show_all))
-        self.btn_cam_save.setToolTip(tr("Enregistre les paramètres caméra et l’état visuel du PDV : couches, styles, opacités, règles/catégories, thème et réglages QCALVIEW."))
-        f2.addRow(tr("Synchronisation"), _compact_row(self.btn_cam_load, self.btn_cam_save, self.btn_cam_fields))
+        self.btn_cam_save.setToolTip(tr('Saves camera parameters and the viewpoint visual state: layers, styles, opacities, rules/categories, theme and QCALVIEW settings.'))
+        f2.addRow(tr('Synchronization'), _compact_row(self.btn_cam_load, self.btn_cam_save, self.btn_cam_fields))
         f2.addRow(tr(self.lbl_cam_status))
         self.grp_camera_layer.setContentLayout(f2)
         self.tab_camera_layout.addWidget(self.grp_camera_layer)
-        g_nav = QGroupBox(tr("Navigation image ↔ canevas"))
+        g_nav = QGroupBox(tr('Image ↔ map navigation'))
         fn = QFormLayout(g_nav)
-        self.btn_pick_view_from_map = QPushButton(tr("Viser depuis le canevas"))
-        self.btn_pick_ray_from_image = QPushButton(tr("Cliquer dans l’image → carte"))
+        self.btn_pick_view_from_map = QPushButton(tr('Target from map'))
+        self.btn_pick_ray_from_image = QPushButton(tr('Click image → map'))
         self.btn_stop_nav = QPushButton(tr("Stop"))
-        self.cb_pick_sets_pitch = QCheckBox(tr("Tangage auto (si altitude dispo)"))
+        self.cb_pick_sets_pitch = QCheckBox(tr('Auto pitch (if elevation is available)'))
         self.cb_pick_sets_pitch.setChecked(True)
-        self.cb_center_canvas_on_pick = QCheckBox(tr("Centrer la carte sur la cible"))
+        self.cb_center_canvas_on_pick = QCheckBox(tr('Center map on target'))
         self.cb_center_canvas_on_pick.setChecked(False)
-        self.lbl_nav_state = QLabel(tr("Mode navigation : inactif"))
+        self.lbl_nav_state = QLabel(tr('Navigation mode: inactive'))
         self.lbl_nav_state.setStyleSheet("color:#666;")
         row_nav_btns = _compact_row(self.btn_pick_view_from_map, self.btn_pick_ray_from_image, self.btn_stop_nav)
         row_nav_opts = _compact_row(self.cb_pick_sets_pitch, self.cb_center_canvas_on_pick)
@@ -430,12 +436,12 @@ class QCalViewDock(QDockWidget):
         fn.addRow(tr(row_nav_opts))
         fn.addRow(tr(self.lbl_nav_state))
         self.tab_camera_layout.addWidget(g_nav)
-        self.grp_exp = CollapsibleBox(tr("Outils expérimentaux"), checked=False)
+        self.grp_exp = CollapsibleBox(tr('Experimental Tools'), checked=False)
         content_exp = QWidget()
         fe = QFormLayout(content_exp)
-        self.cb_show_experimental = QCheckBox(tr("Afficher modules expérimentaux"))
+        self.cb_show_experimental = QCheckBox(tr('Show experimental modules'))
         self.cb_show_experimental.setChecked(self._read_bool_setting(_SHOW_EXPERIMENTAL_SETTING, False))
-        self.lbl_exp_status = QLabel(tr("Les modules expérimentaux restent masqués par défaut."))
+        self.lbl_exp_status = QLabel(tr('Experimental modules remain hidden by default.'))
         self.lbl_exp_status.setStyleSheet("color:#666;")
         fe.addRow(tr(self.cb_show_experimental))
         fe.addRow(tr(self.lbl_exp_status))
@@ -443,7 +449,7 @@ class QCalViewDock(QDockWidget):
         self.tab_camera_layout.addWidget(self.grp_exp)
         self.grp_exp.setVisible(False)  
         self.lbl_experimental_notice = QLabel(
-            tr("ALPHA-40.20.5 — Ces outils sont encore en cours de développement. Leur comportement et leur interface peuvent évoluer dans les prochaines versions Alpha.")
+            tr('QCALVIEW 40.21 — Some optional tools remain under active development. Their behaviour and interface may still change.')
         )
         self.lbl_experimental_notice.setWordWrap(True)
         self.lbl_experimental_notice.setStyleSheet("color:#666; padding:4px 2px 8px 2px;")
@@ -456,16 +462,16 @@ class QCalViewDock(QDockWidget):
         self._monoplot_visible = []
         self._monoplot_counter = 0
         self._monoplot_active_tool = None
-        self.grp_gcp = CollapsibleBox(tr("Recalage assisté"), checked=False)
+        self.grp_gcp = CollapsibleBox(tr('Assisted calibration'), checked=False)
         fg = QFormLayout(self.grp_gcp)
 
         self.list_gcp = QListWidget()
-        btn_pick_center = QPushButton(tr("Pointer centre (PDV)"))
+        btn_pick_center = QPushButton(tr('Pick center (viewpoint)'))
         btn_pick_center.clicked.connect(self.start_pick_pdv_center)
         hb = QHBoxLayout()
-        self.btn_add_gcp = QPushButton(tr("Ajouter GCP (photo → carte)"))
-        self.btn_del_gcp = QPushButton(tr("Supprimer"))
-        self.btn_clear_gcp = QPushButton(tr("Tout effacer"))
+        self.btn_add_gcp = QPushButton(tr('Add GCP (photo → map)'))
+        self.btn_del_gcp = QPushButton(tr('Delete'))
+        self.btn_clear_gcp = QPushButton(tr('Clear all'))
         hb.addWidget(self.btn_add_gcp); hb.addWidget(self.btn_del_gcp); hb.addWidget(self.btn_clear_gcp)
         self.install_global_shortcuts()
         self.cb_sol_yaw = QCheckBox(tr("Yaw"));   self.cb_sol_yaw.setChecked(True)
@@ -473,27 +479,27 @@ class QCalViewDock(QDockWidget):
         self.cb_sol_roll = QCheckBox(tr("Roll"));  self.cb_sol_roll.setChecked(True)
         self.cb_sol_hfov = QCheckBox(tr("HFOV"));  self.cb_sol_hfov.setChecked(True)
         row_params = QHBoxLayout()
-        row_params.addWidget(QLabel(tr("Paramètres à estimer :")))
+        row_params.addWidget(QLabel(tr('Parameters to estimate:')))
 
         for w in (self.cb_sol_yaw, self.cb_sol_pitch, self.cb_sol_roll, self.cb_sol_hfov):
             row_params.addWidget(w)
-        self.btn_solve = QPushButton(tr("Résoudre caméra"))
+        self.btn_solve = QPushButton(tr('Solve camera'))
         fg.addRow(tr(self.list_gcp))
         fg.addRow(tr(hb))
         fg.addRow(tr(row_params))
         fg.addRow(tr(self.btn_solve))
-        self.lbl_gcp_dev = QLabel(tr("Module expérimental dédié au recalage assisté et à la résolution des paramètres caméra."))
+        self.lbl_gcp_dev = QLabel(tr('Experimental module for assisted calibration and camera-parameter solving.'))
         self.lbl_gcp_dev.setStyleSheet("color:#666;")
         fg.addRow(tr(self.lbl_gcp_dev))
         self.grp_gcp.setContentLayout(fg)
-        self.grp_monoplot = CollapsibleBox(tr("Monoplotting interactif (expérimental)"), checked=False)
+        self.grp_monoplot = CollapsibleBox(tr('Interactive monoplotting (experimental)'), checked=False)
         fm = QFormLayout(self.grp_monoplot)
-        self.btn_monoplot_map = QPushButton(tr("Repère depuis la carte"))
-        self.btn_monoplot_image = QPushButton(tr("Interroger le terrain depuis l'image"))
+        self.btn_monoplot_map = QPushButton(tr('Reference from map'))
+        self.btn_monoplot_image = QPushButton(tr('Query terrain from image'))
         self.btn_monoplot_stop = QPushButton(tr("Stop"))
-        self.btn_monoplot_clear = QPushButton(tr("Effacer les repères"))
+        self.btn_monoplot_clear = QPushButton(tr('Clear references'))
         self.list_monoplot = QListWidget()
-        self.lbl_monoplot_status = QLabel(tr("Aucun repère monoplotting."))
+        self.lbl_monoplot_status = QLabel(tr('No monoplotting reference.'))
         self.lbl_monoplot_status.setStyleSheet("color:#666;")
         fm.addRow(tr(_compact_row(self.btn_monoplot_map, self.btn_monoplot_image, self.btn_monoplot_stop)))
         fm.addRow(tr(self.btn_monoplot_clear))
@@ -519,31 +525,31 @@ class QCalViewDock(QDockWidget):
         self._relief_grid_layout.setHorizontalSpacing(10)
         self._relief_grid_layout.setVerticalSpacing(8)
         self.tab_relief_layout.addWidget(self._relief_grid_container)
-        self.grp_dem = CollapsibleBox("Relief (MNT/MNS)", checked=True)
+        self.grp_dem = CollapsibleBox('Terrain (DEM/DSM)', checked=True)
         content_dem = QWidget()
         form_dem = QFormLayout(content_dem)
         self.cmb_dem = QgsMapLayerComboBox(); self.cmb_dem.setFilters(QC.QgsMapLayerProxyModel_Filter_RasterLayer)
         try:
-            self.cmb_dem.setAllowEmptyLayer(True, tr("— Sélectionner un MNT/MNS —"))
+            self.cmb_dem.setAllowEmptyLayer(True, tr('— Select a DEM/DSM —'))
         except TypeError:
             self.cmb_dem.setAllowEmptyLayer(True)
         try:
             self.cmb_dem.setLayer(None)
         except Exception as exc:
             _qcv_suppress(exc, "qcalview_dock.py:suppressed")
-        self.lbl_dem_required = QLabel(tr("MNT/MNS requis pour le rendu : sélectionnez un raster de topographie."))
+        self.lbl_dem_required = QLabel(tr('DEM/DSM required for rendering: select a terrain raster.'))
         self.lbl_dem_required.setWordWrap(True)
         self.lbl_dem_required.setStyleSheet("font-weight:600; color:#a35a00;")
-        self.cb_use_dem_z = QCheckBox(tr("Utiliser le MNT/MNS pour les altitudes (caméra + objets)"))
+        self.cb_use_dem_z = QCheckBox(tr('Use DEM/DSM for elevations (camera + objects)'))
         self.cb_use_dem_z.setChecked(False)
         self.combo_relief_mode = QComboBox()
-        self.combo_relief_mode.addItems(tr(["Aucun", "Transparent (masquant)", "Opaque", "Wireframe", "Ridgelines", "Skyline"]))
+        self.combo_relief_mode.addItems(tr(['None', 'Transparent (occluding)', "Opaque", "Wireframe", "Ridgelines", "Skyline"]))
         self.combo_relief_mode.setCurrentIndex(0)
         self.spin_dem_step = QDoubleSpinBox(); self.spin_dem_step.setRange(5.0, 2000.0); self.spin_dem_step.setValue(150.0); self.spin_dem_step.setSuffix(tr(" m"))
-        self.btn_dem_color = QPushButton(tr("Couleur relief…")); self._dem_color = QColor(255, 255, 0, 220)
+        self.btn_dem_color = QPushButton(tr('Relief color…')); self._dem_color = QColor(255, 255, 0, 220)
         self.spin_dem_width = QSpinBox(); self.spin_dem_width.setRange(1, 6); self.spin_dem_width.setValue(1)
         self.spin_dem_alpha = QSpinBox(); self.spin_dem_alpha.setRange(0, 255); self.spin_dem_alpha.setValue(220); self.spin_dem_alpha.setVisible(False)
-        self.cb_curvature = QCheckBox(tr("Prendre en compte la courbure"))
+        self.cb_curvature = QCheckBox(tr('Account for curvature'))
         self.cb_curvature.setChecked(True)
         self.d_earth_radius_km = QDoubleSpinBox(); self.d_earth_radius_km.setRange(100.0, 100000.0); self.d_earth_radius_km.setDecimals(1)
         try:
@@ -551,24 +557,72 @@ class QCalViewDock(QDockWidget):
         except Exception:
             self.d_earth_radius_km.setValue(6370.0)
         self.d_earth_radius_km.setSuffix(tr(" km"))
-        self.d_earth_radius_km.setToolTip(tr("Rayon du corps utilisé pour la correction de courbure. Réglage avancé : Paramètres > Variables."))
+        self.d_earth_radius_km.setToolTip(tr('Body radius used for curvature correction. Advanced setting: Settings > Variables.'))
         self.d_earth_radius_km.setVisible(False)
-        form_dem.addRow(tr("Raster MNT/MNS"), self.cmb_dem)
+        form_dem.addRow(tr('DEM/DSM raster'), self.cmb_dem)
+        self.cb_dem_show_all_rasters = QCheckBox(tr('Show all rasters'))
+        self.cb_dem_show_all_rasters.setChecked(False)
+        self.cb_dem_show_all_rasters.setToolTip(tr('Disables the DEM filter and shows all QGIS/GDAL-compatible QgsRasterLayer layers in the project.'))
+        form_dem.addRow("", self.cb_dem_show_all_rasters)
         form_dem.addRow("", self.lbl_dem_required)
         form_dem.addRow(tr(self.cb_use_dem_z))
-        form_dem.addRow(tr("Mode relief"), self.combo_relief_mode)
-        form_dem.addRow(tr("Échantillonnage"), self.spin_dem_step)
+        self.cb_relief_specific_pdv = QCheckBox(tr('Relief specific to this viewpoint'))
+        self.cb_relief_specific_pdv.setChecked(False)
+        self.cb_relief_specific_pdv.setToolTip(tr('By default, the DEM and relief mode are shared by all viewpoints. Enable this option only to override the relief mode for the current viewpoint.'))
+        form_dem.addRow("", self.cb_relief_specific_pdv)
+        form_dem.addRow(tr('Relief mode'), self.combo_relief_mode)
+        form_dem.addRow(tr('Sampling'), self.spin_dem_step)
         form_dem.addRow(tr(self.cb_curvature))
         self._form_dem = form_dem
-        hsty = QHBoxLayout(); hsty.addWidget(self.btn_dem_color); hsty.addWidget(QLabel(tr("Épaisseur"))); hsty.addWidget(self.spin_dem_width)
-        form_dem.addRow(tr("Style relief"), hsty)
-        self.cb_wire_dashed = QCheckBox(tr("Wireframe en pointillés"))
+        hsty = QHBoxLayout(); hsty.addWidget(self.btn_dem_color); hsty.addWidget(QLabel(tr('Width'))); hsty.addWidget(self.spin_dem_width)
+        form_dem.addRow(tr('Relief style'), hsty)
+        self.cb_wire_dashed = QCheckBox(tr('Dashed wireframe'))
         form_dem.addRow(tr(self.cb_wire_dashed))
+
+        self.grp_drape_rasters = CollapsibleBox(tr('Raster projected on terrain'), checked=False)
+        content_drape = QWidget()
+        fdrape = QFormLayout(content_drape)
+        self.cb_drape_rasters = QCheckBox(tr('Drape a raster layer over the DEM/DSM'))
+        self.cb_drape_rasters.setChecked(False)
+        self.cb_drape_rasters.setToolTip(tr('The local raster layer is rendered with its QGIS symbology, then draped over the DEM/DSM mesh.'))
+        fdrape.addRow(tr(self.cb_drape_rasters))
+        self.cmb_drape_raster = QgsMapLayerComboBox(); self.cmb_drape_raster.setFilters(QC.QgsMapLayerProxyModel_Filter_RasterLayer)
+        # Backward-compatibility alias; only one draped raster is currently supported.
+        self.cmb_drape_raster_1 = self.cmb_drape_raster
+        try:
+            self.cmb_drape_raster.setAllowEmptyLayer(True, tr('— No local raster —'))
+        except TypeError:
+            self.cmb_drape_raster.setAllowEmptyLayer(True)
+        try:
+            self.cmb_drape_raster.setLayer(None)
+        except Exception:
+            pass
+        self.cmb_drape_raster.setToolTip(tr('Local raster layer only. WMS/WMTS/XYZ services and other network sources are excluded to avoid slowdowns.'))
+        fdrape.addRow(tr('Local raster'), self.cmb_drape_raster)
+        self.cb_drape_show_in_qgis = QCheckBox(tr('Show the raster in the QGIS map canvas too'))
+        try:
+            _v = str(self._settings.value('QCALVIEW/drape_show_in_qgis', 'true')).strip().lower()
+            self.cb_drape_show_in_qgis.setChecked(_v in ('1','true','yes','on'))
+        except Exception:
+            self.cb_drape_show_in_qgis.setChecked(True)
+        self.cb_drape_show_in_qgis.setToolTip(tr('When enabled, the draped raster layer is made visible in the QGIS layer tree when selected in QCALVIEW.'))
+        fdrape.addRow("", self.cb_drape_show_in_qgis)
+        self.lbl_drape_hint = QLabel(tr('Symbology, transparency and NoData are taken from the QGIS renderer. The DEM/DSM selected in Relief remains the elevation source.'))
+        self.lbl_drape_hint.setWordWrap(True)
+        self.lbl_drape_hint.setStyleSheet("color:#666;")
+        fdrape.addRow("", self.lbl_drape_hint)
+        self.lbl_drape_local_hint = QLabel(tr('Use a local layer (GeoTIFF, ASC, VRT, etc.). WMS/WMTS/XYZ layers are not offered.'))
+        self.lbl_drape_local_hint.setWordWrap(True)
+        self.lbl_drape_local_hint.setStyleSheet("color:#a35a00;")
+        fdrape.addRow("", self.lbl_drape_local_hint)
+        self.grp_drape_rasters.setContentLayout(fdrape)
+        self.tab_layers_layout.addWidget(self.grp_drape_rasters)
+
         self.combo_wire_mode = QComboBox()
-        self.combo_wire_mode.addItem(tr("Filaire complet"), 0)
-        self.combo_wire_mode.addItem(tr("Arêtes supérieures"), 2)
+        self.combo_wire_mode.addItem(tr('Full wireframe'), 0)
+        self.combo_wire_mode.addItem(tr('Top edges'), 2)
         self.combo_wire_mode.setCurrentIndex(1)
-        self.lbl_wire_mode = QLabel(tr("Mode wireframe"))
+        self.lbl_wire_mode = QLabel(tr('Wireframe mode'))
         form_dem.addRow(tr(self.lbl_wire_mode), self.combo_wire_mode)
         self.cb_show_dem = QCheckBox(tr("_legacy_show_dem")); self.cb_show_dem.setChecked(False); self.cb_show_dem.setVisible(False)
         self.cb_transparent_topo = QCheckBox(tr("_legacy_transparent_topo")); self.cb_transparent_topo.setChecked(False); self.cb_transparent_topo.setVisible(False)
@@ -587,92 +641,92 @@ class QCalViewDock(QDockWidget):
         self.btn_sky_color = self.btn_dem_color
         self._sky_color = QColor(self._dem_color)
         self.spin_sky_width = self.spin_dem_width
-        self.cb_sky_dashed = QCheckBox(tr("Skyline en pointillés"))
+        self.cb_sky_dashed = QCheckBox(tr('Dashed skyline'))
         self.spin_sky_fill_alpha = QSpinBox(); self.spin_sky_fill_alpha.setRange(0, 255); self.spin_sky_fill_alpha.setValue(255); self.spin_sky_fill_alpha.setVisible(False)
-        fs.addRow(tr("Écart radial min ridgelines"), self.d_ridge_gap)
-        fs.addRow(tr("Seuil angulaire ridgelines"), self.d_ridge_prom)
+        fs.addRow(tr('Minimum radial gap for ridgelines'), self.d_ridge_gap)
+        fs.addRow(tr('Ridgeline angular threshold'), self.d_ridge_prom)
         fs.addRow(tr(self.cb_sky_dashed))
         self.grp_skyline.setContentLayout(fs)
         form_dem.addRow(tr(self.grp_skyline))
-        self.grp_occ = CollapsibleBox(tr("Occlusions / débogage"), checked=False)
+        self.grp_occ = CollapsibleBox(tr('Occlusion / debugging'), checked=False)
         content_occ = QWidget()
         fo = QFormLayout(content_occ)
         self.cb_occ_layers = QCheckBox(tr("_legacy_occ_layers")); self.cb_occ_layers.setChecked(False); self.cb_occ_layers.setVisible(False)
         self.d_az_step = QDoubleSpinBox(); self.d_az_step.setRange(0.1, 5.0); self.d_az_step.setDecimals(2); self.d_az_step.setValue(0.5); self.d_az_step.setSuffix(tr(" °"))
         self.d_rad_step = QDoubleSpinBox(); self.d_rad_step.setRange(1.0, 500.0); self.d_rad_step.setDecimals(1); self.d_rad_step.setValue(50.0); self.d_rad_step.setSuffix(tr(" m"))
         self.d_eps = QDoubleSpinBox(); self.d_eps.setRange(0.0, 1.0); self.d_eps.setDecimals(2); self.d_eps.setValue(0.20); self.d_eps.setSuffix(tr(" °"))
-        self.cb_occ_objects = QCheckBox(tr("Masquage inter-objets (legacy panoramique)")); self.cb_occ_objects.setChecked(True); self.cb_occ_objects.setVisible(False)
-        self.cb_transparent_objects = QCheckBox(tr("Forcer toutes les couches en transparence (ancien mode global)")); self.cb_transparent_objects.setChecked(False)
-        self.cb_debug_no_occ = QCheckBox(tr("Mode debug : ignorer toute occlusion")); self.cb_debug_no_occ.setChecked(False)
-        self.cb_show_guides = QCheckBox(tr("Afficher repères FOV & axes")); self.cb_show_guides.setChecked(False)
+        self.cb_occ_objects = QCheckBox(tr('Inter-object occlusion (legacy panorama)')); self.cb_occ_objects.setChecked(True); self.cb_occ_objects.setVisible(False)
+        self.cb_transparent_objects = QCheckBox(tr('Force all layers transparent (legacy global mode)')); self.cb_transparent_objects.setChecked(False)
+        self.cb_debug_no_occ = QCheckBox(tr('Debug mode: ignore all occlusion')); self.cb_debug_no_occ.setChecked(False)
+        self.cb_show_guides = QCheckBox(tr('Show FOV guides & axes')); self.cb_show_guides.setChecked(False)
         fo.addRow(tr(self.cb_occ_objects))
         fo.addRow(tr(self.cb_transparent_objects))
         fo.addRow(tr(self.cb_debug_no_occ))
         fo.addRow(tr(self.cb_show_guides))
         self.grp_occ.setContentLayout(fo)
         self.profiler = get_profiler()
-        self.cb_enable_profiler = QCheckBox(tr("Activer profiling (debug)"))
+        self.cb_enable_profiler = QCheckBox(tr('Enable profiling (debug)'))
         self.cb_enable_profiler.toggled.connect(lambda c: setattr(self.profiler, 'enabled', c))
-        self.btn_profiler_report = QPushButton(tr("📊 Rapport perf"))
+        self.btn_profiler_report = QPushButton(tr('📊 Performance report'))
         self.btn_profiler_report.clicked.connect(self._show_profiler_report)
         fo.addRow(tr(self.cb_enable_profiler))
         fo.addRow(tr(self.btn_profiler_report))
         self.tab_gcp_layout.addWidget(self.grp_occ)
-        self.grp_calib = CollapsibleBox(tr("Grille de projection / règle azimutale (expérimental)") if PUBLIC_EXPERIMENTAL_LIMITED else tr("Aides 3D (expérimental)"), checked=False)
+        self.grp_calib = CollapsibleBox(tr('Projection grid / azimuth ruler (experimental)') if PUBLIC_ADVANCED_TOOLS_LIMITED else tr('3D guides (experimental)'), checked=False)
         content_calib = QWidget()
         calib_v = QVBoxLayout(content_calib)
-        self.cb_calib_enable = QCheckBox(tr("Activer la grille/cube de calibration"))
+        self.cb_calib_enable = QCheckBox(tr('Enable calibration grid/cube'))
         self.cb_calib_enable.setChecked(False)
-        self.cb_proj_grid_enable = QCheckBox(tr("Afficher la grille de projection"))
+        self.cb_proj_grid_enable = QCheckBox(tr('Show projection grid'))
         self.cb_proj_grid_enable.setChecked(False)
         self.d_proj_grid_step = QDoubleSpinBox(); self.d_proj_grid_step.setRange(5.0, 45.0); self.d_proj_grid_step.setSingleStep(5.0); self.d_proj_grid_step.setDecimals(0); self.d_proj_grid_step.setValue(5.0); self.d_proj_grid_step.setSuffix(tr(" °"))
-        self.cmb_calib_type = QComboBox(); self.cmb_calib_type.addItems(tr(["Plan au sol", "Plan vertical", "Cube étalon"]))
+        self.cmb_calib_type = QComboBox(); self.cmb_calib_type.addItems(tr(['Ground plane', 'Vertical plane', 'Reference cube']))
         self.d_calib_spacing = QDoubleSpinBox(); self.d_calib_spacing.setRange(0.1, 1000.0); self.d_calib_spacing.setValue(5.0); self.d_calib_spacing.setSuffix(tr(" m"))
         self.d_calib_width   = QDoubleSpinBox(); self.d_calib_width.setRange(1.0, 5000.0); self.d_calib_width.setValue(50.0); self.d_calib_width.setSuffix(tr(" m"))
         self.d_calib_depth   = QDoubleSpinBox(); self.d_calib_depth.setRange(0.0, 5000.0); self.d_calib_depth.setValue(50.0); self.d_calib_depth.setSuffix(tr(" m"))
         self.d_calib_height  = QDoubleSpinBox(); self.d_calib_height.setRange(0.0, 2000.0); self.d_calib_height.setValue(10.0); self.d_calib_height.setSuffix(tr(" m"))
         self.d_calib_dist    = QDoubleSpinBox(); self.d_calib_dist.setRange(0.0, 5000.0); self.d_calib_dist.setValue(30.0); self.d_calib_dist.setSuffix(tr(" m"))
         self.d_calib_elev    = QDoubleSpinBox(); self.d_calib_elev.setRange(-2000.0, 2000.0); self.d_calib_elev.setValue(0.0); self.d_calib_elev.setSuffix(tr(" m (offset)"))
-        self.cb_calib_snap_dem = QCheckBox(tr("Caler la base sur le MNT au centre"))
+        self.cb_calib_snap_dem = QCheckBox(tr('Snap base to DEM at center'))
         self.cb_calib_snap_dem.setChecked(True)
-        self.btn_calib_color = QPushButton(tr("Couleur…")); self._calib_color = QColor(0, 255, 255, 200)
+        self.btn_calib_color = QPushButton(tr('Color…')); self._calib_color = QColor(0, 255, 255, 200)
         self.spin_calib_width = QSpinBox(); self.spin_calib_width.setRange(1, 6); self.spin_calib_width.setValue(1)
-        self.cb_calib_labels = QCheckBox(tr("Graduations (m)")); self.cb_calib_labels.setChecked(True)
-        self.cb_calib_axes   = QCheckBox(tr("Axes XYZ au centre")); self.cb_calib_axes.setChecked(True)
-        self.cb_az_rule_enable = QCheckBox(tr("Afficher la règle azimutale"))
+        self.cb_calib_labels = QCheckBox(tr('Ticks (m)')); self.cb_calib_labels.setChecked(True)
+        self.cb_calib_axes   = QCheckBox(tr('XYZ axes at center')); self.cb_calib_axes.setChecked(True)
+        self.cb_az_rule_enable = QCheckBox(tr('Show azimuth ruler'))
         self.cb_az_rule_enable.setChecked(False)
         self.d_az_rule_band_pct = QDoubleSpinBox(); self.d_az_rule_band_pct.setRange(1.0, 10.0); self.d_az_rule_band_pct.setDecimals(1); self.d_az_rule_band_pct.setSingleStep(0.5); self.d_az_rule_band_pct.setValue(4.0); self.d_az_rule_band_pct.setSuffix(tr(" %"))
-        self.d_az_rule_text_pct = QDoubleSpinBox(); self.d_az_rule_text_pct.setRange(20.0, 80.0); self.d_az_rule_text_pct.setDecimals(0); self.d_az_rule_text_pct.setSingleStep(5.0); self.d_az_rule_text_pct.setValue(38.0); self.d_az_rule_text_pct.setSuffix(tr(" % bandeau"))
+        self.d_az_rule_text_pct = QDoubleSpinBox(); self.d_az_rule_text_pct.setRange(20.0, 80.0); self.d_az_rule_text_pct.setDecimals(0); self.d_az_rule_text_pct.setSingleStep(5.0); self.d_az_rule_text_pct.setValue(38.0); self.d_az_rule_text_pct.setSuffix(tr(' % banner'))
 
-        self.grp_proj_grid = QGroupBox(tr("Grille de projection"))
+        self.grp_proj_grid = QGroupBox(tr('Projection grid'))
         fproj = QFormLayout(self.grp_proj_grid)
         fproj.addRow(tr(self.cb_proj_grid_enable))
-        fproj.addRow(tr("Pas angulaire"), self.d_proj_grid_step)
+        fproj.addRow(tr('Angular step'), self.d_proj_grid_step)
 
-        self.grp_az_rule = QGroupBox(tr("Règle azimutale"))
+        self.grp_az_rule = QGroupBox(tr('Azimuth ruler'))
         faz = QFormLayout(self.grp_az_rule)
         faz.addRow(tr(self.cb_az_rule_enable))
-        faz.addRow(tr("Hauteur du bandeau"), self.d_az_rule_band_pct)
-        faz.addRow(tr("Taille du texte"), self.d_az_rule_text_pct)
-        self.grp_calib_world = QGroupBox(tr("Grille / cube de calibration"))
+        faz.addRow(tr('Band height'), self.d_az_rule_band_pct)
+        faz.addRow(tr('Text size'), self.d_az_rule_text_pct)
+        self.grp_calib_world = QGroupBox(tr('Calibration grid / cube'))
         fcal = QFormLayout(self.grp_calib_world)
         fcal.addRow(tr(self.cb_calib_enable))
         fcal.addRow(tr("Type"), self.cmb_calib_type)
-        fcal.addRow(tr("Pas (m)"), self.d_calib_spacing)
-        fcal.addRow(tr("Largeur (m)"), self.d_calib_width)
-        fcal.addRow(tr("Profondeur (m) / Cube"), self.d_calib_depth)
-        fcal.addRow(tr("Hauteur (m) (vertical/cube)"), self.d_calib_height)
-        fcal.addRow(tr("Distance devant caméra (m)"), self.d_calib_dist)
-        fcal.addRow(tr("Décalage d’altitude (m)"), self.d_calib_elev)
+        fcal.addRow(tr('Step (m)'), self.d_calib_spacing)
+        fcal.addRow(tr('Width (m)'), self.d_calib_width)
+        fcal.addRow(tr('Depth (m) / Cube'), self.d_calib_depth)
+        fcal.addRow(tr('Height (m) (vertical/cube)'), self.d_calib_height)
+        fcal.addRow(tr('Distance in front of camera (m)'), self.d_calib_dist)
+        fcal.addRow(tr('Elevation offset (m)'), self.d_calib_elev)
         fcal.addRow(tr(self.cb_calib_snap_dem))
-        hcal = QHBoxLayout(); hcal.addWidget(self.btn_calib_color); hcal.addWidget(QLabel(tr("Épaisseur"))); hcal.addWidget(self.spin_calib_width)
+        hcal = QHBoxLayout(); hcal.addWidget(self.btn_calib_color); hcal.addWidget(QLabel(tr('Width'))); hcal.addWidget(self.spin_calib_width)
         fcal.addRow(tr("Style"), hcal)
         fcal.addRow(tr(self.cb_calib_labels))
         fcal.addRow(tr(self.cb_calib_axes))
         calib_v.addWidget(self.grp_proj_grid)
         calib_v.addWidget(self.grp_az_rule)
         calib_v.addWidget(self.grp_calib_world)
-        self.grp_calib_world.setVisible(not PUBLIC_EXPERIMENTAL_LIMITED)
+        self.grp_calib_world.setVisible(not PUBLIC_ADVANCED_TOOLS_LIMITED)
         self.grp_calib.setContentLayout(calib_v)
         self.tab_gcp_layout.addWidget(self.grp_calib)
         try:
@@ -684,18 +738,18 @@ class QCalViewDock(QDockWidget):
         except Exception as _qcv_exc:
             _qcv_suppress(_qcv_exc, "qcalview_dock.py:743")
 
-        g_h = QGroupBox(tr("2,5D Hauteurs (végétation/bâti)"))
+        g_h = QGroupBox(tr('2.5D Heights (vegetation/buildings)'))
         fh = QFormLayout(g_h)
-        self.cb_draw_2p5d = QCheckBox(tr("Extruder les polygones"))
+        self.cb_draw_2p5d = QCheckBox(tr('Extrude polygons'))
         self.cb_draw_2p5d.setChecked(True)
-        self.cb_force_horizontal_25d = QCheckBox(tr("Forcer l’horizontalité des volumes 2,5D"))
+        self.cb_force_horizontal_25d = QCheckBox(tr('Force 2.5D volumes horizontal'))
         self.cb_force_horizontal_25d.setChecked(True)
-        self.txt_hfield = QLineEdit("hauteur")
+        self.txt_hfield = QLineEdit('height')
         self.d_hdefault = QDoubleSpinBox(); self.d_hdefault.setRange(0.0, 500.0); self.d_hdefault.setValue(3.0); self.d_hdefault.setSuffix(tr(" m"))
         fh.addRow(tr(self.cb_draw_2p5d))
         fh.addRow(tr(self.cb_force_horizontal_25d))
-        fh.addRow(tr("Champ hauteur (si existant) "), self.txt_hfield)
-        fh.addRow(tr("Hauteur par défaut"), self.d_hdefault)
+        fh.addRow(tr('Height field (if available) '), self.txt_hfield)
+        fh.addRow(tr('Default height'), self.d_hdefault)
         self.tab_layers_layout.addWidget(g_h)
         try:
             self._relief_grid_layout.setColumnStretch(0, 1)
@@ -703,33 +757,37 @@ class QCalViewDock(QDockWidget):
         except Exception as _qcv_exc:
             _qcv_suppress(_qcv_exc, "qcalview_dock.py:763")
 
-        g_layers = CollapsibleBox("Couches vectorielles à projeter", checked=True)
+        g_layers = CollapsibleBox('Vector layers to project', checked=True)
         content_layers = QWidget()
         ly = QVBoxLayout(content_layers)
         ly.setContentsMargins(0, 0, 0, 0)
         ly.setSpacing(8)
 
         hb_theme = QHBoxLayout()
-        self.btn_refresh_themes = self._tool_button("Rafraîchir", "refresh.svg", "Actualiser la liste des thèmes QGIS")
-        self.btn_apply_theme = QPushButton(tr("Appliquer le thème"))
-        self.cb_theme_auto_sync = QCheckBox(tr("Synchro auto avec le thème"))
-        self.cb_theme_auto_sync.setToolTip(tr("Réappliquer automatiquement le thème choisi quand sa définition change"))
-        hb_theme.addWidget(QLabel(tr("Thème QGIS")))
-        self.lbl_theme_in_layers = QLabel(tr("Sélection dans le cockpit supérieur"))
+        self.btn_refresh_themes = self._tool_button('Refresh', "refresh.svg", 'Refresh the QGIS theme list')
+        self.btn_apply_theme = QPushButton(tr('Reset this viewpoint to the base theme'))
+        self.cb_theme_auto_sync = QCheckBox(tr('Follow base-theme changes'))
+        self.cb_theme_auto_sync.setToolTip(tr('Automatically reapply the selected theme when its definition changes'))
+        self.cb_theme_apply_to_qgis = QCheckBox(tr('Apply to QGIS too'))
+        self.cb_theme_apply_to_qgis.setChecked(False)
+        self.cb_theme_apply_to_qgis.setToolTip(tr('When enabled, applying a theme in QCALVIEW also applies its visibility and styles to the QGIS map canvas. Vector layers manually added to QCALVIEW are also made visible in QGIS.'))
+        hb_theme.addWidget(QLabel(tr('Base theme')))
+        self.lbl_theme_in_layers = QLabel(tr('Selection in the upper cockpit'))
         self.lbl_theme_in_layers.setMinimumWidth(0)
         hb_theme.addWidget(self.lbl_theme_in_layers, 1)
         hb_theme.addWidget(self.btn_apply_theme)
         hb_theme.addWidget(self.btn_refresh_themes)
         hb_theme.addWidget(self.cb_theme_auto_sync)
+        hb_theme.addWidget(self.cb_theme_apply_to_qgis)
         ly.addLayout(hb_theme)
         hb2 = QHBoxLayout()
         self.cmb_src = QgsMapLayerComboBox(); self.cmb_src.setFilters(QC.QgsMapLayerProxyModel_Filter_VectorLayer)
-        self.cmb_src.setToolTip(tr("Seules les couches vectorielles sont proposées ; les rasters sont ignorés."))
-        self.btn_add_layer = self._tool_button("Ajouter", "add.svg", "Ajouter la couche vectorielle sélectionnée")
-        self.btn_remove_layer = self._tool_button("Retirer", "remove.svg", "Retirer la couche projetée")
-        self.btn_up = self._tool_button("Monter", "move_up.svg", "Monter dans l'ordre de dessin")
-        self.btn_down = self._tool_button("Descendre", "move_down.svg", "Descendre dans l'ordre de dessin")
-        self.btn_style = self._tool_button("Style…", "style.svg", "Régler le style de la couche projetée")
+        self.cmb_src.setToolTip(tr('Only vector layers are offered; raster layers are ignored.'))
+        self.btn_add_layer = self._tool_button('Add', "add.svg", 'Add the selected vector layer')
+        self.btn_remove_layer = self._tool_button("Remove", "remove.svg", 'Remove projected layer')
+        self.btn_up = self._tool_button("Move up", "move_up.svg", 'Move up in drawing order')
+        self.btn_down = self._tool_button("Move down", "move_down.svg", 'Move down in drawing order')
+        self.btn_style = self._tool_button("Style…", "style.svg", 'Edit projected-layer style')
         hb2.addWidget(self.cmb_src, 1)
         hb2.addWidget(self.btn_add_layer)
         hb2.addWidget(self.btn_remove_layer)
@@ -737,9 +795,16 @@ class QCalViewDock(QDockWidget):
         hb2.addWidget(self.btn_up)
         hb2.addWidget(self.btn_down)
         ly.addLayout(hb2)
+        self.cb_add_layer_all_pdvs = QCheckBox(tr('Apply to all viewpoints'))
+        self.cb_add_layer_all_pdvs.setChecked(False)
+        self.cb_add_layer_all_pdvs.setToolTip(tr(
+            "If enabled, the layer added with the Add button is available on all viewpoints. "
+            "Adding from the QGIS layer-tree context menu is always global."
+        ))
+        ly.addWidget(self.cb_add_layer_all_pdvs)
 
         self.list_layers = QTableWidget(0, 6)
-        self.list_layers.setHorizontalHeaderLabels(tr(["Visible", "Couche", "Hauteur", "Mode", "Opacité", "Couleurs / style"]))
+        self.list_layers.setHorizontalHeaderLabels(tr(["Visible", 'Layer', 'Height', "Mode", 'Opacity', 'Colors / style']))
         self.list_layers.setSelectionBehavior(QC.QAbstractItemView_SelectionBehavior_SelectRows)
         self.list_layers.setSelectionMode(QC.QAbstractItemView_SelectionMode_SingleSelection)
         self.list_layers.setEditTriggers(QC.QAbstractItemView_EditTrigger_NoEditTriggers)
@@ -763,36 +828,36 @@ class QCalViewDock(QDockWidget):
         export_layout.setContentsMargins(0, 0, 0, 0)
         export_layout.setHorizontalSpacing(8)
         export_layout.setVerticalSpacing(8)
-        self.btn_refresh = self._tool_button("Actualiser", "render.svg", "Forcer un rendu haute qualité")
-        self.btn_export_current = self._tool_button("Vue composite…", "export.svg", "Exporter la photo + overlays ou la vue schématique complète")
-        self.btn_export_overlay = self._tool_button("Overlay seul PNG…", "export.svg", "Exporter les overlays seuls en PNG transparent")
-        self.btn_export_legend  = self._tool_button("Légende PNG…", "legend.svg", "Exporter une légende PNG")
-        self.cb_export_metadata = QCheckBox(tr("Écrire les métadonnées EXIF lorsque c’est possible"))
+        self.btn_refresh = self._tool_button("Refresh", "render.svg", 'Force high-quality rendering')
+        self.btn_export_current = self._tool_button('View composite…', "export.svg", 'Export photo + overlays or complete schematic view')
+        self.btn_export_overlay = self._tool_button("Overlay only PNG…", "export.svg", 'Export overlays only as transparent PNG')
+        self.btn_export_legend  = self._tool_button('PNG legend…', "legend.svg", 'Export a PNG legend')
+        self.cb_export_metadata = QCheckBox(tr('Write EXIF metadata when possible'))
         self.cb_export_metadata.setVisible(False)
         export_layout.addWidget(self.btn_refresh, 0, 0)
         export_layout.addWidget(self.btn_export_current, 0, 1)
         export_layout.addWidget(self.btn_export_overlay, 0, 2)
         export_layout.addWidget(self.btn_export_legend, 0, 3)
-        self.cb_batch_composite = QCheckBox(tr("Vue composite (photo JPG / schéma PNG)"))
+        self.cb_batch_composite = QCheckBox(tr('Composite view (JPG photo / PNG schematic)'))
         self.cb_batch_composite.setChecked(True)
-        self.cb_batch_overlay = QCheckBox(tr("Overlay seul PNG transparent"))
+        self.cb_batch_overlay = QCheckBox(tr('Transparent overlay-only PNG'))
         self.cb_batch_overlay.setChecked(False)
-        self.cb_batch_csv = QCheckBox(tr("CSV variables"))
+        self.cb_batch_csv = QCheckBox(tr('Camera variables CSV'))
         self.cb_batch_csv.setChecked(False)
-        self.btn_export_batch_selected = self._tool_button("Exporter la sélection…", "export.svg", "Exporter les points de vue cochés")
-        self.btn_export_refresh_pdv = self._tool_button("Rafraîchir PDV", "refresh.svg", "Actualiser la liste des points de vue")
-        self.btn_export_select_all = QPushButton(tr("Tout cocher"))
-        self.btn_export_select_none = QPushButton(tr("Tout décocher"))
-        self.btn_export_select_all.setToolTip(tr("Cocher tous les points de vue du tableau pour l'export"))
-        self.btn_export_select_none.setToolTip(tr("Décocher tous les points de vue du tableau"))
+        self.btn_export_batch_selected = self._tool_button('Export selection…', "export.svg", 'Export selected viewpoints')
+        self.btn_export_refresh_pdv = self._tool_button('Refresh viewpoints', "refresh.svg", 'Refresh the viewpoint list')
+        self.btn_export_select_all = QPushButton(tr('Select all'))
+        self.btn_export_select_none = QPushButton(tr('Clear all'))
+        self.btn_export_select_all.setToolTip(tr('Select all viewpoints in the table for export'))
+        self.btn_export_select_none.setToolTip(tr('Clear all viewpoints in the table'))
         export_layout.addWidget(QLabel(tr("Batch")), 1, 0)
         export_layout.addWidget(_compact_row(self.cb_batch_composite, self.cb_batch_overlay, self.cb_batch_csv), 1, 1, 1, 2)
         export_layout.addWidget(_compact_row(self.btn_export_refresh_pdv, self.btn_export_select_all, self.btn_export_select_none, self.btn_export_batch_selected), 1, 3)
 
         self.tbl_export_pdv = QTableWidget(0, 13)
         self.tbl_export_pdv.setHorizontalHeaderLabels(tr([
-            "✓", "PDV", "Image", "Projection", "Azimut", "Tangage", "Roulis",
-            "HFOV", "VFOV", "Offset H", "Offset V", "Enregistré", "État"
+            "✓", "Viewpoint", "Image", "Projection", 'Azimuth', 'Pitch', 'Roll',
+            "HFOV", "VFOV", "Offset H", "Offset V", 'Saved', 'State'
         ]))
         self.tbl_export_pdv.setSelectionBehavior(QC.QAbstractItemView_SelectionBehavior_SelectRows)
         self.tbl_export_pdv.setSelectionMode(QC.QAbstractItemView_SelectionMode_ExtendedSelection)
@@ -816,7 +881,7 @@ class QCalViewDock(QDockWidget):
             g_export.setSizePolicy(QC.QSizePolicy_Policy_Expanding, QC.QSizePolicy_Policy_Expanding)
         except Exception as _qcv_exc:
             _qcv_suppress(_qcv_exc, "qcalview_dock.py:882")
-        self.lbl_batch_status = QLabel(tr("Le batch utilise les réglages effectifs affichés ci-dessus. « Brouillon » signale un réglage non encore enregistré dans la couche PDV."))
+        self.lbl_batch_status = QLabel(tr('Batch export uses the effective settings shown above. “Draft” indicates a setting not yet saved to the viewpoint layer.'))
         self.lbl_batch_status.setWordWrap(True)
         self.lbl_batch_status.setStyleSheet("color:#666;")
         export_layout.addWidget(self.lbl_batch_status, 3, 0, 1, 4)
@@ -841,6 +906,13 @@ class QCalViewDock(QDockWidget):
         try:
             QgsProject.instance().layersWillBeRemoved.connect(self._on_project_layers_removed)
             try:
+                QgsProject.instance().layersAdded.connect(self._refresh_dem_raster_filter)
+                QgsProject.instance().layersRemoved.connect(self._refresh_dem_raster_filter)
+                QgsProject.instance().layersAdded.connect(self._refresh_drape_raster_filter)
+                QgsProject.instance().layersRemoved.connect(self._refresh_drape_raster_filter)
+            except Exception as _qcv_exc:
+                _qcv_suppress(_qcv_exc, "qcalview_dock.py:raster_filter_project_signals")
+            try:
                 QgsProject.instance().crsChanged.connect(self._update_ui_summary)
                 QgsProject.instance().crsChanged.connect(self._update_canvas_fov)
             except Exception as _qcv_exc:
@@ -850,6 +922,7 @@ class QCalViewDock(QDockWidget):
         try:
             self._prepare_qgis_theme_combo_lazy()
             self.cb_theme_auto_sync.setChecked(self._read_bool_setting('QCALVIEW/theme_auto_sync', False))
+            self.cb_theme_apply_to_qgis.setChecked(self._read_bool_setting('QCALVIEW/theme_apply_to_qgis', False))
         except Exception as _qcv_exc:
             _qcv_suppress(_qcv_exc, "qcalview_dock.py:924")
         self.btn_load.clicked.connect(self.load_photo)
@@ -871,6 +944,7 @@ class QCalViewDock(QDockWidget):
         self.cmb_qgis_theme.currentIndexChanged.connect(self._on_qgis_theme_changed)
         self.btn_apply_theme.clicked.connect(self.apply_qgis_theme_to_overlays)
         self.cb_theme_auto_sync.toggled.connect(self._on_qgis_theme_auto_sync_toggled)
+        self.cb_theme_apply_to_qgis.toggled.connect(lambda v: self._settings.setValue('QCALVIEW/theme_apply_to_qgis', bool(v)))
         self.btn_refresh.clicked.connect(self.refresh_now_full)
         self.btn_refresh_top.clicked.connect(self._refresh_preview_and_viewer)
         self.btn_export_current.clicked.connect(self.export_current_composite)
@@ -894,9 +968,11 @@ class QCalViewDock(QDockWidget):
 
         self.cb_auto_hfov.toggled.connect(self._toggle_hfov_enable)
         self.btn_dem_color.clicked.connect(self._pick_dem_color)
+        self.btn_dem_color.clicked.connect(self._project_relief_control_changed)
         self.cmb_camera.layerChanged.connect(self._on_camera_layer_changed)
         self.cmb_camera.layerChanged.connect(self._after_camera_layer_changed)
         self.cmb_camera.layerChanged.connect(self._camera_on_layer_changed)
+        self.cmb_camera.layerChanged.connect(self._project_camera_layer_changed)
         self.grp_calib.toggled.connect(self.render_preview)
         self.cb_show_experimental.toggled.connect(self._toggle_experimental_ui)
         self.cmb_cam_id_field.currentIndexChanged.connect(lambda *_: self._camera_refresh_feature_list(autoload=False))
@@ -933,7 +1009,7 @@ class QCalViewDock(QDockWidget):
                   self.d_calib_depth, self.d_calib_height, self.d_calib_dist, self.d_calib_elev,
                   self.cb_calib_snap_dem, self.cb_calib_labels, self.cb_calib_axes]:
             self._connect_change_to_schedule(w)
-        self.btn_calib_color.clicked.connect(lambda: ( (lambda c=QColorDialog.getColor(self._calib_color, self, tr("Couleur calibration")):
+        self.btn_calib_color.clicked.connect(lambda: ( (lambda c=QColorDialog.getColor(self._calib_color, self, tr('Calibration color')):
                                                        setattr(self, "_calib_color", c) if c.isValid() else None)(), self.render_preview() ))
         self.cb_proj_grid_enable.toggled.connect(self.render_preview)
         self.d_proj_grid_step.valueChanged.connect(self.render_preview)
@@ -941,8 +1017,32 @@ class QCalViewDock(QDockWidget):
         self.d_az_rule_band_pct.valueChanged.connect(self.render_preview)
         self.d_az_rule_text_pct.valueChanged.connect(self.render_preview)
         self.cb_use_dem_z.toggled.connect(self.render_preview)
+        self.cb_relief_specific_pdv.toggled.connect(self._project_relief_specific_toggled)
         self.cmb_dem.layerChanged.connect(self._on_terrain_layer_changed)
+        self.cmb_dem.layerChanged.connect(self._project_relief_control_changed)
+        self.cb_dem_show_all_rasters.toggled.connect(self._refresh_dem_raster_filter)
+        self.cb_dem_show_all_rasters.toggled.connect(self.render_preview)
+        self.cb_drape_rasters.toggled.connect(self._on_raster_drape_changed)
+        self.cmb_drape_raster.layerChanged.connect(self._on_raster_drape_changed)
+        self.cb_drape_show_in_qgis.toggled.connect(self._on_raster_drape_changed)
+        self.cb_drape_show_in_qgis.toggled.connect(lambda v: self._settings.setValue('QCALVIEW/drape_show_in_qgis', bool(v)))
         self.combo_relief_mode.currentIndexChanged.connect(self._on_relief_mode_changed)
+        self.combo_relief_mode.currentIndexChanged.connect(self._project_relief_control_changed)
+        self.cb_use_dem_z.toggled.connect(self._project_relief_control_changed)
+        self.spin_dem_step.valueChanged.connect(self._project_relief_control_changed)
+        self.spin_dem_width.valueChanged.connect(self._project_relief_control_changed)
+        self.cb_wire_dashed.toggled.connect(self._project_relief_control_changed)
+        self.combo_wire_mode.currentIndexChanged.connect(self._project_relief_control_changed)
+        self.cb_curvature.toggled.connect(self._project_relief_control_changed)
+        self.d_earth_radius_km.valueChanged.connect(self._project_relief_control_changed)
+        self.d_ridge_gap.valueChanged.connect(self._project_relief_control_changed)
+        self.d_ridge_prom.valueChanged.connect(self._project_relief_control_changed)
+        self.cb_sky_dashed.toggled.connect(self._project_relief_control_changed)
+        self.d_eps.valueChanged.connect(self._project_relief_control_changed)
+        self.d_az_step.valueChanged.connect(self._project_relief_control_changed)
+        self.d_rad_step.valueChanged.connect(self._project_relief_control_changed)
+        self.cb_drape_rasters.toggled.connect(self._project_relief_control_changed)
+        self.cmb_drape_raster.layerChanged.connect(self._project_relief_control_changed)
         self.cb_curvature.toggled.connect(lambda *_: (setattr(self, '_horizon', None), setattr(self, '_horizon_params', None), getattr(self, '_overlay_cache', {}).clear(), self.render_preview()))
         self.d_earth_radius_km.valueChanged.connect(lambda *_: (setattr(self, '_horizon', None), setattr(self, '_horizon_params', None), getattr(self, '_overlay_cache', {}).clear(), self.render_preview()))
         self.spin_ridge_count.valueChanged.connect(self.render_preview)
@@ -965,6 +1065,7 @@ class QCalViewDock(QDockWidget):
         for w in [self.cmb_proj, self.spin_w, self.spin_h, self.d_yaw, self.d_yaw_offset, self.d_pitch, self.d_roll,
                   self.d_hfov, self.d_vfov, self.cb_360, self.d_focal, self.d_sensorw,
                   self.d_maxdist, self.cb_auto_depth, self.cmb_perf_budget, self.cb_block_heavy_layers, self.cmb_camera, self.cmb_dem, self.combo_relief_mode, self.spin_dem_step, self.spin_dem_alpha,
+                  self.cb_dem_show_all_rasters, self.cb_drape_rasters, self.cmb_drape_raster,
                   self.cb_curvature, self.d_earth_radius_km,
                   self.cb_proj_grid_enable, self.d_proj_grid_step,
                   self.cb_draw_2p5d, self.cb_force_horizontal_25d, self.txt_hfield, self.d_hdefault, self.d_camheight]:
@@ -972,6 +1073,12 @@ class QCalViewDock(QDockWidget):
 
         self._toggle_hfov_enable(self.cb_auto_hfov.isChecked())
         self._sync_relief_mode_controls()
+        try:
+            self._refresh_dem_raster_filter()
+            self._refresh_drape_raster_filter()
+            self._refresh_raster_drape_watchers()
+        except Exception as _qcv_exc:
+            _qcv_suppress(_qcv_exc, "qcalview_dock.py:raster_drape_init")
         self.cmb_off_mode.currentIndexChanged.connect(self._refresh_preview_and_viewer)
         self.cmb_off_mode.currentIndexChanged.connect(lambda *_: getattr(self, "_overlay_cache", {}).clear())
         self.spin_off_h.valueChanged.connect(self._refresh_preview_and_viewer)
@@ -1172,7 +1279,8 @@ class QCalViewDock(QDockWidget):
         except Exception as _qcv_exc:
             _qcv_suppress(_qcv_exc, "qcalview_dock.py:1266")
         self._update_ui_summary()
-        QTimer.singleShot(0, lambda: self._validate_terrain_layer(notify=True, purpose="startup"))
+        QTimer.singleShot(0, self._project_restore_global_state)
+        QTimer.singleShot(20, lambda: self._validate_terrain_layer(notify=True, purpose="startup"))
 
 
     def _load_designer_shell(self):
@@ -1233,7 +1341,7 @@ class QCalViewDock(QDockWidget):
         self.cmb_qgis_theme = need(QComboBox, "cmb_qgis_theme")
         self.cmb_qgis_theme.setMinimumWidth(90)
         self.cmb_qgis_theme.setSizePolicy(QC.QSizePolicy_Policy_Ignored, QC.QSizePolicy_Policy_Fixed)
-        self.cmb_qgis_theme.setToolTip(tr("Thème QGIS utilisé pour alimenter les couches projetées"))
+        self.cmb_qgis_theme.setToolTip(tr('QCALVIEW base theme: selecting it immediately applies it to all viewpoints without changing the QGIS canvas unless explicitly requested.'))
 
         self.qcv_cockpit = need(QFrame, "qcvCockpit")
         self.qcv_cockpit.setSizePolicy(QC.QSizePolicy_Policy_Preferred, QC.QSizePolicy_Policy_Maximum)
@@ -1257,11 +1365,11 @@ class QCalViewDock(QDockWidget):
         set_icon("icoProjection", "projection.svg")
         set_icon("icoCamera", "camera.svg")
         set_icon("icoTheme", "theme.svg")
-        self.btn_load = setup_btn("btn_load", "photo.svg", "Charger une photo", "Photo")
-        self.btn_view = setup_btn("btn_view", "viewer.svg", "Ouvrir la visionneuse pleine taille", "Visionneuse")
-        self.btn_refresh_top = setup_btn("btn_refresh_top", "render.svg", "Rafraîchir uniquement l’aperçu et la visionneuse, sans recalcul complet des caches", "Aperçu")
-        self.btn_settings = setup_btn("btn_settings", "settings.svg", "Paramètres et version de QCALVIEW", "Param.")
-        self.btn_fit_window = setup_btn("btn_fit_window", "resize.svg", "Adapter la fenêtre flottante au contenu", "Adapter")
+        self.btn_load = setup_btn("btn_load", "photo.svg", 'Load a photo', "Photo")
+        self.btn_view = setup_btn("btn_view", "viewer.svg", 'Open full-size viewer', 'Viewer')
+        self.btn_refresh_top = setup_btn("btn_refresh_top", "render.svg", 'Refresh only the preview and viewer without fully rebuilding caches', 'Preview')
+        self.btn_settings = setup_btn("btn_settings", "settings.svg", 'QCALVIEW settings and version', 'Settings')
+        self.btn_fit_window = setup_btn("btn_fit_window", "resize.svg", 'Fit floating window to content', 'Fit')
 
         self.tabs = need(QTabWidget, "tabs")
         self.tabs.setDocumentMode(True)
@@ -1327,7 +1435,7 @@ class QCalViewDock(QDockWidget):
             _qcv_suppress(_qcv_exc, "qcalview_dock.py:1420")
 
         self._preview_panel = need(QFrame, "qcvPreviewPanel")
-        self.preview = ClickableLabel(tr("Aperçu rapide"))
+        self.preview = ClickableLabel(tr('Quick preview'))
         self.preview.setAlignment(QC.Qt_AlignmentFlag_AlignCenter)
         self.preview.setMinimumSize(QSize(180, 120))
         self.preview.setSizePolicy(QC.QSizePolicy_Policy_Ignored, QC.QSizePolicy_Policy_Ignored)
@@ -1438,11 +1546,11 @@ class QCalViewDock(QDockWidget):
         layout.setSpacing(8)
 
         head = QHBoxLayout()
-        title = QLabel(tr("Aperçu rapide permanent"))
+        title = QLabel(tr('Permanent quick preview'))
         title.setObjectName("qcvPanelTitle")
         head.addWidget(title)
         head.addStretch(1)
-        btn_open = self._tool_button("", "viewer.svg", "Ouvrir la visionneuse pleine taille")
+        btn_open = self._tool_button("", "viewer.svg", 'Open full-size viewer')
         btn_open.setToolButtonStyle(QC.Qt_ToolButtonStyle_ToolButtonIconOnly)
         btn_open.clicked.connect(self.open_viewer)
         head.addWidget(btn_open)
@@ -1450,16 +1558,16 @@ class QCalViewDock(QDockWidget):
 
         layout.addWidget(self.preview, 1)
 
-        quick = QGroupBox(tr("Options rapides"))
+        quick = QGroupBox(tr('Quick options'))
         q = QGridLayout(quick)
         q.setContentsMargins(8, 8, 8, 8)
-        q.addWidget(QLabel(tr("Qualité")), 0, 0)
+        q.addWidget(QLabel(tr('Quality')), 0, 0)
         q.addWidget(self.cmb_quality, 0, 1)
         q.addWidget(self.cb_lowlat, 1, 0, 1, 2)
         q.addWidget(self.cb_show_labels, 2, 0, 1, 2)
         layout.addWidget(quick, 0)
 
-        self.lbl_preview_info = QLabel(tr("Aucune image chargée."))
+        self.lbl_preview_info = QLabel(tr('No image loaded.'))
         self.lbl_preview_info.setWordWrap(True)
         self.lbl_preview_info.setObjectName("qcvPreviewInfo")
         layout.addWidget(self.lbl_preview_info, 0)
@@ -1487,7 +1595,7 @@ class QCalViewDock(QDockWidget):
                 if saved:
                     combo.addItem(tr(saved), saved)
                 else:
-                    combo.addItem(tr('— charger thèmes —'), '')
+                    combo.addItem(tr('— load themes —'), '')
             finally:
                 combo.blockSignals(False)
             self._theme_combo_loaded = False
@@ -1552,14 +1660,14 @@ class QCalViewDock(QDockWidget):
 
     def _update_ui_summary(self, *_args):
         try:
-            photo = os.path.basename(self.photo_path) if getattr(self, "photo_path", None) else "Aucune photo"
+            photo = os.path.basename(self.photo_path) if getattr(self, "photo_path", None) else 'No photo'
             pdv = ""
             try:
                 pdv = self.cmb_cam_feature.currentText().strip()
             except Exception:
                 pdv = ""
             self.lbl_info.setText(tr(photo))
-            self.lbl_current_pdv.setText(tr(pdv if pdv else "Aucun PDV actif"))
+            self.lbl_current_pdv.setText(tr(pdv if pdv else 'No active viewpoint'))
 
             proj = str(self.cmb_proj.currentText()) if hasattr(self, "cmb_proj") else "—"
             hfov = float(self.d_hfov.value()) if hasattr(self, "d_hfov") else 0.0
@@ -1576,26 +1684,26 @@ class QCalViewDock(QDockWidget):
             cam_h = float(self.d_camheight.value()) if hasattr(self, "d_camheight") else 0.0
             crs_html = f" · <b>{html.escape(str(crs_authid))}</b>" if crs_authid else ""
             if x is None or y is None:
-                self.lbl_cockpit_camera.setText(tr(f"<b>X : —</b>    <b>Y : —</b>{crs_html}<br>Z sol : —    Hauteur : {cam_h:.2f} m"))
+                self.lbl_cockpit_camera.setText(tr(f"<b>X : —</b>    <b>Y : —</b>{crs_html}<br>Ground Z: —    Height: {cam_h:.2f} m"))
             else:
                 x_txt = f"{x:,.2f}".replace(",", " ")
                 y_txt = f"{y:,.2f}".replace(",", " ")
-                self.lbl_cockpit_camera.setText(tr(f"<b>X : {x_txt}</b>    <b>Y : {y_txt}</b>{crs_html}<br>Z sol : —    Hauteur : {cam_h:.2f} m"))
+                self.lbl_cockpit_camera.setText(tr(f"<b>X : {x_txt}</b>    <b>Y : {y_txt}</b>{crs_html}<br>Ground Z: —    Height: {cam_h:.2f} m"))
 
             yaw = float(self.d_yaw.value()) if hasattr(self, "d_yaw") else 0.0
             pitch = float(self.d_pitch.value()) if hasattr(self, "d_pitch") else 0.0
             roll = float(self.d_roll.value()) if hasattr(self, "d_roll") else 0.0
             md = float(self.d_maxdist.value()) if hasattr(self, "d_maxdist") else 0.0
             info = (
-                f"PDV : {pdv or '—'}<br>"
-                f"Projection : {proj}<br>"
-                f"Azimut : {yaw:.1f}° · Tangage : {pitch:.1f}° · Roulis : {roll:.1f}°<br>"
+                f"Viewpoint: {pdv or '—'}<br>"
+                f"Projection: {proj}<br>"
+                f"Azimuth: {yaw:.1f}° · Pitch: {pitch:.1f}° · Roll: {roll:.1f}°<br>"
                 f"HFOV : {hfov:.1f}° · VFOV : {vfov:.1f}° · Distance max : {md:.0f} m"
             )
             if hasattr(self, "lbl_theme_in_layers") and hasattr(self, "cmb_qgis_theme"):
                 try:
                     th = str(self.cmb_qgis_theme.currentText() or "—")
-                    self.lbl_theme_in_layers.setText(tr(f"Thème actif : {th}"))
+                    self.lbl_theme_in_layers.setText(tr(f"Active theme: {th}"))
                 except Exception as _qcv_exc:
                     _qcv_suppress(_qcv_exc, "qcalview_dock.py:1693")
             if hasattr(self, "lbl_preview_info"):
@@ -1750,8 +1858,12 @@ class QCalViewDock(QDockWidget):
         try:
             if (not getattr(self, '_ui_initializing', False)
                     and not getattr(self, '_suspend_theme_auto_apply', False)
-                    and bool(getattr(self, 'cb_theme_auto_sync', None) and self.cb_theme_auto_sync.isChecked())):
-                QTimer.singleShot(0, self.apply_qgis_theme_to_overlays)
+                    and not getattr(self, '_restoring_project_state', False)):
+                # The cockpit theme is the project/base theme.
+                # Selecting it immediately affects every PDV through inheritance,
+                # while the native QGIS canvas stays unchanged unless the explicit
+                # "Apply to QGIS too" option is enabled.
+                QTimer.singleShot(0, lambda: self.apply_qgis_theme_to_overlays(scope='base'))
         except Exception as _qcv_exc:
             _qcv_suppress(_qcv_exc, "qcalview_dock.py:1849")
 
@@ -1779,7 +1891,7 @@ class QCalViewDock(QDockWidget):
             if layer is not None:
                 self._after_camera_layer_changed(layer)
         except Exception as exc:
-            try: self.iface.messageBar().pushWarning(tr("QCALVIEW"), tr(f"Style PDV non appliqué : {exc}"))
+            try: self.iface.messageBar().pushWarning(tr("QCALVIEW"), tr(f"Viewpoint style not applied: {exc}"))
             except Exception as _qcv_exc: _qcv_suppress(_qcv_exc, "qcalview_dock.py:1877")
 
     def _on_camera_auto_colors_toggle(self, checked):
@@ -1799,13 +1911,13 @@ class QCalViewDock(QDockWidget):
         try:
             ok = bool(self.apply_pdv_style_mode(layer, automatic=bool(checked)))
             if not ok:
-                self.iface.messageBar().pushWarning(tr("QCALVIEW"), tr("Le style PDV demandé n’a pas pu être appliqué."))
+                self.iface.messageBar().pushWarning(tr("QCALVIEW"), tr('The requested viewpoint style could not be applied.'))
                 return
             self._sync_pdv_qml()
             layer.triggerRepaint()
             self.iface.mapCanvas().refresh()
         except Exception as exc:
-            try: self.iface.messageBar().pushWarning(tr("QCALVIEW"), tr(f"Style PDV non appliqué : {exc}"))
+            try: self.iface.messageBar().pushWarning(tr("QCALVIEW"), tr(f"Viewpoint style not applied: {exc}"))
             except Exception as _qcv_exc: _qcv_suppress(_qcv_exc, "qcalview_dock.py:1903")
 
     def _current_camera_xy_project_crs(self):
@@ -1867,14 +1979,14 @@ class QCalViewDock(QDockWidget):
 
     def open_settings_dialog(self):
         dlg = QDialog(self)
-        dlg.setWindowTitle(tr("QCALVIEW — Paramètres et version"))
+        dlg.setWindowTitle(tr('QCALVIEW — Settings and version'))
         dlg.setWindowIcon(QIcon(self._qcalview_icon_path))
         lay = QVBoxLayout(dlg)
 
 
-        if os.path.isfile(self._qcalview_alpha_path):
+        if os.path.isfile(self._qcalview_brand_path):
             brand = QLabel(dlg)
-            brand_pixmap = QPixmap(self._qcalview_alpha_path)
+            brand_pixmap = QPixmap(self._qcalview_brand_path)
             if not brand_pixmap.isNull():
                 brand.setPixmap(brand_pixmap.scaled(
                     270, 104,
@@ -1886,13 +1998,13 @@ class QCalViewDock(QDockWidget):
 
         grp = QGroupBox(tr("Interface"))
         grid = QGridLayout(grp)
-        chk_exp = QCheckBox(tr("Afficher l’onglet Outils expérimentaux"))
+        chk_exp = QCheckBox(tr('Show Experimental Tools tab'))
         chk_exp.setChecked(bool(self.cb_show_experimental.isChecked()))
-        chk_lowlat = QCheckBox(tr("Activer l’aperçu faible latence"))
+        chk_lowlat = QCheckBox(tr('Enable low-latency preview'))
         chk_lowlat.setChecked(bool(self.cb_lowlat.isChecked()))
-        chk_labels = QCheckBox(tr("Afficher les étiquettes dans l’aperçu"))
+        chk_labels = QCheckBox(tr('Show labels in preview'))
         chk_labels.setChecked(bool(self.cb_show_labels.isChecked()))
-        chk_meta = QCheckBox(tr("Écrire les métadonnées EXIF lors des exports"))
+        chk_meta = QCheckBox(tr('Write EXIF metadata on export'))
         chk_meta.setChecked(bool(self.cb_export_metadata.isChecked()))
         grid.addWidget(chk_exp, 0, 0, 1, 2)
         grid.addWidget(chk_lowlat, 1, 0, 1, 2)
@@ -1907,8 +2019,8 @@ class QCalViewDock(QDockWidget):
             spin_earth_radius.setValue(float(self.d_earth_radius_km.value()))
         except Exception:
             spin_earth_radius.setValue(6370.0)
-        spin_max_layers = QSpinBox(); spin_max_layers.setRange(1, 100); spin_max_layers.setSuffix(tr(" couches"))
-        spin_max_features = QSpinBox(); spin_max_features.setRange(1, 1000000); spin_max_features.setSuffix(tr(" objets"))
+        spin_max_layers = QSpinBox(); spin_max_layers.setRange(1, 100); spin_max_layers.setSuffix(tr(' layers'))
+        spin_max_features = QSpinBox(); spin_max_features.setRange(1, 1000000); spin_max_features.setSuffix(tr(' objects'))
         try:
             spin_max_layers.setValue(int(self._settings.value("QCALVIEW/limits/max_overlay_layers", 20)))
         except Exception:
@@ -1918,23 +2030,23 @@ class QCalViewDock(QDockWidget):
         except Exception:
             spin_max_features.setValue(5000)
         txt_default_out = QLineEdit(str(self._settings.value("QCALVIEW/export/default_output_dir", "") or ""))
-        btn_default_out = QPushButton(tr("Parcourir…"))
+        btn_default_out = QPushButton(tr('Browse…'))
         row_out = QWidget(); row_lay = QHBoxLayout(row_out); row_lay.setContentsMargins(0,0,0,0); row_lay.setSpacing(6)
         row_lay.addWidget(txt_default_out, 1); row_lay.addWidget(btn_default_out)
-        btn_default_out.clicked.connect(lambda: (lambda d=QFileDialog.getExistingDirectory(dlg, tr("Dossier de sortie par défaut"), txt_default_out.text()): txt_default_out.setText(tr(d)) if d else None)())
-        form_vars.addRow(tr("Rayon du corps"), spin_earth_radius)
-        form_vars.addRow(tr("Couches max à projeter"), spin_max_layers)
-        form_vars.addRow(tr("Éléments max par couche"), spin_max_features)
-        form_vars.addRow(tr("Dossier de sortie par défaut"), row_out)
+        btn_default_out.clicked.connect(lambda: (lambda d=QFileDialog.getExistingDirectory(dlg, tr('Default output folder'), txt_default_out.text()): txt_default_out.setText(tr(d)) if d else None)())
+        form_vars.addRow(tr('Body radius'), spin_earth_radius)
+        form_vars.addRow(tr('Maximum projected layers'), spin_max_layers)
+        form_vars.addRow(tr('Maximum features per layer'), spin_max_features)
+        form_vars.addRow(tr('Default output folder'), row_out)
         lay.addWidget(grp_vars)
 
         version = QLabel(
             tr("<b>QCALVIEW</b><br>"
-            "Version ALPHA-40.20.5 — expérimental<br>"
-            "Simulation visuelle &amp; géomatique pour QGIS<br>"
-            "Développé par Fabrice Kerzerho — ArcTan°<br>"
+            "Version 40.21<br>"
+            "Visual simulation &amp; geomatics for QGIS<br>"
+            "Developed by Fabrice Kerzerho — ArcTan°<br>"
             "© 2026 Fabrice Kerzerho — ArcTan°<br>"
-            "GNU GPL v3 ou ultérieure<br><br>"
+            "GNU GPL v3 or later<br><br>"
             "<a href='https://www.qcalview.com'>qcalview.com</a>")
         )
         version.setOpenExternalLinks(True)
@@ -2009,18 +2121,18 @@ class QCalViewDock(QDockWidget):
             if want:
                 if idx < 0:
                     insert_at = min(getattr(self, '_exp_tab_insert_pos', 4), self.tabs.count())
-                    self.tabs.insertTab(insert_at, self.tab_gcp, self._icon("tools.svg"), tr("Outils expérimentaux"))
+                    self.tabs.insertTab(insert_at, self.tab_gcp, self._icon("tools.svg"), tr('Experimental Tools'))
                 if hasattr(self, 'grp_calib'):
                     self.grp_calib.setVisible(True)
                 if hasattr(self, 'grp_calib_world'):
-                    self.grp_calib_world.setVisible(not PUBLIC_EXPERIMENTAL_LIMITED)
+                    self.grp_calib_world.setVisible(not PUBLIC_ADVANCED_TOOLS_LIMITED)
                 if hasattr(self, 'grp_gcp'):
-                    self.grp_gcp.setVisible(not PUBLIC_EXPERIMENTAL_LIMITED)
+                    self.grp_gcp.setVisible(not PUBLIC_ADVANCED_TOOLS_LIMITED)
                     self.grp_gcp.setChecked(False)
                 if hasattr(self, 'grp_monoplot'):
                     self.grp_monoplot.setVisible(True)
                 if hasattr(self, 'grp_occ'):
-                    self.grp_occ.setVisible(not PUBLIC_EXPERIMENTAL_LIMITED)
+                    self.grp_occ.setVisible(not PUBLIC_ADVANCED_TOOLS_LIMITED)
             else:
                 if idx >= 0:
                     current_is_exp = (self.tabs.currentWidget() is self.tab_gcp)
@@ -2082,22 +2194,22 @@ class QCalViewDock(QDockWidget):
 
         try:
             if not layer:
-                qcv_log("_after_camera_layer_changed: aucune couche PDV reçue", "PDV-QML", "WARNING")
+                qcv_log('_after_camera_layer_changed: no viewpoint layer received', "PDV-QML", "WARNING")
                 return
 
             try:
-                layer_name = layer.name() if hasattr(layer, "name") else "<sans nom>"
-                layer_id = layer.id() if hasattr(layer, "id") else "<sans id>"
+                layer_name = layer.name() if hasattr(layer, "name") else '<unnamed>'
+                layer_id = layer.id() if hasattr(layer, "id") else '<no id>'
                 provider = layer.providerType() if hasattr(layer, "providerType") else "?"
                 crs = layer.crs().authid() if hasattr(layer, "crs") and layer.crs().isValid() else "?"
                 geom = layer.geometryType() if hasattr(layer, "geometryType") else "?"
                 qcv_log(
-                    f"_after_camera_layer_changed START — couche='{layer_name}', id={layer_id}, "
+                    f"_after_camera_layer_changed START — layer='{layer_name}', id={layer_id}, "
                     f"provider={provider}, crs={crs}, geometryType={geom}",
                     "PDV-QML", "INFO"
                 )
             except Exception as meta_exc:
-                qcv_log(f"Impossible de journaliser les métadonnées de couche : {meta_exc}", "PDV-QML", "WARNING")
+                qcv_log(f"Unable to log layer metadata: {meta_exc}", "PDV-QML", "WARNING")
 
             auto_colors = True
             try:
@@ -2114,15 +2226,15 @@ class QCalViewDock(QDockWidget):
             except Exception as _qcv_exc:
                 _qcv_suppress(_qcv_exc, "qcalview_dock.py:2217")
             mode_name = "STYLE-PDV.qml" if auto_colors else "STYLE-MOD.qml"
-            qcv_log(f"Application {mode_name} demandée={apply_style}", "PDV-QML", "INFO")
+            qcv_log(f"Requested {mode_name} application={apply_style}", "PDV-QML", "INFO")
             if apply_style:
                 try:
                     style_ok = bool(self.apply_pdv_style_mode(layer, automatic=auto_colors))
                     if style_ok:
-                        qcv_log(f"{mode_name} appliqué avec succès", "PDV-QML", "INFO")
+                        qcv_log(f"{mode_name} applied successfully", "PDV-QML", "INFO")
                     else:
                         qcv_log(
-                            f"{mode_name} NON appliqué — consulter les messages loadNamedStyle précédents",
+                            f"{mode_name} NOT applied — see previous loadNamedStyle messages",
                             "PDV-QML", "WARNING"
                         )
                 except Exception as style_exc:
@@ -2220,7 +2332,7 @@ class QCalViewDock(QDockWidget):
             try:
                 self.iface.messageBar().pushWarning(
                     tr("QCALVIEW"),
-                    tr("Erreur lors de la mise à jour du style/variables PDV — voir Messages > QCALVIEW")
+                    tr('Error updating viewpoint style/variables — see Messages > QCALVIEW')
                 )
             except Exception as _qcv_exc:
                 _qcv_suppress(_qcv_exc, "qcalview_dock.py:2333")
@@ -2324,7 +2436,7 @@ class QCalViewDock(QDockWidget):
                     )
             except Exception as exc:
                 qcv_log(
-                    f"Synchronisation FOV Live impossible: {exc}",
+                    f"Live FOV synchronization failed: {exc}",
                     "PDV/FOV",
                     "WARNING",
                 )
@@ -2367,6 +2479,21 @@ class QCalViewDock(QDockWidget):
                         viewer.hide()
                     except Exception as _qcv_exc:
                         _qcv_suppress(_qcv_exc, "qcalview_dock.py:2471")
+            # Closing the dock must never lose project or viewpoint visual state.
+            try:
+                self._project_save_global_relief()
+            except Exception as _qcv_exc:
+                _qcv_suppress(_qcv_exc, "qcalview_dock.py:save_project_state_close")
+            try:
+                fid = getattr(self, '_camera_current_fid', None)
+                if fid is not None:
+                    self._camera_capture_visual_state(int(fid))
+            except Exception as _qcv_exc:
+                _qcv_suppress(_qcv_exc, "qcalview_dock.py:save_pdv_state_close")
+            try:
+                self._restore_drape_qgis_visibility()
+            except Exception as _qcv_exc:
+                _qcv_suppress(_qcv_exc, "qcalview_dock.py:restore_drape_visibility_close")
             self._teardown_overlays()
         finally:
             super().closeEvent(ev)
@@ -2435,10 +2562,10 @@ def force_refresh_now(self):
 def _show_profiler_report(self):
 
     try:
-        text = self.profiler.report_text() if hasattr(self, 'profiler') else 'Profiler non initialisé.'
+        text = self.profiler.report_text() if hasattr(self, 'profiler') else 'Profiler not initialised.'
     except Exception as e:
-        text = f'Profiler indisponible: {e}'
-    QMessageBox.information(self, tr('Rapport de performance'), tr(text))
+        text = f'Profiler unavailable: {e}'
+    QMessageBox.information(self, tr('Performance report'), tr(text))
 
 def _relief_mode_id(self):
     try:
@@ -2610,17 +2737,19 @@ setattr(QCalViewDock, '_handle_image_navigation_click_uv', _handle_image_navigat
 setattr(QCalViewDock, '_draw_canvas_pick_ray', _draw_canvas_pick_ray)
 setattr(QCalViewDock, '_viewer_click_to_full_uv', _viewer_click_to_full_uv)
 setattr(QCalViewDock, '_on_viewer_image_clicked', _on_viewer_image_clicked)
-from .core._monoplot_ops import start_monoplot_map_to_image, start_monoplot_image_to_ground, clear_monoplot_reperes, stop_monoplot_tools, _monoplot_handle_image_click_uv, _draw_monoplot_overlay, _monoplot_on_pdv_changed, _monoplot_refresh_list, _monoplot_current_pdv_info, _monoplot_current_camera_context
+from .core._monoplot_ops import start_monoplot_map_to_image, start_monoplot_image_to_ground, clear_monoplot_reperes, stop_monoplot_tools, _monoplot_handle_image_click_uv, _draw_monoplot_overlay, _monoplot_refresh_viewer_markers, _monoplot_on_pdv_changed, _monoplot_refresh_list, _monoplot_current_pdv_info, _monoplot_current_camera_context, _monoplot_image_probe_info
 setattr(QCalViewDock, 'start_monoplot_map_to_image', start_monoplot_map_to_image)
 setattr(QCalViewDock, 'start_monoplot_image_to_ground', start_monoplot_image_to_ground)
 setattr(QCalViewDock, 'clear_monoplot_reperes', clear_monoplot_reperes)
 setattr(QCalViewDock, 'stop_monoplot_tools', stop_monoplot_tools)
 setattr(QCalViewDock, '_monoplot_handle_image_click_uv', _monoplot_handle_image_click_uv)
 setattr(QCalViewDock, '_draw_monoplot_overlay', _draw_monoplot_overlay)
+setattr(QCalViewDock, '_monoplot_refresh_viewer_markers', _monoplot_refresh_viewer_markers)
 setattr(QCalViewDock, '_monoplot_on_pdv_changed', _monoplot_on_pdv_changed)
 setattr(QCalViewDock, '_monoplot_refresh_list', _monoplot_refresh_list)
 setattr(QCalViewDock, '_monoplot_current_pdv_info', _monoplot_current_pdv_info)
 setattr(QCalViewDock, '_monoplot_current_camera_context', _monoplot_current_camera_context)
+setattr(QCalViewDock, '_monoplot_image_probe_info', _monoplot_image_probe_info)
 from .core._render_ops import _pick_dem_color, _build_horizon_cache, _is_visible_by_horizon, _update_horizon_by_segment, _draw_dem_wireframe, _draw_skyline, _draw_dem_opaque, _draw_azimuth_rule, _make_pov_curved_sampler, _apply_pov_curvature_to_z, _curvature_drop_from_cam_xy, _effective_curvature_radius
 from .core._render_ops import _draw_dem_ridgelines   
 setattr(QCalViewDock, '_draw_dem_ridgelines', _draw_dem_ridgelines)
@@ -2654,6 +2783,47 @@ setattr(QCalViewDock, '_qcv_fov_update_feature', qcv_fov_update_feature)
 from .core._labels_ops import _label_offset_from_pos, _label_anchor_uv
 setattr(QCalViewDock, '_label_offset_from_pos', _label_offset_from_pos)
 setattr(QCalViewDock, '_label_anchor_uv', _label_anchor_uv)
+from .core._raster_drape import (
+    refresh_dem_raster_filter, refresh_drape_raster_filter, selected_drape_layers, raster_drape_enabled,
+    clear_raster_drape_cache, refresh_raster_drape_watchers, on_raster_drape_changed,
+    restore_drape_qgis_visibility, sync_drape_qgis_visibility,
+    drape_texture_extent, render_combined_raster_texture, drape_layer_ids,
+)
+setattr(QCalViewDock, '_refresh_dem_raster_filter', refresh_dem_raster_filter)
+setattr(QCalViewDock, '_refresh_drape_raster_filter', refresh_drape_raster_filter)
+setattr(QCalViewDock, '_selected_drape_layers', selected_drape_layers)
+setattr(QCalViewDock, '_raster_drape_enabled', raster_drape_enabled)
+setattr(QCalViewDock, '_clear_raster_drape_cache', clear_raster_drape_cache)
+setattr(QCalViewDock, '_refresh_raster_drape_watchers', refresh_raster_drape_watchers)
+setattr(QCalViewDock, '_restore_drape_qgis_visibility', restore_drape_qgis_visibility)
+setattr(QCalViewDock, '_sync_drape_qgis_visibility', sync_drape_qgis_visibility)
+setattr(QCalViewDock, '_on_raster_drape_changed', on_raster_drape_changed)
+setattr(QCalViewDock, '_drape_texture_extent', drape_texture_extent)
+setattr(QCalViewDock, '_render_combined_raster_texture', render_combined_raster_texture)
+setattr(QCalViewDock, '_drape_layer_ids', drape_layer_ids)
+
+from .core._project_state import (
+    project_state_read, project_state_write, project_state_exists,
+    project_base_theme_name, project_base_layer_ids, project_set_base_theme,
+    project_capture_global_relief, project_save_global_relief, project_apply_global_relief,
+    project_restore_global_state, project_seed_from_legacy_pdv, project_camera_layer_changed,
+    project_relief_specific_toggled, project_relief_control_changed,
+)
+setattr(QCalViewDock, '_project_state_read', project_state_read)
+setattr(QCalViewDock, '_project_state_write', project_state_write)
+setattr(QCalViewDock, '_project_state_exists', project_state_exists)
+setattr(QCalViewDock, '_project_base_theme_name', project_base_theme_name)
+setattr(QCalViewDock, '_project_base_layer_ids', project_base_layer_ids)
+setattr(QCalViewDock, '_project_set_base_theme', project_set_base_theme)
+setattr(QCalViewDock, '_project_capture_global_relief', project_capture_global_relief)
+setattr(QCalViewDock, '_project_save_global_relief', project_save_global_relief)
+setattr(QCalViewDock, '_project_apply_global_relief', project_apply_global_relief)
+setattr(QCalViewDock, '_project_restore_global_state', project_restore_global_state)
+setattr(QCalViewDock, '_project_seed_from_legacy_pdv', project_seed_from_legacy_pdv)
+setattr(QCalViewDock, '_project_camera_layer_changed', project_camera_layer_changed)
+setattr(QCalViewDock, '_project_relief_specific_toggled', project_relief_specific_toggled)
+setattr(QCalViewDock, '_project_relief_control_changed', project_relief_control_changed)
+
 from .core._terrain_guard import (
     validate_terrain_layer, refresh_terrain_requirement_ui, on_terrain_layer_changed
 )
@@ -2691,7 +2861,8 @@ from .core._camera_layer_ops import (
     _camera_set_current_schematic, _camera_use_auto_image_source, _camera_associate_photo,
     _camera_on_geometry_changed, _camera_live_refresh_current, _camera_refresh_current_view,
     _camera_set_live_enabled, _camera_metric_project_crs, _camera_point_in_work_crs,
-    _camera_warn_if_non_metric_project
+    _camera_warn_if_non_metric_project, _camera_capture_visual_state,
+    _camera_restore_visual_state, _camera_visual_state_dirty, _camera_pdv_identity
 )
 setattr(QCalViewDock, '_camera_on_layer_changed', _camera_on_layer_changed)
 setattr(QCalViewDock, '_camera_refresh_field_combos', _camera_refresh_field_combos)
@@ -2724,6 +2895,10 @@ setattr(QCalViewDock, '_camera_set_live_enabled', _camera_set_live_enabled)
 setattr(QCalViewDock, '_camera_metric_project_crs', _camera_metric_project_crs)
 setattr(QCalViewDock, '_camera_point_in_work_crs', _camera_point_in_work_crs)
 setattr(QCalViewDock, '_camera_warn_if_non_metric_project', _camera_warn_if_non_metric_project)
+setattr(QCalViewDock, '_camera_capture_visual_state', _camera_capture_visual_state)
+setattr(QCalViewDock, '_camera_restore_visual_state', _camera_restore_visual_state)
+setattr(QCalViewDock, '_camera_visual_state_dirty', _camera_visual_state_dirty)
+setattr(QCalViewDock, '_camera_pdv_identity', _camera_pdv_identity)
 from .core._projection_ops import _toggle_hfov_enable
 setattr(QCalViewDock, '_toggle_hfov_enable', _toggle_hfov_enable)
 from .core._export_ops import export_legend, export_batch_composite, export_batch_overlay_only, export_camera_variables_csv, export_current_composite, export_batch_selected, _refresh_batch_pdv_table, _set_all_batch_rows_checked, _on_batch_table_item_changed, _fit_export_table_height

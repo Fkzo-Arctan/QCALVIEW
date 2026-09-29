@@ -201,6 +201,64 @@ def _monoplot_angles_from_uv(self, u, v, ctx):
     return az_abs, pitch_abs
 
 
+def _monoplot_image_probe_info(self, u, v):
+    """Return the exact native image pixel and viewing angles under an image pick.
+
+    Monoplotting picks are snapped to the centre of a source pixel.  This keeps the
+    magnifier reticle, the displayed X/Y pixel values and the terrain ray consistent,
+    including when the full viewer itself is showing a reduced proxy.
+    """
+    try:
+        width = max(1, int(self.spin_w.value()))
+        height = max(1, int(self.spin_h.value()))
+        proj = str(self.cmb_proj.currentText()).strip().upper()
+        is360 = bool(self._is360_mode()) if hasattr(self, '_is360_mode') else bool(self.cb_360.isChecked())
+        ctx = {
+            'proj': proj,
+            'is360': is360,
+            'yaw_eff': float(self.d_yaw.value()) + float(self.d_yaw_offset.value()),
+            'pitch': float(self.d_pitch.value()),
+            'roll': float(self.d_roll.value()),
+            'hfov': float(self.d_hfov.value()),
+            'vfov': float(self.d_vfov.value()),
+            'width': width,
+            'height': height,
+        }
+    except Exception:
+        return None
+    try:
+        x = float(u)
+        y = float(v)
+    except Exception:
+        return None
+    if not math.isfinite(x) or not math.isfinite(y):
+        return None
+    if x < 0.0 or y < 0.0 or x >= float(width) or y >= float(height):
+        return None
+
+    pixel_x = max(0, min(width - 1, int(math.floor(x))))
+    pixel_y = max(0, min(height - 1, int(math.floor(y))))
+    sample_u = float(pixel_x) + 0.5
+    sample_v = float(pixel_y) + 0.5
+
+    angle_u = sample_u
+    angle_v = sample_v
+    off_x, off_y = _monoplot_overlay_shift(self, width, height)
+    angle_u -= float(off_x)
+    angle_v -= float(off_y)
+    if bool(ctx.get('is360')):
+        angle_u %= max(1.0, float(width))
+    az_abs, pitch_abs = _monoplot_angles_from_uv(self, angle_u, angle_v, ctx)
+    return {
+        'pixel_x': int(pixel_x),
+        'pixel_y': int(pixel_y),
+        'u': float(sample_u),
+        'v': float(sample_v),
+        'az_deg': float(az_abs),
+        'elev_deg': float(pitch_abs),
+    }
+
+
 def _monoplot_point_visibility(self, rec, width=None, height=None):
     ctx = _monoplot_current_camera_context(self)
     if not ctx:
@@ -259,7 +317,7 @@ def _monoplot_refresh_list(self):
     cur_pdv = _monoplot_current_pdv_info(self).get('pdv_id','')
     visible_count = 0
     terrain_mode = _monoplot_active_terrain_mode(self)
-    mode_label = tr('terrain apparent') if terrain_mode == 'view' else tr('terrain brut')
+    mode_label = tr('apparent terrain') if terrain_mode == 'view' else tr('raw terrain')
     for rec in records:
         if rec.get('_visible_uv'):
             visible_count += 1
@@ -270,9 +328,9 @@ def _monoplot_refresh_list(self):
         lbl = getattr(self, 'lbl_monoplot_status', None)
         if lbl is not None:
             if not records:
-                lbl.setText(tr(f'Aucun repère monoplotting. Mode: {mode_label}.'))
+                lbl.setText(tr(f'No monoplotting reference. Mode: {mode_label}.'))
             else:
-                lbl.setText(tr(f"{len(records)} repère(s) · {visible_count} visible(s) · mode {mode_label}"))
+                lbl.setText(tr(f"{len(records)} reference(s) · {visible_count} visible · mode {mode_label}"))
     except Exception as _qcv_exc:
         _qcv_suppress(_qcv_exc, "core/_monoplot_ops.py:249")
 
@@ -485,27 +543,31 @@ def start_monoplot_map_to_image(self):
     canvas = self.iface.mapCanvas()
     self._maptool_backup = canvas.mapTool()
     canvas.setMapTool(MonoplotMapTool(canvas, lambda pt: _monoplot_on_map_click(self, pt)))
-    mode_label = 'terrain apparent' if _monoplot_active_terrain_mode(self) == 'view' else 'terrain brut'
-    _mp_log(self, f'Repère depuis la carte actif : cliquez sur le canevas. Mode {mode_label}.')
+    mode_label = 'apparent terrain' if _monoplot_active_terrain_mode(self) == 'view' else 'raw terrain'
+    _mp_log(self, f'Map reference active: click the map canvas. Mode {mode_label}.')
 
 
 def _monoplot_on_map_click(self, map_pt):
     picked = _monoplot_pick_map_z(self, map_pt)
     if not picked:
-        _mp_log(self, 'Échec altitude : Z géométrique absent et aucun MNT/MNS actif.')
+        _mp_log(self, 'Elevation failed: no geometry Z and no active DEM/DSM.')
         return
     pt_cam, z_raw, z_view, ctx = picked
     rec = _monoplot_make_record(self, 'map_to_image', pt_cam.x(), pt_cam.y(), z_raw, ctx, z_view=z_view)
     uv = _monoplot_point_visibility(self, rec)
     if uv is None:
         try:
-            self.iface.messageBar().pushMessage(tr('QCALVIEW'), tr('Point non visible dans la vue courante'), level=QC.Qgis_MessageLevel_Warning, duration=4)
+            self.iface.messageBar().pushMessage(tr('QCALVIEW'), tr('Point not visible in the current view'), level=QC.Qgis_MessageLevel_Warning, duration=4)
         except Exception as _qcv_exc:
             _qcv_suppress(_qcv_exc, "core/_monoplot_ops.py:435")
-        _mp_log(self, 'Point non visible dans la vue courante')
+        _mp_log(self, 'Point not visible in the current view')
         return
     rec['_visible_uv'] = uv
     _monoplot_add_record(self, rec, add_ray=False)
+    try:
+        _monoplot_refresh_viewer_markers(self)
+    except Exception as _qcv_exc:
+        _qcv_suppress(_qcv_exc, "core/_monoplot_ops.py:map_click_viewer_markers")
     try:
         self.render_preview()
     except Exception as _qcv_exc:
@@ -518,15 +580,15 @@ def start_monoplot_image_to_ground(self):
     viewer = getattr(self, "viewer", None)
     if viewer is not None and hasattr(viewer, "set_image_pick_active"):
         viewer.set_image_pick_active(True)
-    mode_label = 'terrain apparent' if _monoplot_active_terrain_mode(self) == 'view' else 'terrain brut'
-    _mp_log(self, f'Interroger le terrain depuis l’image actif : cliquez dans l’image. Mode {mode_label}.')
+    mode_label = 'apparent terrain' if _monoplot_active_terrain_mode(self) == 'view' else 'raw terrain'
+    _mp_log(self, f'Query terrain from image active: click in the image. Mode {mode_label}.')
 
 
 def _monoplot_intersect_image_uv(self, u, v):
     ctx = _monoplot_current_camera_context(self)
     z_sampler_active = ctx.get('z_sampler_active') if ctx else None
     if not ctx or z_sampler_active is None:
-        return None, 'pas de topographie pour ce point'
+        return None, 'no terrain data for this point'
     raw_u = float(u)
     raw_v = float(v)
     off_x, off_y = _monoplot_overlay_shift(self, int(ctx['width']), int(ctx['height']))
@@ -547,7 +609,7 @@ def _monoplot_intersect_image_uv(self, u, v):
         try:
             zt = float(z_sampler_active(QgsPointXY(x, y)))
         except Exception:
-            return None, 'pas de topographie pour ce point'
+            return None, 'no terrain data for this point'
         zr = float(ctx['cam_z']) + tanp * d
         if prev is not None and zr <= zt:
             lo, hi = prev[0], d
@@ -566,7 +628,7 @@ def _monoplot_intersect_image_uv(self, u, v):
             break
         prev = (d, x, y, zt, zr)
     if hit is None:
-        return None, 'aucune intersection terrain trouvée'
+        return None, 'no terrain intersection found'
     x, y, _zt_active, d = hit
     z_raw = None
     z_view = None
@@ -595,10 +657,10 @@ def _monoplot_handle_image_click_uv(self, u, v):
     rec, err = _monoplot_intersect_image_uv(self, u, v)
     if rec is None:
         try:
-            self.iface.messageBar().pushMessage(tr('QCALVIEW'), tr(err or 'Aucune intersection terrain trouvée'), level=QC.Qgis_MessageLevel_Warning, duration=4)
+            self.iface.messageBar().pushMessage(tr('QCALVIEW'), tr(err or 'No terrain intersection found'), level=QC.Qgis_MessageLevel_Warning, duration=4)
         except Exception as _qcv_exc:
             _qcv_suppress(_qcv_exc, "core/_monoplot_ops.py:521")
-        _mp_log(self, err or 'Aucune intersection terrain trouvée')
+        _mp_log(self, err or 'No terrain intersection found')
         return False
     _monoplot_add_record(self, rec, add_ray=True)
     if not bool(getattr(self, '_monoplot_viewer_click_active', False)):
@@ -638,7 +700,7 @@ def clear_monoplot_reperes(self):
         self.render_preview()
     except Exception as _qcv_exc:
         _qcv_suppress(_qcv_exc, "core/_monoplot_ops.py:550")
-    _mp_log(self, 'Repères monoplotting effacés')
+    _mp_log(self, 'Monoplotting references cleared')
 
 
 def stop_monoplot_tools(self):
@@ -653,11 +715,27 @@ def stop_monoplot_tools(self):
         _qcv_suppress(_qcv_exc, "core/_monoplot_ops.py:560")
 
 
-def _draw_monoplot_overlay(self, painter, width, height):
+def _draw_monoplot_overlay(self, painter, width, height, apply_display_shift=False):
+    """Draw monoplot markers into a raster target.
+
+    ``_monoplot_point_visibility`` returns coordinates in the unshifted projection
+    frame because the normal QCALVIEW overlay is shifted as a whole afterwards.
+    When markers are drawn directly into an already composed image (preview/export),
+    ``apply_display_shift`` applies that final display offset here instead.
+    """
     _monoplot_sync_from_layers(self)
     vis = _monoplot_rebuild_visible(self, width=width, height=height)
     if not vis:
         return
+    shift_x = shift_y = 0.0
+    is360 = False
+    if apply_display_shift:
+        shift_x, shift_y = _monoplot_overlay_shift(self, width, height)
+        try:
+            ctx = _monoplot_current_camera_context(self)
+            is360 = bool(ctx and ctx.get('is360'))
+        except Exception:
+            is360 = False
     painter.save()
     pen = QPen(BLUE); pen.setWidth(2)
     painter.setPen(pen)
@@ -667,6 +745,15 @@ def _draw_monoplot_overlay(self, painter, width, height):
         if uv is None:
             continue
         u, v = float(uv[0]), float(uv[1])
+        if apply_display_shift:
+            u += float(shift_x)
+            v += float(shift_y)
+            if is360:
+                u %= max(1.0, float(width))
+            elif u < 0.0 or u >= float(width):
+                continue
+            if v < 0.0 or v > float(height):
+                continue
         painter.drawLine(QPointF(u-7, v), QPointF(u+7, v))
         painter.drawLine(QPointF(u, v-7), QPointF(u, v+7))
         lbl_txt = rec.get('label') or rec['mp_id']
@@ -679,6 +766,64 @@ def _draw_monoplot_overlay(self, painter, width, height):
         painter.fillRect(int(rect_x), int(rect_y), int(rect_w), 18, QColor(255,255,255,180))
         painter.drawText(int(rect_x)+4, int(rect_y)+13, txt)
     painter.restore()
+
+
+def _monoplot_refresh_viewer_markers(self):
+    """Rebuild crisp viewer-only markers at the exact raster-overlay position.
+
+    The raster overlay is rendered at the current display quality
+    (25/50/100 %) and QCALVIEW then scales that pixmap to the viewer base image.
+    To preserve exact marker placement, markers are projected in that *same*
+    overlay coordinate system and only their final drawing is kept vectorial.
+    No monoplot geometry, terrain intersection or projection behaviour is changed.
+    """
+    viewer = getattr(self, 'viewer', None)
+    if viewer is None or not hasattr(viewer, 'clear_pick_markers') or not hasattr(viewer, 'add_pick_marker'):
+        return
+    try:
+        pix_item = getattr(viewer, '_pix', None)
+        base_pm = pix_item.pixmap() if pix_item is not None else None
+        if base_pm is None or base_pm.isNull() or base_pm.width() <= 0 or base_pm.height() <= 0:
+            return
+
+        overlay_item = getattr(viewer, '_overlay_pix', None)
+        overlay_pm = overlay_item.pixmap() if overlay_item is not None else None
+        if overlay_pm is not None and not overlay_pm.isNull() and overlay_pm.width() > 0 and overlay_pm.height() > 0:
+            render_w = int(overlay_pm.width())
+            render_h = int(overlay_pm.height())
+        else:
+            # Safe fallback for a viewer opened before its first overlay refresh.
+            # Once update_overlay() runs, this function is called again using the
+            # real 25/50/100 % raster dimensions.
+            render_w = max(1, int(base_pm.width()))
+            render_h = max(1, int(base_pm.height()))
+
+        vis = _monoplot_rebuild_visible(self, width=render_w, height=render_h)
+        shift_x, shift_y = _monoplot_overlay_shift(self, render_w, render_h)
+        ctx = _monoplot_current_camera_context(self)
+        is360 = bool(ctx and ctx.get('is360'))
+
+        # This is exactly the transform used by _ImageViewer.update_overlay().
+        sx = float(base_pm.width()) / float(render_w)
+        sy = float(base_pm.height()) / float(render_h)
+
+        viewer.clear_pick_markers()
+        for rec, uv in vis:
+            if uv is None:
+                continue
+            u = float(uv[0]) + float(shift_x)
+            v = float(uv[1]) + float(shift_y)
+            if is360:
+                u %= max(1.0, float(render_w))
+            elif u < 0.0 or u >= float(render_w):
+                continue
+            if v < 0.0 or v > float(render_h):
+                continue
+            lbl_txt = rec.get('label') or rec.get('mp_id') or ''
+            text = f"{lbl_txt} | D={float(rec.get('dist_m', 0.0)):.1f} m | Az={float(rec.get('az_deg', 0.0)):.1f}°"
+            viewer.add_pick_marker(u * sx, v * sy, text)
+    except Exception as _qcv_exc:
+        _qcv_suppress(_qcv_exc, "core/_monoplot_ops.py:refresh_viewer_markers")
 
 
 def _monoplot_on_pdv_changed(self):

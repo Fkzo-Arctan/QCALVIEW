@@ -247,15 +247,15 @@ def _show_guard_dialog(owner, details: str, dangerous: bool) -> str:
 
     try:
         box = QMessageBox(owner)
-        box.setWindowTitle(tr('QCalView — limites de rendu'))
+        box.setWindowTitle(tr('QCALVIEW — rendering limits'))
         if dangerous:
-            box.setText(tr('Attention : limites mémoire atteintes. Un rendu non limité peut fermer QGIS sans avertissement.'))
+            box.setText(tr('Warning: memory limits reached. An unrestricted render may close QGIS without warning.'))
         else:
-            box.setText(tr('Attention : charge de rendu critique. Le prochain calcul présente un risque de crash.'))
+            box.setText(tr('Warning: critical rendering load. The next calculation may crash QGIS.'))
         box.setInformativeText(tr(details))
-        safe_btn = box.addButton('Appliquer le mode sécurisé', _button_role('AcceptRole'))
-        cont_btn = box.addButton('Continuer quand même', _button_role('DestructiveRole'))
-        cancel_btn = box.addButton('Annuler le rendu', _button_role('RejectRole'))
+        safe_btn = box.addButton('Apply safe mode', _button_role('AcceptRole'))
+        cont_btn = box.addButton('Continue anyway', _button_role('DestructiveRole'))
+        cancel_btn = box.addButton('Cancel rendering', _button_role('RejectRole'))
         try:
             box.setDefaultButton(safe_btn)
         except Exception as _qcv_exc:
@@ -476,18 +476,18 @@ def prepare_panorama_preview(owner, requested_w: int, requested_h: int,
         if snap.total_bytes > 0:
             mem_lines.append(f"RAM disponible : {snap.available_bytes/_GIB:.1f} Go / {snap.total_bytes/_GIB:.1f} Go")
         if snap.process_bytes > 0:
-            mem_lines.append(f"Mémoire du processus QGIS : {snap.process_bytes/_GIB:.1f} Go")
+            mem_lines.append(f"QGIS process memory: {snap.process_bytes/_GIB:.1f} Go")
         details = (
-            f"Projection : {proj} — aperçu demandé {W} × {H} px\n"
-            f"Entités estimées : {feat_count:,}\n"
-            f"Instances procédurales potentielles : {schematic_instances:,}\n"
-            f"Topographie : {relief} — portée estimée {maxdist_est/1000.0:.1f} km"
+            f"Projection: {proj} — requested preview {W} × {H} px\n"
+            f"Estimated features: {feat_count:,}\n"
+            f"Potential procedural instances: {schematic_instances:,}\n"
+            f"Terrain: {relief} — estimated range {maxdist_est/1000.0:.1f} km"
         )
         if relief == 'wireframe':
-            details += f" — pas {dem_step:g} m"
+            details += f" — step {dem_step:g} m"
         if mem_lines:
             details += "\n" + "\n".join(mem_lines)
-        details += "\n\nLe mode sécurisé ne modifie pas le projet : il ne limite que l'aperçu interactif courant."
+        details += "\n\nSafe mode does not modify the project; it only limits the current interactive preview."
         choice = _show_guard_dialog(owner, details, level == 'dangerous')
         decisions[signature] = choice
         while len(decisions) > 8:
@@ -529,20 +529,20 @@ def format_guard_status(state: Optional[Dict[str, Any]]) -> str:
     if level == 'normal':
         return ''
     if bool(state.get('safe_mode', False)):
-        bits = ['Aperçu sécurisé']
+        bits = ['Safe preview']
         rw = int(state.get('requested_width', 0)); rh = int(state.get('requested_height', 0))
         w = int(state.get('width', rw)); h = int(state.get('height', rh))
         if (w, h) != (rw, rh):
             bits.append(f'{w}×{h}px')
         if state.get('dem_step_min'):
-            bits.append(f"topo ≥ {float(state['dem_step_min']):.1f} m")
+            bits.append(f"terrain ≥ {float(state['dem_step_min']):.1f} m")
         if state.get('rad_step_min'):
             bits.append(f"radial ≥ {float(state['rad_step_min']):.0f} m")
         if state.get('maxdist_cap'):
-            bits.append(f"portée ≤ {float(state['maxdist_cap'])/1000.0:.1f} km")
+            bits.append(f"range ≤ {float(state['maxdist_cap'])/1000.0:.1f} km")
         if state.get('schematic_instance_budget'):
-            bits.append(f"motifs ≤ {int(state['schematic_instance_budget']):,}".replace(',', ' '))
+            bits.append(f"symbols ≤ {int(state['schematic_instance_budget']):,}".replace(',', ' '))
         return ' • '.join(bits)
     if level == 'elevated':
-        return 'Charge mémoire élevée'
-    return 'Charge mémoire critique — rendu forcé'
+        return 'High memory load'
+    return 'Critical memory load — forced rendering'

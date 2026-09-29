@@ -58,7 +58,7 @@ def _qcv_style_to_dict(sty):
         'enable_25d','height_field_override','default_height_override','fill_polygons','fill_walls',
         'use_qgis_style','qgis_theme_name','qgis_theme_style_name','schematic_enabled',
         'schematic_symbol_id','schematic_type','schematic_family','schematic_params','schematic_asset_paths','use_qgis_labels',
-        'qgis_label_is_expression','qgis_label_expr'
+        'qgis_label_is_expression','qgis_label_expr','qgis_dash_pattern'
     )
     out = {'layer_id': sty.layer.id() if getattr(sty, 'layer', None) is not None else ''}
     for k in keys:
@@ -95,12 +95,288 @@ def _qcv_style_from_dict(sty, data):
         try: sty.pen_style=QC.Qt_PenStyle(int(data['pen_style']))
         except Exception as _qcv_exc: _qcv_suppress(_qcv_exc, "core/_camera_layer_ops.py:101")
 
-def _camera_visual_state_key(self, fid):
-    layer=_camera_layer(self)
-    if layer is None or fid is None: return ''
 
-    safe_layer=''.join(ch if (ch.isalnum() or ch in '_-') else '_' for ch in str(layer.id()))
+
+def _overlay_scope_token(self):
+    """Stable project-entry scope for overlay state, isolated per camera layer."""
+    try:
+        layer = _camera_layer(self)
+        lid = str(layer.id()) if layer is not None else 'default'
+    except Exception:
+        lid = 'default'
+    return ''.join(ch if (ch.isalnum() or ch in '_-') else '_' for ch in lid)
+
+
+def _overlay_global_layers_key(self):
+    return f'/overlay_state/{_overlay_scope_token(self)}/global_layers'
+
+
+def _overlay_global_styles_key(self):
+    return f'/overlay_state/{_overlay_scope_token(self)}/global_styles'
+
+
+def _overlay_read_global_layer_ids(self):
+    try:
+        raw, found = QgsProject.instance().readEntry('QCALVIEW', _overlay_global_layers_key(self), '')
+        if not found or not raw:
+            return []
+        vals = json.loads(str(raw))
+        if not isinstance(vals, list):
+            return []
+        out = []
+        for v in vals:
+            sv = str(v or '').strip()
+            if sv and sv not in out:
+                out.append(sv)
+        return out
+    except Exception as exc:
+        qcv_log(f"Unable to read global layers: {exc}", 'PDV/OVERLAYS', 'WARNING')
+        return []
+
+
+def _overlay_write_global_layer_ids(self, layer_ids):
+    out = []
+    for v in list(layer_ids or []):
+        sv = str(v or '').strip()
+        if sv and sv not in out:
+            out.append(sv)
+    try:
+        ok = bool(QgsProject.instance().writeEntry(
+            'QCALVIEW', _overlay_global_layers_key(self),
+            json.dumps(out, ensure_ascii=False, separators=(',', ':'))
+        ))
+        if ok:
+            QgsProject.instance().setDirty(True)
+        return ok
+    except Exception as exc:
+        qcv_log(f"Unable to write global layers: {exc}", 'PDV/OVERLAYS', 'WARNING')
+        return False
+
+
+def _overlay_read_global_styles(self):
+    try:
+        raw, found = QgsProject.instance().readEntry('QCALVIEW', _overlay_global_styles_key(self), '')
+        if not found or not raw:
+            return {}
+        vals = json.loads(str(raw))
+        return vals if isinstance(vals, dict) else {}
+    except Exception as exc:
+        qcv_log(f"Unable to read global styles: {exc}", 'PDV/OVERLAYS', 'WARNING')
+        return {}
+
+
+def _overlay_write_global_styles(self, styles):
+    try:
+        clean = styles if isinstance(styles, dict) else {}
+        ok = bool(QgsProject.instance().writeEntry(
+            'QCALVIEW', _overlay_global_styles_key(self),
+            json.dumps(clean, ensure_ascii=False, separators=(',', ':'))
+        ))
+        if ok:
+            QgsProject.instance().setDirty(True)
+        return ok
+    except Exception as exc:
+        qcv_log(f"Unable to write global styles: {exc}", 'PDV/OVERLAYS', 'WARNING')
+        return False
+
+
+def _overlay_style_payload_global(sty):
+    data = _qcv_style_to_dict(sty)
+    # Visibility and native-theme references are viewpoint-scoped. Everything
+    # else is the QCALVIEW layer style and is shared between viewpoints.
+    for key in ('visible', 'qgis_theme_name', 'qgis_theme_style_name'):
+        data.pop(key, None)
+    return data
+
+
+def _overlay_store_global_style(self, sty):
+    try:
+        layer = getattr(sty, 'layer', None)
+        lid = str(layer.id()) if layer is not None else ''
+        if not lid:
+            return False
+        styles = _overlay_read_global_styles(self)
+        styles[lid] = _overlay_style_payload_global(sty)
+        return _overlay_write_global_styles(self, styles)
+    except Exception as exc:
+        qcv_log(f"Global style not saved: {exc}", 'PDV/OVERLAYS', 'WARNING')
+        return False
+
+
+def _overlay_apply_global_style(self, sty, fallback_data=None):
+    """Apply the global style of sty.layer while keeping PDV visibility/theme refs."""
+    try:
+        layer = getattr(sty, 'layer', None)
+        lid = str(layer.id()) if layer is not None else ''
+        if not lid:
+            return sty
+        styles = _overlay_read_global_styles(self)
+        gdata = styles.get(lid)
+        if not isinstance(gdata, dict):
+            if isinstance(fallback_data, dict):
+                # Migrate the currently loaded layer style when it is first encountered.
+                # to the new global-style model.
+                seed = dict(fallback_data)
+                for key in ('visible', 'qgis_theme_name', 'qgis_theme_style_name'):
+                    seed.pop(key, None)
+                styles[lid] = seed
+                _overlay_write_global_styles(self, styles)
+                gdata = seed
+            else:
+                _overlay_store_global_style(self, sty)
+                return sty
+        visible = bool(getattr(sty, 'visible', True))
+        theme_name = str(getattr(sty, 'qgis_theme_name', '') or '')
+        theme_style = str(getattr(sty, 'qgis_theme_style_name', '') or '')
+        _qcv_style_from_dict(sty, gdata)
+        sty.visible = visible
+        sty.qgis_theme_name = theme_name
+        sty.qgis_theme_style_name = theme_style
+    except Exception as exc:
+        qcv_log(f"Unable to apply global style: {exc}", 'PDV/OVERLAYS', 'WARNING')
+    return sty
+
+
+def _overlay_is_layer_global(self, layer_or_id):
+    try:
+        lid = str(layer_or_id.id()) if hasattr(layer_or_id, 'id') else str(layer_or_id or '')
+        return lid in _overlay_read_global_layer_ids(self)
+    except Exception:
+        return False
+
+
+def _overlay_set_layer_global(self, sty_or_layer, enabled=True):
+    layer = getattr(sty_or_layer, 'layer', None) or sty_or_layer
+    try:
+        lid = str(layer.id()) if layer is not None else ''
+    except Exception:
+        lid = ''
+    if not lid:
+        return False
+    ids = _overlay_read_global_layer_ids(self)
+    if enabled:
+        if lid not in ids:
+            ids.append(lid)
+        sty = sty_or_layer if hasattr(sty_or_layer, 'layer') else None
+        if sty is not None:
+            _overlay_store_global_style(self, sty)
+    else:
+        ids = [x for x in ids if x != lid]
+    return _overlay_write_global_layer_ids(self, ids)
+
+
+def _overlay_remove_layer_from_all_saved_states(self, layer_id):
+    """Remove a layer from every saved PDV visual state for the active camera layer."""
+    lid = str(layer_id or '')
+    if not lid:
+        return
+    layer = _camera_layer(self)
+    if layer is None:
+        return
+    project = QgsProject.instance()
+    changed = False
+    try:
+        fids = [int(f.id()) for f in layer.getFeatures()]
+    except Exception:
+        fids = []
+    for fid in fids:
+        keys = [_camera_visual_state_key(self, fid), _camera_legacy_visual_state_key(self, fid)]
+        for key in [k for k in keys if k]:
+            try:
+                raw, found = project.readEntry('QCALVIEW', key, '')
+                if not found or not raw:
+                    continue
+                state = json.loads(str(raw))
+                if not isinstance(state, dict):
+                    continue
+                if int(state.get('version', 0) or 0) >= 5 or 'overrides' in state:
+                    ov = dict(state.get('overrides') or {})
+                    local_add = [str(x) for x in list(ov.get('local_add') or []) if str(x) != lid]
+                    removed = [str(x) for x in list(ov.get('removed') or []) if str(x) != lid]
+                    visibility = {str(k): bool(v) for k, v in dict(ov.get('visibility') or {}).items() if str(k) != lid}
+                    order = [str(x) for x in list(ov.get('order') or []) if str(x) != lid]
+                    ov.update({'local_add': local_add, 'removed': removed, 'visibility': visibility, 'order': order})
+                    state['overrides'] = ov
+                else:
+                    overlays = list(state.get('overlays') or [])
+                    state['overlays'] = [d for d in overlays if str((d or {}).get('layer_id') or '') != lid]
+                project.writeEntry('QCALVIEW', key, json.dumps(state, ensure_ascii=False, separators=(',', ':')))
+                changed = True
+            except Exception as exc:
+                qcv_log(f"Viewpoint cleanup {fid} for layer {lid}: {exc}", 'PDV/OVERLAYS', 'WARNING')
+    if changed:
+        project.setDirty(True)
+
+
+def _overlay_remove_layer_globally(self, layer_id):
+    lid = str(layer_id or '')
+    if not lid:
+        return False
+    ids = [x for x in _overlay_read_global_layer_ids(self) if x != lid]
+    _overlay_write_global_layer_ids(self, ids)
+    styles = _overlay_read_global_styles(self)
+    if lid in styles:
+        styles.pop(lid, None)
+        _overlay_write_global_styles(self, styles)
+    _overlay_remove_layer_from_all_saved_states(self, lid)
+    return True
+
+
+def _overlay_autosave_current_visual_state(self):
+    """Persist layer-stack changes without requiring the camera Save button."""
+    try:
+        fid = _camera_current_fid(self)
+        if fid is None:
+            return False
+        return bool(_camera_capture_visual_state(self, int(fid)))
+    except Exception as exc:
+        qcv_log(f"Unable to auto-save visual state: {exc}", 'PDV/OVERLAYS', 'WARNING')
+        return False
+
+def _camera_legacy_visual_state_key(self, fid):
+    layer = _camera_layer(self)
+    if layer is None or fid is None:
+        return ''
+    safe_layer = ''.join(ch if (ch.isalnum() or ch in '_-') else '_' for ch in str(layer.id()))
     return f'/pdv_visual_state/{safe_layer}/{int(fid)}'
+
+
+def _camera_pdv_identity(self, fid):
+    """Stable PDV identity: qcv_uid, then qcv_id, then FID."""
+    layer = _camera_layer(self)
+    if layer is None or fid is None:
+        return ''
+    feat = None
+    try:
+        feat = layer.getFeature(int(fid))
+    except Exception:
+        feat = None
+    if feat is not None:
+        try:
+            names = {str(n).lower(): n for n in layer.fields().names()}
+        except Exception:
+            names = {}
+        for candidate in ('qcv_uid', 'qcv_id'):
+            real = names.get(candidate)
+            if not real:
+                continue
+            try:
+                value = str(feat[real] or '').strip()
+            except Exception:
+                value = ''
+            if value:
+                safe = ''.join(ch if (ch.isalnum() or ch in '_-.') else '_' for ch in value)
+                return f'{candidate}_{safe}'
+    return f'fid_{int(fid)}'
+
+
+def _camera_visual_state_key(self, fid):
+    layer = _camera_layer(self)
+    ident = _camera_pdv_identity(self, fid)
+    if layer is None or not ident:
+        return ''
+    safe_layer = ''.join(ch if (ch.isalnum() or ch in '_-') else '_' for ch in str(layer.id()))
+    return f'/pdv_state_v5/{safe_layer}/{ident}'
 
 
 def _camera_layer_tree_model(self):
@@ -113,228 +389,392 @@ def _camera_layer_tree_model(self):
 
 def _qcv_widget_bool(self, name, default=False):
     try:
-        w=getattr(self,name,None)
+        w = getattr(self, name, None)
         return bool(w.isChecked()) if w is not None else bool(default)
-    except Exception: return bool(default)
+    except Exception:
+        return bool(default)
 
 
 def _qcv_widget_float(self, name, default=0.0):
     try:
-        w=getattr(self,name,None)
+        w = getattr(self, name, None)
         return float(w.value()) if w is not None else float(default)
-    except Exception: return float(default)
+    except Exception:
+        return float(default)
 
 
 def _camera_capture_plugin_settings(self):
-    out={
-        'cb_occ_terrain':_qcv_widget_bool(self,'cb_occ_terrain'),
-        'cb_occ_layers':_qcv_widget_bool(self,'cb_occ_layers'),
-        'cb_occ_objects':_qcv_widget_bool(self,'cb_occ_objects'),
-        'cb_transparent_objects':_qcv_widget_bool(self,'cb_transparent_objects'),
-        'cb_debug_no_occ':_qcv_widget_bool(self,'cb_debug_no_occ'),
-        'cb_use_dem_z':_qcv_widget_bool(self,'cb_use_dem_z'),
-        'cb_force_horizontal_25d':_qcv_widget_bool(self,'cb_force_horizontal_25d'),
-        'cb_draw_2p5d':_qcv_widget_bool(self,'cb_draw_2p5d'),
-        'cb_show_labels':_qcv_widget_bool(self,'cb_show_labels',True),
-        'cb_curvature':_qcv_widget_bool(self,'cb_curvature',True),
-        'd_eps':_qcv_widget_float(self,'d_eps',0.05),
-        'd_az_step':_qcv_widget_float(self,'d_az_step',1.0),
-        'd_rad_step':_qcv_widget_float(self,'d_rad_step',25.0),
-        'd_hdefault':_qcv_widget_float(self,'d_hdefault',0.0),
-        'd_earth_radius_km':_qcv_widget_float(self,'d_earth_radius_km',6370.0),
-        'height_field': '', 'dem_layer_id':'', 'relief_mode':'none',
+    """PDV-only settings. Terrain/MNT defaults live in project_state_v5."""
+    out = {
+        'cb_occ_objects': _qcv_widget_bool(self, 'cb_occ_objects', True),
+        'cb_transparent_objects': _qcv_widget_bool(self, 'cb_transparent_objects'),
+        'cb_debug_no_occ': _qcv_widget_bool(self, 'cb_debug_no_occ'),
+        'cb_force_horizontal_25d': _qcv_widget_bool(self, 'cb_force_horizontal_25d'),
+        'cb_draw_2p5d': _qcv_widget_bool(self, 'cb_draw_2p5d'),
+        'cb_show_labels': _qcv_widget_bool(self, 'cb_show_labels', True),
+        'd_hdefault': _qcv_widget_float(self, 'd_hdefault', 0.0),
+        'height_field': '',
+        'relief_specific': _qcv_widget_bool(self, 'cb_relief_specific_pdv', False),
+        'relief_mode_override': '',
     }
-    try: out['height_field']=str(self.txt_hfield.text() or '')
-    except Exception as _qcv_exc: _qcv_suppress(_qcv_exc, "core/_camera_layer_ops.py:153")
     try:
-        lyr=self.cmb_dem.currentLayer(); out['dem_layer_id']=str(lyr.id()) if lyr is not None else ''
-    except Exception as _qcv_exc: _qcv_suppress(_qcv_exc, "core/_camera_layer_ops.py:156")
-    try: out['relief_mode']=str(self._relief_mode_id())
-    except Exception as _qcv_exc: _qcv_suppress(_qcv_exc, "core/_camera_layer_ops.py:158")
+        out['height_field'] = str(self.txt_hfield.text() or '')
+    except Exception:
+        pass
+    if out['relief_specific']:
+        try:
+            out['relief_mode_override'] = str(self._relief_mode_id() or 'none')
+        except Exception:
+            out['relief_mode_override'] = 'none'
     return out
 
 
 def _camera_restore_plugin_settings(self, data):
-    data=data or {}
-    for name in ('cb_occ_terrain','cb_occ_layers','cb_transparent_objects','cb_debug_no_occ','cb_use_dem_z','cb_force_horizontal_25d','cb_draw_2p5d','cb_show_labels','cb_curvature'):
+    data = dict(data or {})
+    for name in ('cb_occ_objects', 'cb_transparent_objects', 'cb_debug_no_occ',
+                 'cb_force_horizontal_25d', 'cb_draw_2p5d', 'cb_show_labels'):
         if name in data:
-            try: getattr(self,name).setChecked(bool(data[name]))
-            except Exception as _qcv_exc: _qcv_suppress(_qcv_exc, "core/_camera_layer_ops.py:167")
-
-    try:
-        self.cb_occ_objects.setChecked(True)
-    except Exception as _qcv_exc:
-        _qcv_suppress(_qcv_exc, "core/_camera_layer_ops.py:173")
-    for name in ('d_eps','d_az_step','d_rad_step','d_hdefault','d_earth_radius_km'):
-        if name in data:
-            try: getattr(self,name).setValue(float(data[name]))
-            except Exception as _qcv_exc: _qcv_suppress(_qcv_exc, "core/_camera_layer_ops.py:178")
+            try:
+                w = getattr(self, name)
+                old = w.blockSignals(True)
+                w.setChecked(bool(data[name]))
+                w.blockSignals(old)
+            except Exception as _qcv_exc:
+                _qcv_suppress(_qcv_exc, 'core/_camera_layer_ops.py:restore-pdv-bool')
+    if 'd_hdefault' in data:
+        try:
+            w = self.d_hdefault; old = w.blockSignals(True); w.setValue(float(data['d_hdefault'])); w.blockSignals(old)
+        except Exception:
+            pass
     if 'height_field' in data:
-        try: self.txt_hfield.setText(tr(str(data.get('height_field') or '')))
-        except Exception as _qcv_exc: _qcv_suppress(_qcv_exc, "core/_camera_layer_ops.py:181")
-    lid=str(data.get('dem_layer_id') or '')
-    if lid:
         try:
-            lyr=QgsProject.instance().mapLayer(lid)
-            if lyr is not None: self.cmb_dem.setLayer(lyr)
-        except Exception as _qcv_exc: _qcv_suppress(_qcv_exc, "core/_camera_layer_ops.py:187")
-    mode=str(data.get('relief_mode') or '')
-    if mode:
+            w = self.txt_hfield; old = w.blockSignals(True); w.setText(str(data.get('height_field') or '')); w.blockSignals(old)
+        except Exception:
+            pass
+
+    specific = bool(data.get('relief_specific', False))
+    try:
+        cb = getattr(self, 'cb_relief_specific_pdv', None)
+        if cb is not None:
+            old = cb.blockSignals(True); cb.setChecked(specific); cb.blockSignals(old)
+    except Exception:
+        pass
+    try:
+        if specific:
+            self._set_relief_mode_id(str(data.get('relief_mode_override') or 'none'))
+        else:
+            state = self._project_state_read() if hasattr(self, '_project_state_read') else {}
+            terrain = dict(state.get('terrain') or {})
+            self._set_relief_mode_id(str(terrain.get('relief_mode') or 'none'))
+    except Exception as _qcv_exc:
+        _qcv_suppress(_qcv_exc, 'core/_camera_layer_ops.py:restore-relief-mode')
 
 
-        try:
-            if hasattr(self,'_set_relief_mode_id'): self._set_relief_mode_id(mode)
-            elif hasattr(self,'combo_relief_mode'):
-                mapping={'none':0,'transparent':1,'opaque':2,'wireframe':3,'ridgelines':4,'skyline':5}
-                self.combo_relief_mode.setCurrentIndex(int(mapping.get(mode.lower(),0)))
-                if hasattr(self,'_sync_relief_mode_controls'): self._sync_relief_mode_controls()
-        except Exception as _qcv_exc: _qcv_suppress(_qcv_exc, "core/_camera_layer_ops.py:198")
+def _camera_base_layer_ids(self):
+    out = []
+    try:
+        vals = self._project_base_layer_ids() if hasattr(self, '_project_base_layer_ids') else []
+    except Exception:
+        vals = []
+    for lid in list(vals or []) + list(_overlay_read_global_layer_ids(self) or []):
+        lid = str(lid or '').strip()
+        if lid and lid not in out:
+            out.append(lid)
+    return out
 
 
 def _camera_collect_visual_state_snapshot(self):
+    """Version 5: store only PDV deltas relative to project/base theme."""
+    effective = []
+    visibility = {}
+    for sty in list(getattr(self, 'layer_styles', []) or []):
+        try:
+            lid = str(sty.layer.id())
+        except Exception:
+            continue
+        if not lid or lid in effective:
+            continue
+        effective.append(lid)
+        visibility[lid] = bool(getattr(sty, 'visible', True))
+        try:
+            _overlay_store_global_style(self, sty)
+        except Exception:
+            pass
+    base_ids = _camera_base_layer_ids(self)
+    local_add = [lid for lid in effective if lid not in base_ids]
+    removed = [lid for lid in base_ids if lid not in effective]
+    # Default inherited visibility is True. Persist only actual visibility
+    # overrides so an untouched PDV remains clean and follows later base changes.
+    visibility = {lid: val for lid, val in visibility.items() if not bool(val)}
+    default_order = [lid for lid in base_ids if lid not in removed] + [lid for lid in local_add if lid not in base_ids]
+    order_override = effective if effective != default_order else []
+    return {
+        'version': 5,
+        'pdv_uid': _camera_pdv_identity(self, getattr(self, '_camera_current_fid', None)),
+        'overrides': {
+            'local_add': local_add,
+            'removed': removed,
+            'visibility': visibility,
+            'order': order_override,
+        },
+        'settings': _camera_capture_plugin_settings(self),
+    }
 
-    state={'version':3,'theme':'','overlays':[],'settings':_camera_capture_plugin_settings(self)}
+
+def _camera_state_effective_compare(state):
+    state = dict(state or {})
+    ov = dict(state.get('overrides') or {})
+    return {
+        'local_add': [str(x) for x in list(ov.get('local_add') or [])],
+        'removed': [str(x) for x in list(ov.get('removed') or [])],
+        'visibility': {str(k): bool(v) for k, v in dict(ov.get('visibility') or {}).items()},
+        'order': [str(x) for x in list(ov.get('order') or [])],
+        'settings': dict(state.get('settings') or {}),
+    }
+
+
+def _camera_read_saved_state(self, fid):
+    project = QgsProject.instance()
+    key = _camera_visual_state_key(self, fid)
+    if key:
+        try:
+            raw, found = project.readEntry('QCALVIEW', key, '')
+            if found and raw:
+                data = json.loads(str(raw))
+                if isinstance(data, dict):
+                    return data, True, False
+        except Exception:
+            pass
+    legacy_key = _camera_legacy_visual_state_key(self, fid)
+    if legacy_key:
+        try:
+            raw, found = project.readEntry('QCALVIEW', legacy_key, '')
+            if found and raw:
+                data = json.loads(str(raw))
+                if isinstance(data, dict):
+                    return data, True, True
+        except Exception:
+            pass
+    return {}, False, False
+
+
+def _camera_theme_layer_ids(self, theme_name):
+    name = str(theme_name or '').strip()
+    if not name:
+        return []
     try:
-        combo=getattr(self,'cmb_qgis_theme',None)
-        state['theme']=str(combo.currentData() or combo.currentText() or '') if combo is not None else ''
-        if state['theme'].startswith('—'):
-            state['theme']=''
-    except Exception as _qcv_exc:
-        _qcv_suppress(_qcv_exc, "core/_camera_layer_ops.py:209")
-    try:
-        state['overlays']=[_qcv_style_to_dict(sty) for sty in list(getattr(self,'layer_styles',[]) or [])]
+        coll = QgsProject.instance().mapThemeCollection()
+        if coll is None or not coll.hasMapTheme(name):
+            return []
+        visible = {str(x) for x in coll.mapThemeVisibleLayerIds(name)}
+        try:
+            ordered_layers = list(coll.masterLayerOrder())
+        except Exception:
+            ordered_layers = list(QgsProject.instance().mapLayers().values())
+        camera = _camera_layer(self)
+        cam_id = str(camera.id()) if camera is not None else ''
+        out = []
+        for lyr in ordered_layers:
+            try:
+                lid = str(lyr.id())
+            except Exception:
+                continue
+            if lid not in visible or lid == cam_id or not isinstance(lyr, QgsVectorLayer):
+                continue
+            out.append(lid)
+        return out
     except Exception:
-        state['overlays']=[]
-    return state
+        return []
+
+
+def _camera_migrate_legacy_state(self, legacy):
+    legacy = dict(legacy or {})
+    # Seed project-global terrain/theme from the first legacy PDV encountered.
+    try:
+        if hasattr(self, '_project_seed_from_legacy_pdv'):
+            self._project_seed_from_legacy_pdv(legacy.get('settings') or {}, legacy.get('theme') or '')
+    except Exception:
+        pass
+    legacy_theme = str(legacy.get('theme') or '')
+    old_theme_ids = _camera_theme_layer_ids(self, legacy_theme)
+    try:
+        if legacy_theme and old_theme_ids and hasattr(self, '_project_base_layer_ids') and not self._project_base_layer_ids():
+            self._project_set_base_theme(legacy_theme, old_theme_ids, styles_initialized=False)
+    except Exception:
+        pass
+    base_ids = old_theme_ids if old_theme_ids else _camera_base_layer_ids(self)
+    effective = []
+    visibility = {}
+    legacy_styles = {}
+    for d in list(legacy.get('overlays') or []):
+        if not isinstance(d, dict):
+            continue
+        lid = str(d.get('layer_id') or '')
+        if not lid or lid in effective:
+            continue
+        effective.append(lid)
+        if not bool(d.get('visible', True)):
+            visibility[lid] = False
+        legacy_styles[lid] = d
+    local_add = [lid for lid in effective if lid not in base_ids]
+    removed = [lid for lid in base_ids if lid not in effective]
+    settings = dict(legacy.get('settings') or {})
+    specific = bool(settings.get('relief_specific', False))
+    # Legacy project states stored relief mode per viewpoint; treat it as the project default during migration.
+    pdv_settings = {
+        'cb_occ_objects': bool(settings.get('cb_occ_objects', True)),
+        'cb_transparent_objects': bool(settings.get('cb_transparent_objects', False)),
+        'cb_debug_no_occ': bool(settings.get('cb_debug_no_occ', False)),
+        'cb_force_horizontal_25d': bool(settings.get('cb_force_horizontal_25d', False)),
+        'cb_draw_2p5d': bool(settings.get('cb_draw_2p5d', True)),
+        'cb_show_labels': bool(settings.get('cb_show_labels', True)),
+        'd_hdefault': float(settings.get('d_hdefault', 0.0) or 0.0),
+        'height_field': str(settings.get('height_field') or ''),
+        'relief_specific': specific,
+        'relief_mode_override': str(settings.get('relief_mode') or 'none') if specific else '',
+    }
+    return {
+        'version': 5,
+        'overrides': {
+            'local_add': local_add,
+            'removed': removed,
+            'visibility': visibility,
+            'order': [],
+        },
+        'settings': pdv_settings,
+        '_legacy_styles': legacy_styles,
+    }
 
 
 def _camera_visual_state_dirty(self, fid):
-
-    key=_camera_visual_state_key(self,fid)
-    if not key:
-        return False
     try:
-        current=_camera_collect_visual_state_snapshot(self)
-        raw,found=QgsProject.instance().readEntry('QCALVIEW', key, '')
-        if not found or not raw:
-            return True
-        saved=json.loads(str(raw))
-        a=json.dumps(current,ensure_ascii=False,sort_keys=True,separators=(',',':'))
-        b=json.dumps(saved,ensure_ascii=False,sort_keys=True,separators=(',',':'))
+        current = _camera_collect_visual_state_snapshot(self)
+        saved, found, legacy = _camera_read_saved_state(self, fid)
+        if legacy:
+            saved = _camera_migrate_legacy_state(self, saved)
+        if not found:
+            saved = {'version': 5, 'overrides': {'local_add': [], 'removed': [], 'visibility': {}, 'order': []}, 'settings': {}}
+        a = json.dumps(_camera_state_effective_compare(current), ensure_ascii=False, sort_keys=True, separators=(',', ':'))
+        b = json.dumps(_camera_state_effective_compare(saved), ensure_ascii=False, sort_keys=True, separators=(',', ':'))
         return a != b
     except Exception as exc:
-        qcv_log(f"PDV {fid}: comparaison état visuel impossible: {exc}", 'EXPORT/PREFLIGHT', 'WARNING')
-
+        qcv_log(f"PDV {fid}: visual-state comparison failed: {exc}", 'EXPORT/PREFLIGHT', 'WARNING')
         return True
 
 
 def _camera_capture_visual_state(self, fid):
-
-    key=_camera_visual_state_key(self,fid)
-    if not key: return False
-    project=QgsProject.instance()
-    state=_camera_collect_visual_state_snapshot(self)
+    key = _camera_visual_state_key(self, fid)
+    if not key:
+        return False
+    project = QgsProject.instance()
+    state = _camera_collect_visual_state_snapshot(self)
     try:
-        payload=json.dumps(state,ensure_ascii=False,separators=(',',':'))
-        ok=bool(project.writeEntry('QCALVIEW', key, payload))
+        state['pdv_uid'] = _camera_pdv_identity(self, fid)
+        payload = json.dumps(state, ensure_ascii=False, separators=(',', ':'))
+        ok = bool(project.writeEntry('QCALVIEW', key, payload))
         if ok:
-            raw,found=project.readEntry('QCALVIEW', key, '')
-            ok=bool(found and raw)
-        project.setDirty(True)
+            project.setDirty(True)
     except Exception as exc:
-        qcv_log(f"Échec enregistrement PDV {fid}: {exc}", 'PDV/SAVE', 'CRITICAL')
-        ok=False
-    self._camera_last_visual_capture_fid=int(fid)
-    self._camera_last_visual_capture_summary=(
-        f"état QCALVIEW enregistré ({len(state['overlays'])} couches, thème natif={state['theme'] or 'aucun'})"
-        if ok else "échec d’enregistrement de l’état QCALVIEW"
+        qcv_log(f"Failed to save viewpoint {fid}: {exc}", 'PDV/SAVE', 'CRITICAL')
+        ok = False
+    self._camera_last_visual_capture_fid = int(fid)
+    local_count = len(list((state.get('overrides') or {}).get('local_add') or []))
+    self._camera_last_visual_capture_summary = (
+        f"QCALVIEW v5 state saved ({local_count} local addition(s))"
+        if ok else 'failed to save QCALVIEW state'
     )
-    if ok: qcv_log(f"PDV {fid}: {self._camera_last_visual_capture_summary}", 'PDV/SAVE', 'SUCCESS')
+    if ok:
+        qcv_log(f"PDV {fid}: {self._camera_last_visual_capture_summary}", 'PDV/SAVE', 'SUCCESS')
     return ok
 
 
 def _camera_restore_visual_state(self, fid):
-    key=_camera_visual_state_key(self,fid)
-    if not key:return False
-    project=QgsProject.instance()
-    try:
-        raw,found=project.readEntry('QCALVIEW', key, '')
-        if not found or not raw:
-            self._camera_last_visual_restore_fid=int(fid); self._camera_last_visual_restore_summary='aucun état QCALVIEW enregistré'
-            return False
-        state=json.loads(str(raw))
-    except Exception as exc:
-        qcv_log(f"PDV {fid}: état illisible: {exc}", 'PDV/LOAD', 'WARNING')
-        self._camera_last_visual_restore_fid=int(fid); self._camera_last_visual_restore_summary='état QCALVIEW illisible'
-        return False
+    project = QgsProject.instance()
+    saved, state_found, was_legacy = _camera_read_saved_state(self, fid)
+    if was_legacy:
+        saved = _camera_migrate_legacy_state(self, saved)
+    if not isinstance(saved, dict):
+        saved = {}
+    ov = dict(saved.get('overrides') or {})
+    base_ids = _camera_base_layer_ids(self)
+    removed = {str(x) for x in list(ov.get('removed') or []) if str(x)}
+    local_add = [str(x) for x in list(ov.get('local_add') or []) if str(x)]
+    effective = [lid for lid in base_ids if lid not in removed]
+    for lid in local_add:
+        if lid not in effective:
+            effective.append(lid)
+    order = [str(x) for x in list(ov.get('order') or []) if str(x)]
+    if order:
+        ranked = [lid for lid in order if lid in effective]
+        for lid in effective:
+            if lid not in ranked:
+                ranked.append(lid)
+        effective = ranked
+    visibility = {str(k): bool(v) for k, v in dict(ov.get('visibility') or {}).items()}
+    legacy_styles = dict(saved.get('_legacy_styles') or {})
 
-
-    theme=str(state.get('theme') or '')
-    theme_applied=False
-    if theme:
-        try:
-            coll=project.mapThemeCollection(); root=project.layerTreeRoot(); model=_camera_layer_tree_model(self)
-            if coll is not None and model is not None and coll.hasMapTheme(theme):
-                prev=getattr(self,'_suspend_theme_auto_apply',False); self._suspend_theme_auto_apply=True
-                try: coll.applyTheme(theme,root,model); theme_applied=True
-                finally: self._suspend_theme_auto_apply=prev
-        except Exception as exc:
-            qcv_log(f"PDV {fid}: thème {theme} non appliqué: {exc}", 'PDV/LOAD', 'WARNING')
-
-
-    _camera_restore_plugin_settings(self,state.get('settings') or {})
-    restored=[]
+    restored = []
     try:
         from ._layerstyle import LayerStyle
-        for d in (state.get('overlays') or []):
-            lyr=project.mapLayer(str(d.get('layer_id') or ''))
-            if lyr is None: continue
-            sty=LayerStyle(lyr); _qcv_style_from_dict(sty,d)
-
-            try:
-                if bool(getattr(sty, 'schematic_enabled', False)):
-                    sid = str(getattr(sty, 'schematic_symbol_id', '') or '').strip()
-                    from ._schematic_symbols import get_symbol_library
-                    plugin_dir = os.path.dirname(os.path.dirname(__file__))
-                    if (not sid) or get_symbol_library(plugin_dir).get(sid) is None:
-                        sty.schematic_enabled = False
-                        sty.schematic_symbol_id = ''
-                        sty.schematic_type = ''
-                        sty.schematic_family = ''
-                        sty.schematic_params = {}
-                        sty.schematic_asset_paths = []
-            except Exception as _qcv_exc:
-                _qcv_suppress(_qcv_exc, "core/_camera_layer_ops.py:313")
+        global_styles = _overlay_read_global_styles(self)
+        changed = False
+        for lid in effective:
+            lyr = project.mapLayer(lid)
+            if lyr is None:
+                continue
+            sty = LayerStyle(lyr)
+            fallback = legacy_styles.get(lid)
+            gdata = global_styles.get(lid)
+            if isinstance(gdata, dict):
+                _qcv_style_from_dict(sty, gdata)
+            elif isinstance(fallback, dict):
+                _qcv_style_from_dict(sty, fallback)
+                global_styles[lid] = _overlay_style_payload_global(sty)
+                changed = True
+            else:
+                global_styles[lid] = _overlay_style_payload_global(sty)
+                changed = True
+            sty.visible = bool(visibility.get(lid, True))
             restored.append(sty)
-        self.layer_styles=restored
-        try: self._refresh_layer_list_labels(0 if restored else -1)
-        except Exception as _qcv_exc: _qcv_suppress(_qcv_exc, "core/_camera_layer_ops.py:318")
-    except Exception as exc:
-        qcv_log(f"PDV {fid}: restauration overlays incomplète: {exc}", 'PDV/LOAD', 'WARNING')
-
-    combo=getattr(self,'cmb_qgis_theme',None)
-    if combo is not None:
+        if changed:
+            _overlay_write_global_styles(self, global_styles)
+        self.layer_styles = restored
         try:
-            prev=getattr(self,'_suspend_theme_auto_apply',False); self._suspend_theme_auto_apply=True
-            try:
-                idx=combo.findData(theme) if theme else combo.findData('')
-                if idx<0 and theme: idx=combo.findText(theme)
-                if idx>=0: combo.setCurrentIndex(idx)
-            finally:self._suspend_theme_auto_apply=prev
-        except Exception as _qcv_exc: _qcv_suppress(_qcv_exc, "core/_camera_layer_ops.py:331")
-    try: getattr(self,'_overlay_cache',{}).clear(); getattr(self,'_geom_cache',{}).clear()
-    except Exception as _qcv_exc: _qcv_suppress(_qcv_exc, "core/_camera_layer_ops.py:333")
-    try:self.iface.mapCanvas().refresh()
-    except Exception as _qcv_exc: _qcv_suppress(_qcv_exc, "core/_camera_layer_ops.py:335")
-    try:self._refresh_preview_and_viewer()
-    except Exception:
-        try:self.render_preview()
-        except Exception as _qcv_exc: _qcv_suppress(_qcv_exc, "core/_camera_layer_ops.py:339")
-    self._camera_last_visual_restore_fid=int(fid)
-    self._camera_last_visual_restore_summary=f"état QCALVIEW restauré ({len(restored)} couches, thème {'appliqué' if theme_applied else (theme or 'aucun')})"
-    qcv_log(f"PDV {fid}: {self._camera_last_visual_restore_summary}", 'PDV/LOAD', 'SUCCESS')
-    return True
+            self._refresh_layer_list_labels(0 if restored else -1)
+        except Exception:
+            pass
+    except Exception as exc:
+        qcv_log(f"PDV {fid}: incomplete v5 overlay restore: {exc}", 'PDV/LOAD', 'WARNING')
 
+    try:
+        _camera_restore_plugin_settings(self, saved.get('settings') or {})
+    except Exception as exc:
+        qcv_log(f"PDV {fid}: incomplete v5 settings restore: {exc}", 'PDV/LOAD', 'WARNING')
+
+    # The top theme selector is project-global; never change it per viewpoint.
+    try:
+        getattr(self, '_overlay_cache', {}).clear()
+        getattr(self, '_geom_cache', {}).clear()
+    except Exception:
+        pass
+    try:
+        self._refresh_preview_and_viewer()
+    except Exception:
+        try:
+            self.render_preview()
+        except Exception:
+            pass
+    self._camera_last_visual_restore_fid = int(fid)
+    self._camera_last_visual_restore_summary = (
+        f"QCALVIEW v5 state restored ({len(restored)} layers; project base theme unchanged)"
+    )
+    qcv_log(f"PDV {fid}: {self._camera_last_visual_restore_summary}", 'PDV/LOAD', 'SUCCESS')
+    if was_legacy:
+        try:
+            _camera_capture_visual_state(self, fid)
+        except Exception:
+            pass
+    return bool(state_found or restored)
 
 def _camera_metric_project_crs(self):
 
@@ -371,7 +811,7 @@ def _camera_point_in_work_crs(self, feat=None):
             pt = QgsCoordinateTransform(src, work, QgsProject.instance()).transform(pt)
         return pt, work
     except Exception as exc:
-        qcv_log(f"Transformation du PDV vers le CRS projet impossible: {exc}", 'PDV/CRS', 'WARNING')
+        qcv_log(f"Unable to transform viewpoint to project CRS: {exc}", 'PDV/CRS', 'WARNING')
         return None, work
 
 
@@ -379,7 +819,7 @@ def _camera_warn_if_non_metric_project(self, notify=False):
     crs = _camera_metric_project_crs(self)
     if crs is not None:
         return True
-    msg = "Le CRS du projet doit être projeté et métrique pour les calculs QCALVIEW. Les couches source peuvent être en WGS84 : QCALVIEW les reprojette vers le CRS du projet."
+    msg = 'The project CRS must be projected and metric for QCALVIEW calculations. Source layers may use WGS84: QCALVIEW reprojects them to the project CRS.'
     _camera_set_status(self, msg, '#b36b00')
     if notify:
         try: self.iface.messageBar().pushWarning(tr('QCALVIEW — CRS'), tr(msg))
@@ -563,7 +1003,7 @@ def _camera_update_title(self, label=None):
         if clean:
             self.setWindowTitle(tr(f"{base} — {clean}"))
             if hasattr(self, 'lbl_current_pdv'):
-                self.lbl_current_pdv.setText(tr(f"PDV&nbsp;<b>{clean}</b>"))
+                self.lbl_current_pdv.setText(tr(f"Viewpoint&nbsp;<b>{clean}</b>"))
         else:
             self.setWindowTitle(tr(base))
             if hasattr(self, 'lbl_current_pdv'):
@@ -654,7 +1094,7 @@ def _camera_resolve_title(self, layer, feat):
             except Exception: val = None
         if val not in (None, ''):
             return str(val).strip()
-    return f"PDV {int(feat.id())}"
+    return f"Viewpoint {int(feat.id())}"
 
 
 def _camera_list_label(self, layer, feat):
@@ -753,7 +1193,7 @@ def _camera_refresh_field_combos(self, layer=None):
             combo_feat.blockSignals(True)
             combo_feat.clear()
             combo_feat.blockSignals(False)
-        _camera_set_status(self, "Aucune couche caméra sélectionnée.")
+        _camera_set_status(self, 'No camera layer selected.')
         _camera_update_title(self, "")
         return
 
@@ -773,7 +1213,7 @@ def _camera_refresh_field_combos(self, layer=None):
         combo.blockSignals(False)
 
     default_id = _camera_first_existing_name(names, ('qcv_id', 'IDPTV', 'idptv', 'id', 'numero', 'num', 'filename', 'name', 'nom'))
-    default_label = _camera_first_existing_name(names, ('name', 'nom', 'label', 'libelle', 'libellé', 'description'))
+    default_label = _camera_first_existing_name(names, ('name', 'nom', 'label', 'libelle', 'label', 'description'))
     default_order = _camera_first_existing_name(names, ('numero', 'num', 'ordre', 'order', 'qcv_id', 'IDPTV', 'idptv'))
     default_img = _camera_first_existing_name(names, IMAGE_HINTS)
     id_name = prev_id if prev_id in names else default_id
@@ -794,7 +1234,7 @@ def _camera_refresh_field_combos(self, layer=None):
                     combo.blockSignals(False)
                 except Exception as _qcv_exc:
                     _qcv_suppress(_qcv_exc, "core/_camera_layer_ops.py:809")
-    _camera_set_status(self, f"Couche caméra prête : {layer.name()} ({layer.featureCount()} points environ).")
+    _camera_set_status(self, f"Camera layer ready: {layer.name()} ({layer.featureCount()} points approximately).")
 
 
 def _camera_refresh_feature_list(self, autoload=None):
@@ -849,7 +1289,7 @@ def _camera_refresh_feature_list(self, autoload=None):
 
     if combo.count() <= 0:
         self._camera_current_fid = None
-        _camera_set_status(self, "Aucun point de vue trouvé dans la couche caméra (filtre QGIS actif ?).", "#aa6600")
+        _camera_set_status(self, 'No viewpoint found in the camera layer (is a QGIS filter active?).', "#aa6600")
         _camera_update_title(self, "")
         try:
             self._sync_pdv_qml()
@@ -878,9 +1318,9 @@ def _camera_refresh_feature_list(self, autoload=None):
             return
         title = _camera_resolve_title(self, layer, feat)
         img_path = _camera_feature_image_path(self, layer, feat)
-        suffix = "image renseignée" if img_path else "vue schématique"
+        suffix = 'image specified' if img_path else 'schematic view'
         _camera_update_title(self, title)
-        _camera_set_status(self, f"Point courant : {title} — {suffix}.", "#666" if img_path else "#aa6600")
+        _camera_set_status(self, f"Current viewpoint: {title} — {suffix}.", "#666" if img_path else "#aa6600")
         try:
             self._sync_pdv_qml()
         except Exception as _qcv_exc:
@@ -1436,7 +1876,7 @@ def _camera_load_current_feature(self, auto=False):
     layer = _camera_layer(self)
     feat = _camera_current_feature(self)
     if layer is None or feat is None:
-        _camera_set_status(self, "Aucun point de vue à charger.", "#aa6600")
+        _camera_set_status(self, 'No viewpoint to load.', "#aa6600")
         _camera_update_title(self, "")
         return
 
@@ -1459,7 +1899,7 @@ def _camera_load_current_feature(self, auto=False):
                     photo_meta = _camera_load_photo_from_path(self, path) or {}
                 except Exception as e:
                     if not auto:
-                        QMessageBox.warning(self, tr('QCALVIEW'), tr(f"Impossible de charger l’image :\n{e}"))
+                        QMessageBox.warning(self, tr('QCALVIEW'), tr(f"Unable to load image:\n{e}"))
             else:
                 photo_meta = dict(getattr(self, '_camera_last_photo_meta', {}) or {})
             self._camera_current_photo_path = path
@@ -1497,6 +1937,14 @@ def _camera_load_current_feature(self, auto=False):
     finally:
         self._camera_loading_feature = False
 
+    # The first QML sync above occurs while the feature-loading guard is active.
+    # Run it once more after loading so the live FOV geometry and current-PDV
+    # styling are updated immediately, without waiting for a camera control change.
+    try:
+        self._sync_pdv_qml()
+    except Exception as _qcv_exc:
+        _qcv_suppress(_qcv_exc, "core/_camera_layer_ops.py:_camera_load_current_feature:post_load_pdv_sync")
+
     try:
         self.render_preview()
     except Exception as _qcv_exc:
@@ -1523,18 +1971,18 @@ def _camera_load_current_feature(self, auto=False):
                 self.viewer.update_overlay(ov)
     except Exception as _qcv_exc:
         _qcv_suppress(_qcv_exc, "core/_camera_layer_ops.py:1494")
-    status = f"Point chargé : {title}"
+    status = f"Viewpoint loaded: {title}"
     mode_now = _camera_normalize_view_mode(getattr(self, '_camera_current_view_mode', view_mode))
     if path:
         status += f" — {os.path.basename(path)}"
     elif mode_now == 'PHOTO':
-        status += " — photo associée introuvable : affichage schématique provisoire"
+        status += " — associated photo not found: temporary schematic display"
     else:
-        status += " — vue schématique (sans photo)"
+        status += " — schematic view (without photo)"
     try:
         if int(getattr(self, '_camera_last_visual_restore_fid', -999999)) == int(feat.id()):
             vs = str(getattr(self, '_camera_last_visual_restore_summary', '') or '')
-            if vs and vs != 'aucun état visuel enregistré':
+            if vs and vs != 'no saved visual state':
                 status += f" — {vs}"
     except Exception as _qcv_exc:
         _qcv_suppress(_qcv_exc, "core/_camera_layer_ops.py:1509")
@@ -1587,7 +2035,7 @@ def _camera_write_source_fields(self, mode, image_path=None, silent=False):
     layer = _camera_layer(self)
     feat = _camera_current_feature(self)
     if layer is None or feat is None:
-        _camera_set_status(self, "Aucun point de vue actif.", "#aa6600")
+        _camera_set_status(self, 'No viewpoint active.', "#aa6600")
         return False
     if not _camera_ensure_fields(self):
         return False
@@ -1651,9 +2099,9 @@ def _camera_write_source_fields(self, mode, image_path=None, silent=False):
     self._camera_drafts = drafts
     if not silent:
         _camera_set_status(self,
-            "Source enregistrée : photographie." if mode == 'PHOTO' else
-            ("Source enregistrée : vue schématique (photo associée conservée)." if mode == 'SCHEMA' else
-             "Source enregistrée : détection automatique depuis le champ image."),
+            'Saved source: photograph.' if mode == 'PHOTO' else
+            ('Saved source: schematic view (associated photo retained).' if mode == 'SCHEMA' else
+             'Saved source: automatic detection from the image field.'),
             "#2b6" if mode == 'PHOTO' else "#386a8a")
     return changed
 
@@ -1662,7 +2110,7 @@ def _camera_set_current_schematic(self):
 
     feat = _camera_current_feature(self)
     if feat is None:
-        _camera_set_status(self, "Aucun point de vue actif.", "#aa6600")
+        _camera_set_status(self, 'No viewpoint active.', "#aa6600")
         return
     layer = _camera_layer(self)
     fid = int(feat.id())
@@ -1695,7 +2143,7 @@ def _camera_set_current_schematic(self):
     except Exception as _qcv_exc:
         _qcv_suppress(_qcv_exc, "core/_camera_layer_ops.py:1641")
     title = _camera_resolve_title(self, _camera_layer(self), feat)
-    _camera_set_status(self, f"{title} — vue schématique enregistrée (photo associée conservée).", "#386a8a")
+    _camera_set_status(self, f"{title} — schematic view saved (associated photo kept).", "#386a8a")
 
 
 def _camera_use_auto_image_source(self):
@@ -1703,7 +2151,7 @@ def _camera_use_auto_image_source(self):
     layer = _camera_layer(self)
     feat = _camera_current_feature(self)
     if layer is None or feat is None:
-        _camera_set_status(self, "Aucun point de vue actif.", "#aa6600")
+        _camera_set_status(self, 'No viewpoint active.', "#aa6600")
         return
     self._camera_current_view_mode = 'AUTO'
     drafts = getattr(self, '_camera_drafts', {}) or {}
@@ -1723,7 +2171,7 @@ def _camera_associate_photo(self):
 
     feat = _camera_current_feature(self)
     if feat is None:
-        _camera_set_status(self, "Aucun point de vue actif.", "#aa6600")
+        _camera_set_status(self, 'No viewpoint active.', "#aa6600")
         return
     before = getattr(self, '_camera_current_photo_path', None)
     try:
@@ -1740,7 +2188,7 @@ def _camera_associate_photo(self):
     _camera_capture_current_draft(self, feat.id())
     _camera_write_source_fields(self, 'PHOTO', after, silent=True)
     title = _camera_resolve_title(self, _camera_layer(self), feat)
-    _camera_set_status(self, f"{title} — photographie associée : {os.path.basename(after)}", "#2b6")
+    _camera_set_status(self, f"{title} — associated photograph: {os.path.basename(after)}", "#2b6")
 
 
 def _camera_schedule_autosave(self, *_args):
@@ -1775,7 +2223,7 @@ def _camera_autosave_timeout(self):
 def _camera_ensure_fields(self):
     layer = _camera_layer(self)
     if layer is None:
-        QMessageBox.information(self, tr('QCALVIEW'), tr("Choisissez d’abord une couche caméra."))
+        QMessageBox.information(self, tr('QCALVIEW'), tr('Select a viewpoint layer first.'))
         return False
     existing_lower = {f.name().lower() for f in layer.fields()}
     new_fields = []
@@ -1789,7 +2237,7 @@ def _camera_ensure_fields(self):
             fld.setPrecision(int(precision))
         new_fields.append(fld)
     if not new_fields:
-        _camera_set_status(self, "Les champs QCALVIEW existent déjà pour la couche caméra.", "#2b6")
+        _camera_set_status(self, 'QCALVIEW fields already exist in the camera layer.', "#2b6")
         return True
     ok = False
     try:
@@ -1797,11 +2245,11 @@ def _camera_ensure_fields(self):
         if ok:
             layer.updateFields()
             self._camera_refresh_field_combos(layer)
-            _camera_set_status(self, "Champs QCALVIEW ajoutés à la couche caméra.", "#2b6")
+            _camera_set_status(self, 'QCALVIEW fields added to the camera layer.', "#2b6")
         else:
-            _camera_set_status(self, "Impossible d’ajouter les champs QCALVIEW.", "#b33")
+            _camera_set_status(self, 'Unable to add QCALVIEW fields.', "#b33")
     except Exception as e:
-        QMessageBox.warning(self, tr('QCALVIEW'), tr(f"Impossible d’ajouter les champs QCALVIEW :\n{e}"))
+        QMessageBox.warning(self, tr('QCALVIEW'), tr(f"Unable to add QCALVIEW fields:\n{e}"))
         ok = False
     return ok
 
@@ -1876,7 +2324,7 @@ def _camera_save_feature_by_fid(self, fid, silent=False):
     drafts.pop(fid, None)
     self._camera_drafts = drafts
     if changed and not silent:
-        _camera_set_status(self, f"Paramètres enregistrés pour {title}.", "#2b6")
+        _camera_set_status(self, f"Parameters saved for {title}.", "#2b6")
 
     try:
         update_fov = getattr(self, '_qcv_fov_update_feature', None)
@@ -1898,7 +2346,7 @@ def _camera_save_feature_by_fid(self, fid, silent=False):
 def _camera_save_current_feature(self):
     feat = _camera_current_feature(self)
     if feat is None:
-        _camera_set_status(self, "Aucun point de vue à enregistrer.", "#aa6600")
+        _camera_set_status(self, 'No viewpoint to save.', "#aa6600")
         return
     _camera_capture_current_draft(self, feat.id())
     _camera_save_feature_by_fid(self, int(feat.id()), silent=False)
@@ -1907,22 +2355,22 @@ def _camera_save_current_feature(self):
         title = _camera_resolve_title(self, _camera_layer(self), feat)
         summary = str(getattr(self, '_camera_last_visual_capture_summary', '') or '')
         if ok_state:
-            _camera_set_status(self, f"Paramètres et {summary} pour {title}.", "#2b6")
+            _camera_set_status(self, f"Parameters and {summary} for {title}.", "#2b6")
         else:
-            _camera_set_status(self, f"Paramètres enregistrés pour {title}, mais {summary}.", "#b36b00")
+            _camera_set_status(self, f"Parameters saved for {title}, but {summary}.", "#b36b00")
     except Exception:
-        _camera_set_status(self, "Paramètres enregistrés, mais l’état visuel n’a pas pu être capturé.", "#b36b00")
+        _camera_set_status(self, 'Settings saved, but the visual state could not be captured.', "#b36b00")
 
 
 def _camera_on_feature_changed(self, *_):
     layer = _camera_layer(self)
     if layer is None:
-        _camera_set_status(self, "Aucune couche caméra sélectionnée.", "#aa6600")
+        _camera_set_status(self, 'No camera layer selected.', "#aa6600")
         _camera_update_title(self, "")
         return
     combo = getattr(self, 'cmb_cam_feature', None)
     if combo is None or combo.currentIndex() < 0:
-        _camera_set_status(self, "Aucun point de vue actif.", "#aa6600")
+        _camera_set_status(self, 'No viewpoint active.', "#aa6600")
         _camera_update_title(self, "")
         return
 
@@ -1944,7 +2392,7 @@ def _camera_on_feature_changed(self, *_):
 
     feat = _camera_current_feature(self)
     if feat is None:
-        _camera_set_status(self, "Aucun point de vue actif.", "#aa6600")
+        _camera_set_status(self, 'No viewpoint active.', "#aa6600")
         _camera_update_title(self, "")
         try:
             self._sync_pdv_qml()
@@ -1957,12 +2405,12 @@ def _camera_on_feature_changed(self, *_):
     path = _camera_feature_image_path(self, layer, feat)
     _camera_update_title(self, title)
     if path:
-        source_txt, color = 'image renseignée', '#666'
+        source_txt, color = 'image specified', '#666'
     elif mode == 'PHOTO':
-        source_txt, color = 'photo introuvable', '#b36b00'
+        source_txt, color = 'photo not found', '#b36b00'
     else:
-        source_txt, color = 'vue schématique', '#386a8a'
-    _camera_set_status(self, f"Point courant : {title} — {source_txt}.", color)
+        source_txt, color = 'schematic view', '#386a8a'
+    _camera_set_status(self, f"Current viewpoint: {title} — {source_txt}.", color)
     self._camera_load_current_feature(auto=True)
     try:
         if getattr(self, 'viewer', None):

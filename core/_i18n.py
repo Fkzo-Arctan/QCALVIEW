@@ -197,11 +197,11 @@ def install_qcalview_translator(parent=None):
     if _active_translator is not None:
         return _active_translator
     _active_language = resolve_language()
-    if _active_language == "fr":
+    if _active_language == "en":
         return None
 
-    qm_path = os.path.join(_I18N_DIR, "QCALVIEW_en.qm")
-    ts_path = os.path.join(_I18N_DIR, "QCALVIEW_en.ts")
+    qm_path = os.path.join(_I18N_DIR, "QCALVIEW_fr.qm")
+    ts_path = os.path.join(_I18N_DIR, "QCALVIEW_fr.ts")
     translator = None
     if os.path.isfile(ts_path):
         try:
@@ -247,7 +247,7 @@ def tr(value, context=_CONTEXT):
         return tuple(tr(v, context) for v in value)
     if not isinstance(value, str):
         return value
-    if _active_language == "fr":
+    if _active_language == "en":
         return value
     translated = value
     try:

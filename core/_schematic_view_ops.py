@@ -79,7 +79,7 @@ def _schematic_invalidate_base(self):
 
 def _schematic_choose_background_color(self):
     current = _schematic_background_color(self)
-    c = QColorDialog.getColor(current, self, tr("Couleur du fond des vues schématiques"))
+    c = QColorDialog.getColor(current, self, tr('Schematic-view background color'))
     if not c.isValid():
         return
     c.setAlpha(255)

@@ -50,6 +50,7 @@ class LayerStyle:
         self.use_qgis_style = True
         self.qgis_fill_style = None
         self.pen_style = QC.Qt_PenStyle_SolidLine
+        self.qgis_dash_pattern = []
         self.qgis_theme_name = ""
         self.qgis_theme_style_name = ""
         self.schematic_enabled = False
@@ -72,9 +73,9 @@ def apply_pdv_qml_style(self, layer, qml_rel_path="core/style/STYLE-PDV.qml"):
     qml_path = os.path.join(plugin_dir, qml_rel_path)
 
     try:
-        layer_name = layer.name() if hasattr(layer, "name") else "<sans nom>"
+        layer_name = layer.name() if hasattr(layer, "name") else '<unnamed>'
         QgsMessageLog.logMessage(
-            tr(f"[QCALVIEW][PDV-QML] loadNamedStyle START — couche='{layer_name}', "
+            tr(f"[QCALVIEW][PDV-QML] loadNamedStyle START — layer='{layer_name}', "
             f"qml='{qml_path}', exists={os.path.isfile(qml_path)}, readable={os.access(qml_path, os.R_OK)}"),
             "QCALVIEW", QC.Qgis_MessageLevel_Info
         )
@@ -83,7 +84,7 @@ def apply_pdv_qml_style(self, layer, qml_rel_path="core/style/STYLE-PDV.qml"):
 
     if not os.path.isfile(qml_path):
         QgsMessageLog.logMessage(
-            tr(f"[QCALVIEW][PDV-QML] QML introuvable : {qml_path}"),
+            tr(f"[QCALVIEW][PDV-QML] QML not found: {qml_path}"),
             "QCALVIEW", QC.Qgis_MessageLevel_Warning
         )
         return False
@@ -127,7 +128,7 @@ def apply_pdv_qml_style(self, layer, qml_rel_path="core/style/STYLE-PDV.qml"):
         )
     except Exception as renderer_exc:
         QgsMessageLog.logMessage(
-            tr(f"[QCALVIEW][PDV-QML] Style chargé mais inspection renderer impossible: {renderer_exc}"),
+            tr(f"[QCALVIEW][PDV-QML] Style loaded but renderer inspection failed: {renderer_exc}"),
             "QCALVIEW", QC.Qgis_MessageLevel_Warning
         )
 
@@ -135,8 +136,8 @@ def apply_pdv_qml_style(self, layer, qml_rel_path="core/style/STYLE-PDV.qml"):
     return True
 
 
-PDV_AUTO_STYLE_NAME = "QCALVIEW — Couleurs automatiques"
-PDV_MANUAL_STYLE_NAME = "QCALVIEW — Style modifiable"
+PDV_AUTO_STYLE_NAME = "QCALVIEW — Automatic colors"
+PDV_MANUAL_STYLE_NAME = "QCALVIEW — Editable style"
 PDV_AUTO_COLOR_PROPERTY = "QCALVIEW/pdv_auto_colors"
 
 
@@ -209,7 +210,7 @@ def _activate_qml_as_named_style(self, layer, style_name, qml_rel_path, refresh_
         return True
     except Exception as exc:
         QgsMessageLog.logMessage(
-            tr(f"[QCALVIEW][PDV-QML] Création style nommé impossible: {exc}"),
+            tr(f"[QCALVIEW][PDV-QML] Unable to create named style: {exc}"),
             "QCALVIEW", QC.Qgis_MessageLevel_Warning
         )
         try:
@@ -276,8 +277,8 @@ def apply_pdv_style_mode(self, layer, automatic=True):
                     restore_renderer(layer, automatic=automatic)
                 QgsMessageLog.logMessage(
                     tr(
-                        "[QCALVIEW][PDV-FOV] Cache FOV indisponible : "
-                        "renderer géométrique 40.20.3 restauré."
+                        "[QCALVIEW][PDV-FOV] FOV cache unavailable: "
+                        "previous geometry renderer restored."
                     ),
                     "QCALVIEW",
                     QC.Qgis_MessageLevel_Warning,
@@ -293,8 +294,8 @@ def apply_pdv_style_mode(self, layer, automatic=True):
                     )
             QgsMessageLog.logMessage(
                 tr(
-                    f"[QCALVIEW][PDV-FOV] Initialisation FOV impossible: {exc}. "
-                    "Renderer géométrique 40.20.3 restauré."
+                    f"[QCALVIEW][PDV-FOV] FOV initialization failed: {exc}. "
+                    "Previous geometry renderer restored."
                 ),
                 "QCALVIEW",
                 QC.Qgis_MessageLevel_Warning,

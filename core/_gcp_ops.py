@@ -230,7 +230,7 @@ def _draw_calib_grid(self, p, cam_pt, cam_z, cam_crs, proj, W, H, yaw_eff, pitch
         return
     max_lines = 400
 
-    if typ == "Plan au sol":
+    if typ == 'Ground plane':
 
         half_x = Lx * 0.5
         half_y = max(Ly, S) * 0.5
@@ -284,7 +284,7 @@ def _draw_calib_grid(self, p, cam_pt, cam_z, cam_crs, proj, W, H, yaw_eff, pitch
                 val += label_step
             p.restore()
 
-    elif typ == "Plan vertical":
+    elif typ == 'Vertical plane':
 
         half_x = Lx * 0.5
         z0 = Z0
@@ -355,7 +355,7 @@ def _on_map_pick_for_gcp(self, map_pt):
     except Exception as e:
         self._cancel_maptool()
         self._adding_gcp_uv = None
-        self.lbl_info.setText(tr(f"Erreur ajout GCP: {e}"))
+        self.lbl_info.setText(tr(f"Error adding GCP: {e}"))
 
 def start_pick_pdv_center(self):
 
@@ -364,7 +364,7 @@ def start_pick_pdv_center(self):
 
     canvas.setMapTool(MapPointTool(canvas, self._on_map_pick_pdv_center))
     if hasattr(self, "lbl_info"):
-        self.lbl_info.setText(tr("clic on canvas"))
+        self.lbl_info.setText(tr('click on map'))
 
 
 def _on_map_pick_pdv_center(self, map_pt):
@@ -373,7 +373,7 @@ def _on_map_pick_pdv_center(self, map_pt):
         cam_layer = self.cmb_camera.currentLayer()
         if not isinstance(cam_layer, QgsVectorLayer) or cam_layer.featureCount() < 1:
             if hasattr(self, "lbl_info"):
-                self.lbl_info.setText(tr("Aucune couche caméra valide."))
+                self.lbl_info.setText(tr('No valid viewpoint layer.'))
             self._cancel_maptool()
             return
 
@@ -408,7 +408,7 @@ def _on_map_pick_pdv_center(self, map_pt):
             except Exception as _qcv_exc:
                 _qcv_suppress(_qcv_exc, "core/_gcp_ops.py:424")
         try:
-            self.iface.messageBar().pushMessage(tr("Centre image"), tr(f"Azimut PDV ≈ {az_deg:.2f}°"), level=QC.Qgis_MessageLevel_Info, duration=4)
+            self.iface.messageBar().pushMessage(tr('Image center'), tr(f"Viewpoint azimuth ≈ {az_deg:.2f}°"), level=QC.Qgis_MessageLevel_Info, duration=4)
         except Exception as _qcv_exc:
             _qcv_suppress(_qcv_exc, "core/_gcp_ops.py:428")
         try:
@@ -417,7 +417,7 @@ def _on_map_pick_pdv_center(self, map_pt):
             _qcv_suppress(_qcv_exc, "core/_gcp_ops.py:432")
     except Exception as e:
         if hasattr(self, "lbl_info"):
-            self.lbl_info.setText(tr(f"Erreur centre image : {e}"))
+            self.lbl_info.setText(tr(f"Image-center error: {e}"))
         try:
             self._cancel_maptool()
         except Exception as _qcv_exc:
@@ -427,7 +427,7 @@ def _on_map_pick_pdv_center(self, map_pt):
 def _start_add_gcp(self):
 
     self._adding_gcp_uv = (0, 0)  
-    self.lbl_info.setText(tr("Ajout GCP : cliquez d'abord dans la photo, puis sur la carte…"))
+    self.lbl_info.setText(tr('Add GCP: click in the photo first, then on the map…'))
 
 def _delete_gcp(self):
     row = self.list_gcp.currentRow()
@@ -524,16 +524,16 @@ def _draw_gcps_overlay(self, painter, W, H):
 def _solve_camera(self):
 
     if len(self.gcps) < 4:
-        self.lbl_info.setText(tr("Besoin d’au moins 4 GCP pour une résolution stable."))
+        self.lbl_info.setText(tr('At least 4 GCPs are required for a stable solution.'))
         return
     cam_layer = self.cmb_camera.currentLayer()
     if not cam_layer or cam_layer.featureCount() < 1:
-        self.lbl_info.setText(tr("Aucune caméra (couche point) sélectionnée."))
+        self.lbl_info.setText(tr('No camera (point layer) selected.'))
         return
     sel = cam_layer.selectedFeatures()
     cam_feat = sel[0] if sel else next(cam_layer.getFeatures(), None)
     if cam_feat is None:
-        self.lbl_info.setText(tr("Aucune entité caméra trouvée (sélectionnée ou non)."))
+        self.lbl_info.setText(tr('No camera feature found (selected or otherwise).'))
         return
     cam_pt = cam_feat.geometry().asPoint()
     cam_crs = cam_layer.crs()
@@ -574,7 +574,7 @@ def _solve_camera(self):
             self.cb_sol_roll.isChecked(), self.cb_sol_hfov.isChecked()]
     idxs = [i for i, m in enumerate(mask) if m]
     if not idxs:
-        self.lbl_info.setText(tr("Choisissez au moins un paramètre (Yaw/Pitch/Roll/HFOV)."))
+        self.lbl_info.setText(tr('Select at least one parameter (Yaw/Pitch/Roll/HFOV).'))
         return
     if is_proj_360:
         params0[3] = 360.0  
@@ -663,7 +663,7 @@ def _solve_camera(self):
     self.d_hfov.blockSignals(True); self.d_hfov.setValue(float(HFOV)); self.d_hfov.blockSignals(False)
     vfov_out = 40.0 if proj_upper == 'CYLINDRICAL' else vfov_from_hfov_ratio(float(HFOV), W_full, H_full)
     self.d_vfov.blockSignals(True); self.d_vfov.setValue(vfov_out); self.d_vfov.blockSignals(False)
-    self.lbl_info.setText(tr(f"Résolution OK — RMS ≈ {err:.2f} px"))
+    self.lbl_info.setText(tr(f"Solution OK — RMS ≈ {err:.2f} px"))
     self._update_canvas_fov()
 
     if is_proj_360:
@@ -793,9 +793,9 @@ def start_pick_view_from_canvas(self):
         viewer.set_image_pick_active(False)
     canvas.setMapTool(MapPointTool(canvas, self._on_map_pick_set_view))
     if hasattr(self, "lbl_nav_state"):
-        self.lbl_nav_state.setText(tr("Mode navigation : cliquez un point dans le canevas pour orienter la vue"))
+        self.lbl_nav_state.setText(tr('Navigation mode: click a point on the map to orient the view'))
     if hasattr(self, "lbl_info"):
-        self.lbl_info.setText(tr("Visée carte → image active"))
+        self.lbl_info.setText(tr('Map → image targeting active'))
 
 
 def _on_map_pick_set_view(self, map_pt):
@@ -803,7 +803,7 @@ def _on_map_pick_set_view(self, map_pt):
         cam_layer = self.cmb_camera.currentLayer()
         if not isinstance(cam_layer, QgsVectorLayer) or cam_layer.featureCount() < 1:
             if hasattr(self, "lbl_info"):
-                self.lbl_info.setText(tr("Aucune couche caméra valide."))
+                self.lbl_info.setText(tr('No valid viewpoint layer.'))
             return
         try:
             cam_feat = self._camera_current_feature()
@@ -852,20 +852,20 @@ def _on_map_pick_set_view(self, map_pt):
                 pitch_done = False
         self._update_canvas_fov()
         self.render_preview()
-        msg = f"Visée mise à jour : azimut {az_deg:.2f}°"
+        msg = f"Targeting updated: azimuth {az_deg:.2f}°"
         if pitch_done:
-            msg += f" · tangage {float(self.d_pitch.value()):.2f}°"
+            msg += f" · pitch {float(self.d_pitch.value()):.2f}°"
         if hasattr(self, "lbl_info"):
             self.lbl_info.setText(tr(msg))
         if hasattr(self, "lbl_nav_state"):
-            self.lbl_nav_state.setText(tr("Mode navigation : visée carte → image appliquée"))
+            self.lbl_nav_state.setText(tr('Navigation mode: map → image targeting applied'))
         try:
             self.iface.messageBar().pushMessage(tr("QCALVIEW"), tr(msg), level=QC.Qgis_MessageLevel_Info, duration=4)
         except Exception as _qcv_exc:
             _qcv_suppress(_qcv_exc, "core/_gcp_ops.py:877")
     except Exception as e:
         if hasattr(self, "lbl_info"):
-            self.lbl_info.setText(tr(f"Erreur visée carte → image : {e}"))
+            self.lbl_info.setText(tr(f"Map → image targeting error: {e}"))
     finally:
         try:
             self._cancel_maptool()
@@ -879,11 +879,11 @@ def start_image_to_canvas_pick(self):
     if viewer is not None and hasattr(viewer, "set_image_pick_active"):
         viewer.set_image_pick_active(True)
     if hasattr(self, "lbl_nav_state"):
-        self.lbl_nav_state.setText(tr("Mode navigation : cliquez dans l’image pour tracer un rayon sur la carte"))
+        self.lbl_nav_state.setText(tr('Navigation mode: click in the image to draw a ray on the map'))
     if hasattr(self, "lbl_info"):
-        self.lbl_info.setText(tr("Cliquez dans l’aperçu ou la visionneuse pour viser dans le canevas"))
+        self.lbl_info.setText(tr('Click in the preview or viewer to target the map'))
     try:
-        self.iface.messageBar().pushMessage(tr("QCALVIEW"), tr("Cliquez dans l’image pour viser dans le canevas."), level=QC.Qgis_MessageLevel_Info, duration=4)
+        self.iface.messageBar().pushMessage(tr("QCALVIEW"), tr('Click in the image to target the map.'), level=QC.Qgis_MessageLevel_Info, duration=4)
     except Exception as _qcv_exc:
         _qcv_suppress(_qcv_exc, "core/_gcp_ops.py:897")
 
@@ -907,7 +907,7 @@ def stop_interaction_tools(self):
     except Exception as _qcv_exc:
         _qcv_suppress(_qcv_exc, "core/_gcp_ops.py:914")
     if hasattr(self, "lbl_nav_state"):
-        self.lbl_nav_state.setText(tr("Mode navigation : inactif"))
+        self.lbl_nav_state.setText(tr('Navigation mode: inactive'))
 
 
 def _draw_canvas_pick_ray(self, az_deg, target_point=None):
@@ -999,12 +999,12 @@ def _handle_image_navigation_click_uv(self, u, v):
         self._draw_canvas_pick_ray(az_abs)
         self.render_preview()
         if hasattr(self, "lbl_info"):
-            self.lbl_info.setText(tr(f"Image → carte : azimut {az_abs:.2f}° · élévation relative {beta:+.2f}°"))
+            self.lbl_info.setText(tr(f"Image → map: azimuth {az_abs:.2f}° · relative elevation {beta:+.2f}°"))
         if hasattr(self, "lbl_nav_state"):
-            self.lbl_nav_state.setText(tr(f"Mode navigation : cible image → carte (az. {az_abs:.2f}°, pitch estimé {pitch_abs:.2f}°)"))
+            self.lbl_nav_state.setText(tr(f"Navigation mode: image → map target (az. {az_abs:.2f}°, estimated pitch {pitch_abs:.2f}°)"))
     except Exception as e:
         if hasattr(self, "lbl_info"):
-            self.lbl_info.setText(tr(f"Erreur image → carte : {e}"))
+            self.lbl_info.setText(tr(f"Image → map error: {e}"))
 
 
 class MapPointTool(QgsMapTool):
@@ -1042,7 +1042,7 @@ def _dispatch_image_uv_click(self, u, v):
             return bool(self._monoplot_handle_image_click_uv(u, v))
         except Exception as e:
             try:
-                self.lbl_info.setText(tr(f"Erreur image → terrain : {e}"))
+                self.lbl_info.setText(tr(f"Image → terrain error: {e}"))
             except Exception as _qcv_exc:
                 _qcv_suppress(_qcv_exc, "core/_gcp_ops.py:1053")
         return False
@@ -1052,7 +1052,7 @@ def _dispatch_image_uv_click(self, u, v):
     canvas = self.iface.mapCanvas()
     self._maptool_backup = canvas.mapTool()
     canvas.setMapTool(MapPointTool(canvas, self._on_map_pick_for_gcp))
-    self.lbl_info.setText(tr("Choisissez maintenant le point correspondant sur la carte…"))
+    self.lbl_info.setText(tr('Now choose the corresponding point on the map…'))
     return True
 
 
@@ -1084,6 +1084,20 @@ def _on_viewer_image_clicked(self, u, v):
         if uv is None:
             return
         mode = getattr(self, "_image_pick_mode", None)
+        marker_u = float(u)
+        marker_v = float(v)
+        if mode == "monoplot_ground" and hasattr(self, '_monoplot_image_probe_info'):
+            probe = self._monoplot_image_probe_info(*uv)
+            if isinstance(probe, dict):
+                uv = (float(probe['u']), float(probe['v']))
+                viewer = getattr(self, 'viewer', None)
+                pix_item = getattr(viewer, '_pix', None) if viewer is not None else None
+                pm = pix_item.pixmap() if pix_item is not None else None
+                if pm is not None and not pm.isNull():
+                    full_w = max(1.0, float(self.spin_w.value()))
+                    full_h = max(1.0, float(self.spin_h.value()))
+                    marker_u = float(uv[0]) * float(pm.width()) / full_w
+                    marker_v = float(uv[1]) * float(pm.height()) / full_h
         self._monoplot_viewer_click_active = bool(mode == "monoplot_ground")
         try:
             ok = bool(self._dispatch_image_uv_click(*uv))
@@ -1098,7 +1112,9 @@ def _on_viewer_image_clicked(self, u, v):
                 if isinstance(rec, dict) and rec.get('src_mode') == 'image_to_ground':
                     lbl_txt = rec.get('label') or rec.get('mp_id') or ''
                     text = f"{lbl_txt} | D={float(rec.get('dist_m', 0.0)):.1f} m | Az={float(rec.get('az_deg', 0.0)):.1f}°"
-                viewer.add_pick_marker(float(u), float(v), text)
+                viewer.add_pick_marker(marker_u, marker_v, text)
+                if isinstance(rec, dict) and hasattr(viewer, 'set_magnifier_intersection_result'):
+                    viewer.set_magnifier_intersection_result(float(uv[0]), float(uv[1]), float(rec.get('dist_m', 0.0)))
     except Exception as _qcv_exc:
         self._monoplot_viewer_click_active = False
         _qcv_suppress(_qcv_exc, "core/_gcp_ops.py:viewer_click")

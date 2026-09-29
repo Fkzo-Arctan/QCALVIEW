@@ -3,8 +3,8 @@ from ._exceptions import qcv_suppress_exception as _qcv_suppress
 import math
 import os
 from contextlib import contextmanager
-from qgis.PyQt.QtCore import QSize
-from qgis.PyQt.QtGui import QImage, QImageReader
+from qgis.PyQt.QtCore import QRect, QSize
+from qgis.PyQt.QtGui import QImage, QImageIOHandler, QImageReader
 from ._log import qcv_log
 
 _MIB = 1024 * 1024
@@ -142,8 +142,8 @@ def read_qimage(path: str, width: int | None = None, height: int | None = None,
 
     if allow_large and target_bytes > 256 * _MIB and not _enough_memory_for_large_read(target_bytes):
         raise PhotoReadError(
-            f"Mémoire disponible insuffisante pour décoder {tw}×{th} "
-            f"(~{_fmt_mib(target_bytes)} en QImage, hors buffers de rendu)."
+            f"Insufficient available memory to decode {tw}×{th} "
+            f"(~{_fmt_mib(target_bytes)} in QImage, excluding render buffers)."
         )
 
     reader = QImageReader(str(path))
@@ -167,7 +167,74 @@ def read_qimage(path: str, width: int | None = None, height: int | None = None,
             err = str(reader.errorString() or '')
         except Exception as _qcv_exc:
             _qcv_suppress(_qcv_exc, "core/_image_io.py:174")
-        raise PhotoReadError(err or f"Qt n'a pas pu décoder l'image {tw}×{th}.")
+        raise PhotoReadError(err or f"Qt could not decode image {tw}×{th}.")
+    return img
+
+
+def read_qimage_region(path: str, x: int, y: int, width: int, height: int) -> QImage:
+    """Read a native-resolution rectangular region without creating a full-size QImage.
+
+    The coordinates are expressed in source-image pixels.  This helper is intended for
+    interactive inspection tools (for example the monoplotting magnifier), where loading
+    the whole photograph would defeat the proxy/memory safeguards used elsewhere.
+    """
+    path = str(path or '')
+    if not path or not os.path.exists(path):
+        raise FileNotFoundError(path)
+
+    reader = QImageReader(path)
+    try:
+        reader.setAutoTransform(True)
+    except Exception as _qcv_exc:
+        _qcv_suppress(_qcv_exc, "core/_image_io.py:read_region_auto_transform")
+
+    size = reader.size()
+    src_w = int(size.width()) if size is not None and size.isValid() else 0
+    src_h = int(size.height()) if size is not None and size.isValid() else 0
+    if src_w <= 0 or src_h <= 0:
+        info = probe_image(path)
+        src_w = int(info['width'])
+        src_h = int(info['height'])
+
+    x0 = max(0, min(int(x), max(0, src_w - 1)))
+    y0 = max(0, min(int(y), max(0, src_h - 1)))
+    w = max(1, min(int(width), src_w - x0))
+    h = max(1, min(int(height), src_h - y0))
+    target_bytes = int(w) * int(h) * 4
+
+    clip_option = None
+    try:
+        scope = getattr(QImageIOHandler, 'ImageOption', None)
+        if scope is not None:
+            clip_option = getattr(scope, 'ClipRect', None)
+        if clip_option is None:
+            clip_option = getattr(QImageIOHandler, 'ClipRect', None)
+    except Exception:
+        clip_option = None
+    try:
+        supports_clip = clip_option is not None and bool(reader.supportsOption(clip_option))
+    except Exception:
+        supports_clip = False
+    if not supports_clip:
+        raise PhotoReadError(
+            'The image codec does not support safe native-region reading; '
+            'full-image decoding was intentionally avoided.'
+        )
+
+    try:
+        reader.setClipRect(QRect(x0, y0, w, h))
+    except Exception as exc:
+        raise PhotoReadError(f"Partial image reading is unavailable for this image: {exc}") from exc
+
+    with _temporary_qt_allocation_limit(target_bytes, False):
+        img = reader.read()
+    if img is None or img.isNull():
+        err = ''
+        try:
+            err = str(reader.errorString() or '')
+        except Exception as _qcv_exc:
+            _qcv_suppress(_qcv_exc, "core/_image_io.py:read_region_error")
+        raise PhotoReadError(err or f"Qt could not read the {w}×{h} source-image region.")
     return img
 
 
@@ -186,7 +253,7 @@ def load_working_image(path: str) -> tuple[QImage, dict]:
         if (pw2, ph2) == (pw, ph):
             raise
         qcv_log(
-            f"Premier décodage photo échoué ({first_error}); nouvel essai proxy {pw2}×{ph2}.",
+            f"Initial photo decode failed ({first_error}); retrying with proxy {pw2}×{ph2}.",
             'PHOTO/IO', 'WARNING')
         img = read_qimage(path, pw2, ph2, allow_large=False)
         pw, ph, proxy = pw2, ph2, True
@@ -198,9 +265,9 @@ def load_working_image(path: str) -> tuple[QImage, dict]:
         'proxy_height': int(ph),
     })
     qcv_log(
-        f"Photo chargée: {w}×{h}, fichier {_fmt_mib(info.get('file_bytes', 0))}, "
+        f"Photo loaded: {w}×{h}, file {_fmt_mib(info.get('file_bytes', 0))}, "
         f"QImage plein ~{_fmt_mib(info.get('decoded_bytes_est', 0))}; "
-        + (f"proxy interactif {pw}×{ph}." if proxy else "décodage direct."),
+        + (f"interactive proxy {pw}×{ph}." if proxy else 'direct decode.'),
         'PHOTO/IO', 'INFO')
     return img, info
 
@@ -221,7 +288,7 @@ def read_scaled_for_owner(owner, width: int, height: int, *, for_export: bool = 
         try:
             return read_qimage(path, w, h, allow_large=False)
         except Exception as e:
-            qcv_log(f"Décodage preview direct {w}×{h} impossible: {e}; utilisation du proxy.",
+            qcv_log(f"Direct preview decode {w}×{h} failed: {e}; using proxy.",
                     'PHOTO/IO', 'WARNING')
     img = getattr(owner, 'image', None)
     if img is None or img.isNull():

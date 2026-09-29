@@ -1035,7 +1035,10 @@ class VegetationAdaptiveSymbol(ProjectedSymbol):
             if arr is None or arr.shape[0] < 3 or len(out) >= max_instances:
                 continue
             ring = [(float(x), float(y)) for x, y in arr[:, :2]]
-            points = _points_in_polygon_grid(ring, spacing, seed + pidx * 3253, jitter, max_instances - len(out))
+            points = _points_in_polygon_grid_spread(
+                ring, spacing, seed + pidx * 3253, jitter, max_instances - len(out),
+                camera_xy=ctx.camera_xy, maxdist=ctx.runtime('_maxdist_m', None)
+            )
             noise_h = deterministic_noise(seed + pidx * 3253 + 101, len(points), amplitude=variation)
             noise_w = deterministic_noise(seed + pidx * 3253 + 503, len(points), amplitude=variation * 0.75)
             for (x, y), nh, nw in zip(points, noise_h, noise_w):
@@ -1153,6 +1156,93 @@ def _points_in_polygon_grid(ring: Sequence[Tuple[float, float]], spacing: float,
             x += step
         row += 1
         y += step
+    return out
+
+def _points_in_polygon_grid_spread(ring: Sequence[Tuple[float, float]], spacing: float, seed: int,
+                                   jitter_ratio: float, limit: int, camera_xy=None, maxdist=None) -> List[Tuple[float, float]]:
+    """Return a deterministic, spatially spread set of points inside a polygon.
+
+    The historical implementation stopped as soon as ``limit`` points had been found,
+    scanning from the lower-left corner of the polygon bbox.  On kilometre-scale polygons
+    this could consume the whole instance budget far away from the viewpoint, leaving the
+    actually visible part empty.  This variant adapts the grid step to the visible bbox,
+    evaluates the whole affordable grid and then samples it evenly.
+    """
+    pts = [(float(x), float(y)) for x, y in ring]
+    if len(pts) < 3 or int(limit) <= 0:
+        return []
+    if math.hypot(pts[0][0] - pts[-1][0], pts[0][1] - pts[-1][1]) < 1e-9:
+        pts = pts[:-1]
+    if len(pts) < 3:
+        return []
+    xs = [p[0] for p in pts]; ys = [p[1] for p in pts]
+    minx, maxx = min(xs), max(xs); miny, maxy = min(ys), max(ys)
+    try:
+        if camera_xy is not None and maxdist is not None and float(maxdist) > 0.0:
+            cx, cy = float(camera_xy[0]), float(camera_xy[1]); rr = float(maxdist)
+            minx = max(minx, cx - rr); maxx = min(maxx, cx + rr)
+            miny = max(miny, cy - rr); maxy = min(maxy, cy + rr)
+    except Exception:
+        pass
+    if maxx <= minx or maxy <= miny:
+        return []
+
+    # Approximate the polygon area with the shoelace formula.  For very large
+    # polygons, increase spacing enough that the candidate set stays near the
+    # requested instance budget instead of generating hundreds of thousands of
+    # rejected/unused points.
+    area = 0.0
+    j = len(pts) - 1
+    for i in range(len(pts)):
+        area += pts[j][0] * pts[i][1] - pts[i][0] * pts[j][1]
+        j = i
+    area = abs(area) * 0.5
+    visible_bbox_area = max(1.0, (maxx - minx) * (maxy - miny))
+    target_area = min(max(1.0, area), visible_bbox_area)
+    step = max(0.25, float(spacing))
+    if int(limit) > 0:
+        adaptive = math.sqrt(target_area / max(1.0, float(limit) * 1.15))
+        step = max(step, adaptive)
+    # Hard safety bound for pathological sliver/bbox combinations.
+    estimated_cells = ((maxx - minx) / step + 1.0) * ((maxy - miny) / step + 1.0)
+    if estimated_cells > max(1000.0, float(limit) * 12.0):
+        step *= math.sqrt(estimated_cells / max(1000.0, float(limit) * 12.0))
+
+    rnd = _DeterministicVisualRandom(int(seed) & 0xFFFFFFFF)
+    candidates: List[Tuple[float, float]] = []
+    row = 0
+    y = miny + step * 0.5
+    # Collect the complete affordable grid so later selection is spatially spread.
+    while y <= maxy + 1e-9:
+        x = minx + step * (0.5 if (row % 2 == 0) else 1.0)
+        while x <= maxx + 1e-9:
+            jx = (rnd.uniform(-1.0, 1.0) * jitter_ratio * step) if jitter_ratio > 0 else 0.0
+            jy = (rnd.uniform(-1.0, 1.0) * jitter_ratio * step) if jitter_ratio > 0 else 0.0
+            px, py = x + jx, y + jy
+            try:
+                if camera_xy is not None and maxdist is not None and float(maxdist) > 0.0:
+                    dx = px - float(camera_xy[0]); dy = py - float(camera_xy[1])
+                    if dx * dx + dy * dy > float(maxdist) * float(maxdist):
+                        x += step
+                        continue
+            except Exception:
+                pass
+            if _point_in_ring(px, py, pts):
+                candidates.append((px, py))
+            x += step
+        row += 1
+        y += step
+
+    if len(candidates) <= int(limit):
+        return candidates
+    # Evenly sample row-major candidates; unlike taking the first N, this keeps
+    # representatives across the full visible polygon extent.
+    n = len(candidates); out: List[Tuple[float, float]] = []
+    if int(limit) == 1:
+        return [candidates[n // 2]]
+    for k in range(int(limit)):
+        idx = int(round(k * (n - 1) / float(int(limit) - 1)))
+        out.append(candidates[idx])
     return out
 
 class FencePerimeterSymbol(ProjectedSymbol):

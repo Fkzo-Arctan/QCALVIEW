@@ -25,8 +25,8 @@ QCALVIEW intègre directement dans QGIS des fonctions de calage photographique e
 7. Utiliser l’onglet Export pour produire les sorties voulues.
 
 ## Important
-Ce manuel est volontairement concis pour la version expérimentale. Les procédures détaillées, captures et recommandations méthodologiques seront enrichies avec la stabilisation de QCALVIEW.
+Ce manuel reste volontairement concis pour QCALVIEW 40.21. Les procédures détaillées, captures et recommandations méthodologiques continueront à être enrichies.
 
-## Outils expérimentaux dans ALPHA-40.20.5
+## Outils expérimentaux dans QCALVIEW 40.21
 
-La version Alpha publique expose la Grille de projection, la Règle azimutale et le Monoplotting interactif pour les tests. Ces outils restent en cours de développement et leur comportement ou leur interface peuvent évoluer. Les autres modules expérimentaux internes ne sont volontairement pas encore exposés dans les versions publiques.
+La version 40.21 est publiée sur le canal QGIS standard. Certains outils avancés restent toutefois explicitement marqués comme expérimentaux, notamment la Grille de projection, la Règle azimutale et le Monoplotting interactif. Dans **Interroger le terrain depuis l'image**, la visionneuse affiche désormais une loupe automatique à **100 % des pixels natifs** de la photo source, y compris lorsque l'affichage courant repose sur un proxy réduit ; le réticule central indique le pixel X/Y, l'azimut et l'élévation, puis la distance après une intersection terrain réussie. Ces outils restent en cours de développement et leur comportement ou leur interface peuvent évoluer. Les autres modules internes en développement ne sont volontairement pas encore exposés dans les versions publiques.

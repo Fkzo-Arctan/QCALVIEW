@@ -168,7 +168,7 @@ def init_cache_manager(self):
 
 
     self.cache_mgr.cache_cleared.connect(
-        lambda level: self.lbl_info.setText(tr(f"Cache '{level}' invalidé"))
+        lambda level: self.lbl_info.setText(tr(f"Cache '{level}' invalidated"))
     )
 
 def get_base_scaled_optimized(self, W: int, H: int):

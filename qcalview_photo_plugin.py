@@ -26,7 +26,7 @@ class QCalViewPlugin:
         )
 
     def initGui(self):
-        qcv_log(f"Plugin {RELEASE_LABEL} initialisé", "PLUGIN", "SUCCESS")
+        qcv_log(f"Plugin {RELEASE_LABEL} initialized", "PLUGIN", "SUCCESS")
         plugin_icon = QIcon(self.icon_path)
         self.action = QAction(plugin_icon, tr("QCALVIEW"), self.iface.mainWindow())
         self.action.triggered.connect(self.toggle_dock)
@@ -45,22 +45,22 @@ class QCalViewPlugin:
                     menu_action.setIcon(plugin_icon)
                     break
         except Exception as exc:
-            qcv_log(f"Icône du menu QCALVIEW non appliquée : {exc}", "PLUGIN", "WARNING")
+            qcv_log(f"QCALVIEW menu icon not applied: {exc}", "PLUGIN", "WARNING")
 
-        self.settings_action = QAction(plugin_icon, tr("Paramètres QCALVIEW"), self.iface.mainWindow())
+        self.settings_action = QAction(plugin_icon, tr('QCALVIEW Settings'), self.iface.mainWindow())
         self.settings_action.triggered.connect(self.open_settings)
         self.iface.addPluginToMenu("&QCALVIEW", self.settings_action)
-        self.layer_context_action = QAction(plugin_icon, tr("Ajouter à QCALVIEW"), self.iface.mainWindow())
+        self.layer_context_action = QAction(plugin_icon, tr('Add to QCALVIEW'), self.iface.mainWindow())
         self.layer_context_action.triggered.connect(self.add_active_layer_to_qcalview)
         try:
             self.iface.addCustomActionForLayerType(
                 self.layer_context_action, "", Qgis.LayerType.Vector, True
             )
         except Exception as exc:
-            qcv_log(f"Action contextuelle non installée : {exc}", "PLUGIN", "WARNING")
+            qcv_log(f"Context action not installed: {exc}", "PLUGIN", "WARNING")
 
     def unload(self):
-        qcv_log("Déchargement du plugin", "PLUGIN", "INFO")
+        qcv_log('Plugin unloaded', "PLUGIN", "INFO")
         self._restore_canvas_preview_jobs()
         if self.action:
             self.iface.removePluginMenu("&QCALVIEW", self.action)
@@ -74,6 +74,12 @@ class QCalViewPlugin:
                 _qcv_suppress(_qcv_exc, "qcalview_photo_plugin.py:84")
             self.layer_context_action = None
         if self.dock:
+            try:
+                restore = getattr(self.dock, '_restore_drape_qgis_visibility', None)
+                if callable(restore):
+                    restore()
+            except Exception as _qcv_exc:
+                _qcv_suppress(_qcv_exc, "qcalview_photo_plugin.py:restore_drape_visibility_unload")
             self.iface.removeDockWidget(self.dock)
             self.dock = None
 
@@ -87,14 +93,14 @@ class QCalViewPlugin:
             try:
                 enabled = bool(self.iface.mapCanvas().previewJobsEnabled())
                 qcv_log(
-                    f"{RELEASE_LABEL} : preview jobs QGIS laissés dans leur état normal "
+                    f"{RELEASE_LABEL} : preview jobs QGIS left in their normal state "
                     f"(previewJobsEnabled={enabled})",
                     "PLUGIN",
                     "INFO",
                 )
             except Exception as exc:
                 qcv_log(
-                    f"État des preview jobs QGIS non lisible : {exc}",
+                    f"Unable to read QGIS preview-jobs state: {exc}",
                     "PLUGIN",
                     "WARNING",
                 )
@@ -110,13 +116,13 @@ class QCalViewPlugin:
             if previous:
                 canvas.setPreviewJobsEnabled(False)
             qcv_log(
-                f"Preview jobs canevas suspendus pendant QCALVIEW (état initial={previous})",
+                f"Canvas preview jobs suspended while QCALVIEW is active (initial state={previous})",
                 "PLUGIN",
                 "INFO",
             )
         except Exception as exc:
             self._canvas_preview_jobs_previous = None
-            qcv_log(f"Impossible de suspendre les preview jobs : {exc}", "PLUGIN", "WARNING")
+            qcv_log(f"Unable to suspend preview jobs: {exc}", "PLUGIN", "WARNING")
 
     def _restore_canvas_preview_jobs(self):
         if not PREVIEW_JOBS_GUARD_ENABLED:
@@ -129,12 +135,12 @@ class QCalViewPlugin:
         try:
             self.iface.mapCanvas().setPreviewJobsEnabled(bool(previous))
             qcv_log(
-                f"Preview jobs canevas restaurés (état={bool(previous)})",
+                f"Canvas preview jobs restored (state={bool(previous)})",
                 "PLUGIN",
                 "INFO",
             )
         except Exception as exc:
-            qcv_log(f"Impossible de restaurer les preview jobs : {exc}", "PLUGIN", "WARNING")
+            qcv_log(f"Unable to restore preview jobs: {exc}", "PLUGIN", "WARNING")
 
     def _on_dock_visibility_changed(self, visible):
         if bool(visible):
@@ -176,9 +182,9 @@ class QCalViewPlugin:
             return
         dock = self._ensure_dock(show=True)
         try:
-            dock.add_layer_object(layer)
+            dock.add_layer_object(layer, apply_all_pdvs=True)
         except Exception as exc:
-            qcv_log(f"Ajout contextuel impossible pour {layer.name()}: {exc}", "PLUGIN", "WARNING")
+            qcv_log(f"Context-menu addition failed for {layer.name()}: {exc}", "PLUGIN", "WARNING")
 
     def open_settings(self):
         self._ensure_dock(show=False)

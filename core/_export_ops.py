@@ -47,7 +47,7 @@ def _get_embedded_piexif(self):
         import piexif  
         return piexif, None
     except Exception as e:
-        return None, f"piexif embarqué introuvable ou non chargeable : {e}"
+        return None, f"Bundled piexif not found or could not be loaded: {e}"
 
 
 def _camera_point_wgs84(self, layer, feat):
@@ -217,8 +217,8 @@ def _export_metadata_payload(self, out_path, layer, feat):
             iw = img.width() or iw
             ih = img.height() or ih
     title = _export_title_for_feature(self, layer, feat, out_path)
-    desc = f"{title} - Azimut {_fmt_num(yaw,1)} deg - HFOV {_fmt_num(hfov,1,True)} deg - Alt. obs. {obs_h:.2f} m"
-    desc_rich = f"{title} – Azimut {_fmt_num(yaw,1)}° – HFOV {_fmt_num(hfov,1,True)}° – Alt. obs. {obs_h:.2f} m"
+    desc = f"{title} - Azimuth {_fmt_num(yaw,1)} deg - HFOV {_fmt_num(hfov,1,True)} deg - Observer alt. {obs_h:.2f} m"
+    desc_rich = f"{title} – Azimuth {_fmt_num(yaw,1)}° – HFOV {_fmt_num(hfov,1,True)}° – Observer alt. {obs_h:.2f} m"
     comments = [
         'QCALVIEW',
         f'title={title}',
@@ -427,13 +427,13 @@ def _write_metadata_with_exiftool(self, out_path, layer, feat):
         return True, None
     ext = os.path.splitext(str(out_path or ''))[1].lower()
     if ext not in ('.jpg', '.jpeg'):
-        return True, "Métadonnées EXIF ignorées : écriture non prise en charge sur ce format (JPEG uniquement)."
+        return True, 'EXIF metadata skipped: writing is not supported for this format (JPEG only).'
     payload = _export_metadata_payload(self, out_path, layer, feat)
     if not payload:
-        return False, "Métadonnées non écrites : point de vue ou coordonnées indisponibles."
+        return False, 'Metadata not written: viewpoint or coordinates unavailable.'
     piexif, err = _get_embedded_piexif(self)
     if piexif is None:
-        return False, err or "piexif embarqué introuvable."
+        return False, err or 'bundled piexif helper not found.'
     try:
         from PIL import Image
         img = Image.open(out_path)
@@ -471,14 +471,14 @@ def _write_metadata_with_exiftool(self, out_path, layer, feat):
         except Exception as _qcv_exc:
             _qcv_suppress(_qcv_exc, "core/_export_ops.py:479")
         os.replace(tmp_path, out_path)
-        return True, 'Métadonnées EXIF écrites (piexif embarqué).'
+        return True, 'EXIF metadata written (bundled piexif helper).'
     except Exception as e:
         try:
             if os.path.exists(tmp_path):
                 os.remove(tmp_path)
         except Exception as _qcv_exc:
             _qcv_suppress(_qcv_exc, "core/_export_ops.py:487")
-        return False, f"Échec écriture métadonnées EXIF : {e}"
+        return False, f"Failed to write EXIF metadata: {e}"
 
 def export_legend(self):
     if len(self.layer_styles) == 0: return
@@ -496,7 +496,7 @@ def export_legend(self):
         p.drawText(100, y+5, name)
         y += 28
     p.end()
-    path, _ = QFileDialog.getSaveFileName(self, tr("Exporter légende PNG"), "", tr("PNG (*.png)"))
+    path, _ = QFileDialog.getSaveFileName(self, tr('Export PNG legend'), "", tr("PNG (*.png)"))
     if path: img.save(path, "PNG")
 
 from ._camera_layer_ops import (
@@ -622,7 +622,21 @@ def _render_current_export_image(self, mode='composite', schematic_transparent=N
             self.cb_lowlat.blockSignals(False)
         overlay = self._render_overlay(width=w, height=h)
         if mode == 'overlay':
-            return overlay
+            overlay_export = QImage(overlay)
+            if hasattr(self, '_draw_monoplot_overlay'):
+                qp = None
+                try:
+                    qp = QPainter(overlay_export)
+                    self._draw_monoplot_overlay(qp, w, h, apply_display_shift=True)
+                    qp.end()
+                except Exception as _qcv_exc:
+                    try:
+                        if qp is not None:
+                            qp.end()
+                    except Exception:
+                        pass
+                    _qcv_suppress(_qcv_exc, "core/_export_ops.py:overlay_export_monoplot")
+            return overlay_export
         if getattr(self, 'image', None) is None or self.image.isNull():
             try:
                 base = self._make_schematic_base(
@@ -636,6 +650,11 @@ def _render_current_export_image(self, mode='composite', schematic_transparent=N
         composed = QImage(base)
         qp = QPainter(composed)
         qp.drawImage(0, 0, overlay)
+        if hasattr(self, '_draw_monoplot_overlay'):
+            try:
+                self._draw_monoplot_overlay(qp, w, h, apply_display_shift=True)
+            except Exception as _qcv_exc:
+                _qcv_suppress(_qcv_exc, "core/_export_ops.py:export_monoplot_overlay")
         qp.end()
         return composed
     finally:
@@ -675,7 +694,7 @@ def _batch_render_feature_to_file(self, out_dir, mode, stem, layer=None, feat=No
         ok_meta, err_meta = False, str(e)
     try:
         if not ok_meta:
-            _camera_set_status(self, err_meta or 'Échec écriture métadonnées.', '#c44')
+            _camera_set_status(self, err_meta or 'Metadata write failed.', '#c44')
         elif err_meta:
             _camera_set_status(self, err_meta, '#666')
     except Exception as _qcv_exc:
@@ -768,16 +787,16 @@ def _collect_camera_export_rows(self):
 def export_camera_variables_csv(self):
     layer = _camera_layer(self)
     if layer is None:
-        QMessageBox.information(self, tr('QCALVIEW'), tr('Choisissez d’abord une couche caméra.'))
+        QMessageBox.information(self, tr('QCALVIEW'), tr('Select a viewpoint layer first.'))
         return
-    path, _ = QFileDialog.getSaveFileName(self, tr('Exporter CSV des variables caméra'), '', tr('CSV (*.csv)'))
+    path, _ = QFileDialog.getSaveFileName(self, tr('Export camera variables CSV'), '', tr('CSV (*.csv)'))
     if not path:
         return
     if not path.lower().endswith('.csv'):
         path += '.csv'
     header, rows = _collect_camera_export_rows(self)
     if not rows:
-        QMessageBox.information(self, tr('QCALVIEW'), tr('Aucun point de vue visible à exporter.'))
+        QMessageBox.information(self, tr('QCALVIEW'), tr('No visible viewpoint to export.'))
         return
     with open(path, 'w', newline='', encoding='utf-8-sig') as f:
         writer = csv.DictWriter(f, fieldnames=header, extrasaction='ignore')
@@ -785,10 +804,10 @@ def export_camera_variables_csv(self):
         for row in rows:
             writer.writerow(row)
     try:
-        _camera_set_status(self, f'CSV exporté : {os.path.basename(path)}', '#2b6')
+        _camera_set_status(self, f'CSV exported: {os.path.basename(path)}', '#2b6')
     except Exception as _qcv_exc:
         _qcv_suppress(_qcv_exc, "core/_export_ops.py:793")
-    QMessageBox.information(self, tr('QCALVIEW'), tr(f'CSV exporté :\n{path}'))
+    QMessageBox.information(self, tr('QCALVIEW'), tr(f'CSV exported:\n{path}'))
 
 
 
@@ -809,7 +828,7 @@ def export_current_composite(self):
     default_ext = '.png' if is_schematic else '.jpg'
     default_path = os.path.join(default_dir, stem + default_ext) if default_dir else stem + default_ext
     filters = 'PNG (*.png);;JPEG (*.jpg *.jpeg)'
-    path, selected = QFileDialog.getSaveFileName(self, tr('Exporter la vue composite'), default_path, tr(filters))
+    path, selected = QFileDialog.getSaveFileName(self, tr('Export composite view'), default_path, tr(filters))
     if not path:
         return
     low = path.lower()
@@ -823,7 +842,7 @@ def export_current_composite(self):
                      getattr(self, '_schematic_background_transparent', lambda: False)())
     img = _render_current_export_image(self, mode='composite', schematic_transparent=use_alpha)
     if img is None or img.isNull():
-        QMessageBox.warning(self, tr('QCALVIEW'), tr('Export impossible : rendu indisponible.'))
+        QMessageBox.warning(self, tr('QCALVIEW'), tr('Export failed: rendering unavailable.'))
         return
 
     if low.endswith('.png'):
@@ -833,7 +852,7 @@ def export_current_composite(self):
         if not ok:
             ok = img.save(path, 'JPEG', 92)
     if not ok:
-        QMessageBox.warning(self, tr('QCALVIEW'), tr(f'Impossible d’écrire le fichier :\n{path}'))
+        QMessageBox.warning(self, tr('QCALVIEW'), tr(f'Unable to write file:\n{path}'))
         return
 
     ok_meta = True; meta_msg = None
@@ -843,16 +862,16 @@ def export_current_composite(self):
         ok_meta, meta_msg = False, str(e)
     try:
         if ok_meta:
-            _camera_set_status(self, f'Vue exportée : {os.path.basename(path)}', '#2b6')
+            _camera_set_status(self, f'View exported: {os.path.basename(path)}', '#2b6')
         else:
-            _camera_set_status(self, meta_msg or 'Échec écriture métadonnées.', '#c44')
+            _camera_set_status(self, meta_msg or 'Metadata write failed.', '#c44')
     except Exception as _qcv_exc:
         _qcv_suppress(_qcv_exc, "core/_export_ops.py:850")
-    msg = f'Vue exportée :\n{path}'
+    msg = f'View exported:\n{path}'
     if is_schematic and low.endswith('.png'):
         msg += '\n\nFond : ' + ('transparent' if use_alpha else 'opaque')
     if meta_msg and _bool_export_metadata_enabled(self):
-        msg += f'\n\nMétadonnées : {meta_msg}'
+        msg += f'\n\nMetadata: {meta_msg}'
     QMessageBox.information(self, tr('QCALVIEW'), tr(msg))
 
 def _batch_checked_row_brush(table):
@@ -910,8 +929,8 @@ def _on_batch_table_item_changed(self, item):
         checked = len(_selected_batch_feature_ids(self))
         if hasattr(self, 'lbl_batch_status'):
             self.lbl_batch_status.setText(
-                tr(f'{checked}/{table.rowCount()} point(s) de vue cochés pour export. '
-                '« Brouillon » = réglage non persisté dans la couche PDV.')
+                tr(f'{checked}/{table.rowCount()} viewpoint(s) selected for export. '
+                '“Draft” = setting not persisted in the viewpoint layer.')
             )
     except Exception as _qcv_exc:
         _qcv_suppress(_qcv_exc, "core/_export_ops.py:917")
@@ -939,8 +958,8 @@ def _set_all_batch_rows_checked(self, checked=True):
         count = table.rowCount() if checked else 0
         if hasattr(self, 'lbl_batch_status'):
             self.lbl_batch_status.setText(
-                tr(f'{count}/{table.rowCount()} point(s) de vue cochés pour export. '
-                '« Brouillon » = réglage non persisté dans la couche PDV.')
+                tr(f'{count}/{table.rowCount()} viewpoint(s) selected for export. '
+                '“Draft” = setting not persisted in the viewpoint layer.')
             )
     except Exception as _qcv_exc:
         _qcv_suppress(_qcv_exc, "core/_export_ops.py:946")
@@ -1032,29 +1051,29 @@ def _batch_preflight_save_current_visual_state(self, fids):
 
     parts=[]
     if visual_dirty:
-        parts.append('le thème QGIS / les couches projetées / les réglages visuels')
+        parts.append('the QGIS theme / projected layers / visual settings')
     if param_dirty:
-        parts.append('les paramètres caméra')
-    details=' et '.join(parts) if parts else 'l’état courant'
+        parts.append('camera parameters')
+    details=' et '.join(parts) if parts else 'the current state'
     rep=QMessageBox.warning(
         self,
-        tr('QCALVIEW — état non enregistré'),
-        tr('Le point de vue courant contient des modifications non enregistrées :\n'
+        tr('QCALVIEW — unsaved state'),
+        tr('The current viewpoint contains unsaved changes:\n'
         f'• {details}.\n\n'
-        'Un export batch recharge chaque PDV depuis son état enregistré. Sans enregistrement, '
-        'le thème peut donc revenir sur « aucun » et les overlays disparaître de l’export.\n\n'
-        'Enregistrer maintenant « paramètres + état » avant de lancer l’export ?'),
+        'A batch export reloads each viewpoint from its saved state. Without saving, '
+        'the theme may therefore revert to “none” and overlays may disappear from the export.\n\n'
+        'Save “parameters + state” now before starting the export?'),
         QC.QMessageBox_StandardButton_Yes | QC.QMessageBox_StandardButton_No,
         QC.QMessageBox_StandardButton_Yes
     )
     if rep != QC.QMessageBox_StandardButton_Yes:
-        _camera_set_status(self,'Export annulé : état courant non enregistré.','#b36b00')
+        _camera_set_status(self,'Export cancelled: current state not saved.','#b36b00')
         return False
 
     try:
         self._camera_save_current_feature()
     except Exception as exc:
-        QMessageBox.warning(self,tr('QCALVIEW'),tr(f"Impossible d’enregistrer l’état avant export :\n{exc}"))
+        QMessageBox.warning(self,tr('QCALVIEW'),tr(f"Unable to save state before export:\n{exc}"))
         return False
 
 
@@ -1069,11 +1088,11 @@ def _batch_preflight_save_current_visual_state(self, fids):
     if still_param or still_visual:
         QMessageBox.warning(
             self,tr('QCALVIEW'),
-            tr('L’état du point de vue n’a pas pu être confirmé comme enregistré.\n'
-            'L’export est annulé afin d’éviter un rendu différent de l’aperçu.')
+            tr('The viewpoint state could not be confirmed as saved.\n'
+            'Export was cancelled to avoid a result differing from the preview.')
         )
         return False
-    _camera_set_status(self,'État courant enregistré et validé pour l’export.','#2b6')
+    _camera_set_status(self,'Current state saved and validated for export.','#2b6')
     return True
 
 
@@ -1121,11 +1140,11 @@ def _refresh_batch_pdv_table(self):
             draft = (getattr(self, '_camera_drafts', {}) or {}).get(fid)
             if draft:
                 state.update(draft)
-            saved = 'Brouillon' if draft else 'OK'
-            status = 'photo' if img_path and os.path.exists(img_path) else 'schéma'
+            saved = tr('Draft') if draft else 'OK'
+            status = 'photo' if img_path and os.path.exists(img_path) else 'schematic'
             vals = [
                 _camera_resolve_title(self, layer, feat),
-                os.path.basename(img_path) if img_path else '— schéma —',
+                os.path.basename(img_path) if img_path else '— schematic —',
                 str(state.get('qcv_proj', '') or ''),
                 _fmt_num(state.get('qcv_yaw', ''), 1) if state.get('qcv_yaw', '') not in ('', None) else '',
                 _fmt_num(state.get('qcv_pitch', ''), 1) if state.get('qcv_pitch', '') not in ('', None) else '',
@@ -1153,7 +1172,7 @@ def _refresh_batch_pdv_table(self):
             _fit_export_table_height(self)
             if hasattr(self, 'lbl_batch_status'):
                 _checked = len(_selected_batch_feature_ids(self))
-                self.lbl_batch_status.setText(tr(f'{_checked}/{table.rowCount()} point(s) de vue cochés pour export. « Brouillon » = non persisté dans la couche PDV.'))
+                self.lbl_batch_status.setText(tr(f'{_checked}/{table.rowCount()} viewpoint(s) selected for export. “Draft” = not persisted in the viewpoint layer.'))
         except Exception as _qcv_exc:
             _qcv_suppress(_qcv_exc, "core/_export_ops.py:1161")
     finally:
@@ -1166,7 +1185,7 @@ def _refresh_batch_pdv_table(self):
 def export_batch_selected(self):
     fids = _selected_batch_feature_ids(self)
     if not fids:
-        QMessageBox.information(self, tr('QCALVIEW'), tr('Cochez au moins un point de vue à exporter.'))
+        QMessageBox.information(self, tr('QCALVIEW'), tr('Select at least one viewpoint to export.'))
         return
     dirty = _batch_has_unsaved_selected(self, fids)
     try:
@@ -1178,10 +1197,10 @@ def export_batch_selected(self):
         rep = QMessageBox.warning(
             self,
             tr('QCALVIEW'),
-            tr('Certains autres points de vue cochés comportent des réglages caméra en brouillon.\n\n'
-            'Le batch utilisera ces réglages en mémoire (projection, FOV, offsets, tangage, roulis…), '
-            'mais ils ne seront pas écrits dans la couche PDV.\n\n'
-            'Continuer ?'),
+            tr('Some other selected viewpoints contain draft camera settings.\n\n'
+            'Batch export will use these in-memory settings (projection, FOV, offsets, pitch, roll…), '
+            'but they will not be written to the viewpoint layer.\n\n'
+            'Continue?'),
             QC.QMessageBox_StandardButton_Yes | QC.QMessageBox_StandardButton_No,
             QC.QMessageBox_StandardButton_Yes
         )
@@ -1190,7 +1209,7 @@ def export_batch_selected(self):
     if not (bool(getattr(self, 'cb_batch_composite', None) and self.cb_batch_composite.isChecked()) or
             bool(getattr(self, 'cb_batch_overlay', None) and self.cb_batch_overlay.isChecked()) or
             bool(getattr(self, 'cb_batch_csv', None) and self.cb_batch_csv.isChecked())):
-        QMessageBox.information(self, tr('QCALVIEW'), tr('Choisissez au moins un type de sortie batch.'))
+        QMessageBox.information(self, tr('QCALVIEW'), tr('Select at least one batch output type.'))
         return
     return _run_batch_export(self, mode='selected')
 
@@ -1200,16 +1219,16 @@ def _run_batch_export(self, mode='composite'):
         return
     layer = _camera_layer(self)
     if layer is None:
-        QMessageBox.information(self, tr('QCALVIEW'), tr('Choisissez d’abord une couche caméra.'))
+        QMessageBox.information(self, tr('QCALVIEW'), tr('Select a viewpoint layer first.'))
         return
     fids = _batch_visible_feature_ids(self)
     if not fids:
-        QMessageBox.information(self, tr('QCALVIEW'), tr('Aucun point de vue visible à exporter.'))
+        QMessageBox.information(self, tr('QCALVIEW'), tr('No visible viewpoint to export.'))
         return
 
     if not _batch_preflight_save_current_visual_state(self, fids):
         return
-    out_dir = QFileDialog.getExistingDirectory(self, tr('Choisir le dossier de sortie'), _default_export_dir(self))
+    out_dir = QFileDialog.getExistingDirectory(self, tr('Choose output folder'), _default_export_dir(self))
     if not out_dir:
         return
     selected_modes = []
@@ -1219,7 +1238,7 @@ def _run_batch_export(self, mode='composite'):
         if bool(getattr(self, 'cb_batch_overlay', None) and self.cb_batch_overlay.isChecked()):
             selected_modes.append('overlay')
         if not selected_modes and not bool(getattr(self, 'cb_batch_csv', None) and self.cb_batch_csv.isChecked()):
-            QMessageBox.information(self, tr('QCALVIEW'), tr('Choisissez au moins un type de sortie batch.'))
+            QMessageBox.information(self, tr('QCALVIEW'), tr('Select at least one batch output type.'))
             return
     else:
         selected_modes = [mode]
@@ -1228,7 +1247,7 @@ def _run_batch_export(self, mode='composite'):
     try:
 
         names_seen = set()
-        prog = QtWidgets.QProgressDialog(tr('Export batch QCALVIEW…'), tr('Annuler'), 0, len(fids), self)
+        prog = QtWidgets.QProgressDialog(tr('QCALVIEW batch export…'), tr('Cancel'), 0, len(fids), self)
         prog.setWindowTitle(tr('QCALVIEW'))
         prog.setWindowModality(QC.Qt_WindowModality_WindowModal)
         prog.setMinimumDuration(0)
@@ -1239,16 +1258,16 @@ def _run_batch_export(self, mode='composite'):
         meta_notes = []
         for idx, fid in enumerate(fids, start=1):
             prog.setValue(idx - 1)
-            prog.setLabelText(tr(f'Export du point {idx}/{len(fids)}…'))
+            prog.setLabelText(tr(f'Exporting viewpoint {idx}/{len(fids)}…'))
             QtWidgets.QApplication.processEvents()
             if prog.wasCanceled():
                 break
             if not self._camera_select_combo_feature_by_fid(int(fid), autoload=True):
-                skipped.append((fid, 'sélection impossible'))
+                skipped.append((fid, 'selection failed'))
                 continue
             feat = _camera_current_feature(self)
             if feat is None:
-                skipped.append((fid, 'feature introuvable'))
+                skipped.append((fid, 'feature not found'))
                 continue
             stem = _feature_export_name(self, layer, feat, existing=names_seen)
             for one_mode in selected_modes:
@@ -1264,7 +1283,7 @@ def _run_batch_export(self, mode='composite'):
                         if meta_msg:
                             meta_notes.append(f'{stem}: {meta_msg}')
                 else:
-                    skipped.append((fid, 'échec export ' + str(one_mode)))
+                    skipped.append((fid, 'export failed ' + str(one_mode)))
         prog.setValue(len(fids))
     finally:
         try:
@@ -1284,17 +1303,17 @@ def _run_batch_export(self, mode='composite'):
                 exported.append(csv_path)
         except Exception as e:
             skipped.append(('CSV', str(e)))
-    summary = [f'Exports réussis : {len(exported)}']
+    summary = [f'Successful exports: {len(exported)}']
     if skipped:
-        summary.append(f'Échecs / ignorés : {len(skipped)}')
+        summary.append(f'Failed / skipped: {len(skipped)}')
     if _bool_export_metadata_enabled(self):
-        summary.append(f'Métadonnées écrites : {meta_ok}')
+        summary.append(f'Metadata written: {meta_ok}')
         if meta_fail:
-            summary.append(f'Échecs métadonnées : {meta_fail}')
+            summary.append(f'Metadata failures: {meta_fail}')
         if meta_notes:
             summary.extend(meta_notes[:5])
             if len(meta_notes) > 5:
-                summary.append(f'… {len(meta_notes)-5} autre(s) échec(s).')
+                summary.append(f'… {len(meta_notes)-5} other failure(s).')
     summary.append(f'Dossier : {out_dir}')
     QMessageBox.information(self, tr('QCALVIEW'), tr('\n'.join(summary)))
 

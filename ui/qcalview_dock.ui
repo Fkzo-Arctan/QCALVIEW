@@ -132,7 +132,7 @@ QToolButton { padding: 5px 8px; }</string>
              <item>
               <widget class="QLabel" name="titlePhotoPdv">
                <property name="text">
-                <string>Point Actif</string>
+                <string>Active Viewpoint</string>
                </property>
                <property name="wordWrap">
                 <bool>true</bool>
@@ -142,7 +142,7 @@ QToolButton { padding: 5px 8px; }</string>
              <item>
               <widget class="QLabel" name="lbl_info">
                <property name="text">
-                <string>Aucune photo</string>
+                <string>No photo</string>
                </property>
                <property name="wordWrap">
                 <bool>true</bool>
@@ -152,7 +152,7 @@ QToolButton { padding: 5px 8px; }</string>
              <item>
               <widget class="QLabel" name="lbl_current_pdv">
                <property name="text">
-                <string>Aucun PDV actif</string>
+                <string>No active viewpoint</string>
                </property>
                <property name="wordWrap">
                 <bool>true</bool>
@@ -212,14 +212,14 @@ QToolButton { padding: 5px 8px; }</string>
              <item>
               <widget class="QLabel" name="titleCamera">
                <property name="text">
-                <string>Position Caméra</string>
+                <string>Camera Position</string>
                </property>
               </widget>
              </item>
              <item>
               <widget class="QLabel" name="lbl_cockpit_camera">
                <property name="text">
-                <string>X : —    Y : —\nZ sol : —    Hauteur : —</string>
+                <string>X : —    Y : —\nGround Z: —    Height : —</string>
                </property>
                <property name="wordWrap">
                 <bool>true</bool>
@@ -279,7 +279,7 @@ QToolButton { padding: 5px 8px; }</string>
              <item>
               <widget class="QLabel" name="titleTheme">
                <property name="text">
-                <string>Thème QGIS</string>
+                <string>QGIS theme</string>
                </property>
               </widget>
              </item>
@@ -345,7 +345,7 @@ QToolButton { padding: 5px 8px; }</string>
         <item>
          <widget class="QToolButton" name="btn_refresh_top">
           <property name="text">
-           <string>Aperçu</string>
+           <string>Preview</string>
           </property>
           <property name="icon">
            <iconset>
@@ -360,7 +360,7 @@ QToolButton { padding: 5px 8px; }</string>
         <item>
          <widget class="QToolButton" name="btn_view">
           <property name="text">
-           <string>Visionneuse</string>
+           <string>Viewer</string>
           </property>
           <property name="icon">
            <iconset>
@@ -375,7 +375,7 @@ QToolButton { padding: 5px 8px; }</string>
         <item>
          <widget class="QToolButton" name="btn_settings">
           <property name="text">
-           <string>Param.</string>
+           <string>Settings</string>
           </property>
           <property name="icon">
            <iconset>
@@ -390,7 +390,7 @@ QToolButton { padding: 5px 8px; }</string>
         <item>
          <widget class="QToolButton" name="btn_fit_window">
           <property name="text">
-           <string>Adapter</string>
+           <string>Fit</string>
           </property>
           <property name="icon">
            <iconset>
@@ -441,7 +441,7 @@ QToolButton { padding: 5px 8px; }</string>
           <enum>QFrame::NoFrame</enum>
          </property>
          <attribute name="title">
-          <string>Image / PDV</string>
+          <string>Image / Viewpoint</string>
          </attribute>
          <attribute name="icon">
           <iconset>
@@ -492,7 +492,7 @@ QToolButton { padding: 5px 8px; }</string>
                  <string>qcvPlaceholderHint</string>
                 </property>
                 <property name="text">
-                 <string>Placeholder Qt Designer : Image / PDV — contenu métier injecté par Python.</string>
+                 <string>Qt Designer placeholder: Image / Viewpoint — application content injected by Python.</string>
                 </property>
                 <property name="wordWrap">
                  <bool>true</bool>
@@ -513,7 +513,7 @@ QToolButton { padding: 5px 8px; }</string>
           <enum>QFrame::NoFrame</enum>
          </property>
          <attribute name="title">
-          <string>Calage</string>
+          <string>Calibration</string>
          </attribute>
          <attribute name="icon">
           <iconset>
@@ -564,7 +564,7 @@ QToolButton { padding: 5px 8px; }</string>
                  <string>qcvPlaceholderHint</string>
                 </property>
                 <property name="text">
-                 <string>Placeholder Qt Designer : Calage — contenu métier injecté par Python.</string>
+                 <string>Qt Designer placeholder: Calibration — application content injected by Python.</string>
                 </property>
                 <property name="wordWrap">
                  <bool>true</bool>
@@ -636,7 +636,7 @@ QToolButton { padding: 5px 8px; }</string>
                  <string>qcvPlaceholderHint</string>
                 </property>
                 <property name="text">
-                 <string>Placeholder Qt Designer : Relief — contenu métier injecté par Python.</string>
+                 <string>Qt Designer placeholder: Terrain — application content injected by Python.</string>
                 </property>
                 <property name="wordWrap">
                  <bool>true</bool>
@@ -657,7 +657,7 @@ QToolButton { padding: 5px 8px; }</string>
           <enum>QFrame::NoFrame</enum>
          </property>
          <attribute name="title">
-          <string>Couches projetées</string>
+          <string>Projected layers</string>
          </attribute>
          <attribute name="icon">
           <iconset>
@@ -708,7 +708,7 @@ QToolButton { padding: 5px 8px; }</string>
                  <string>qcvPlaceholderHint</string>
                 </property>
                 <property name="text">
-                 <string>Placeholder Qt Designer : Couches projetées — contenu métier injecté par Python.</string>
+                 <string>Qt Designer placeholder: Projected layers — application content injected by Python.</string>
                 </property>
                 <property name="wordWrap">
                  <bool>true</bool>
@@ -780,7 +780,7 @@ QToolButton { padding: 5px 8px; }</string>
                  <string>qcvPlaceholderHint</string>
                 </property>
                 <property name="text">
-                 <string>Placeholder Qt Designer : Export — contenu métier injecté par Python.</string>
+                 <string>Qt Designer placeholder: Export — application content injected by Python.</string>
                 </property>
                 <property name="wordWrap">
                  <bool>true</bool>
@@ -801,7 +801,7 @@ QToolButton { padding: 5px 8px; }</string>
           <enum>QFrame::NoFrame</enum>
          </property>
          <attribute name="title">
-          <string>Outils expérimentaux</string>
+          <string>Experimental Tools</string>
          </attribute>
          <attribute name="icon">
           <iconset>
@@ -852,7 +852,7 @@ QToolButton { padding: 5px 8px; }</string>
                  <string>qcvPlaceholderHint</string>
                 </property>
                 <property name="text">
-                 <string>Placeholder Qt Designer : Outils expérimentaux — contenu métier injecté par Python.</string>
+                 <string>Qt Designer placeholder: Experimental tools — application content injected by Python.</string>
                 </property>
                 <property name="wordWrap">
                  <bool>true</bool>
@@ -899,7 +899,7 @@ QToolButton { padding: 5px 8px; }</string>
            <item>
             <widget class="QLabel" name="previewPanelTitle">
              <property name="text">
-              <string>Contrôle photo courante</string>
+              <string>Current photo control</string>
              </property>
             </widget>
            </item>
@@ -942,7 +942,7 @@ QToolButton { padding: 5px 8px; }</string>
                <string>qcvPlaceholderHint</string>
               </property>
               <property name="text">
-               <string>Placeholder Qt Designer : preview — widget image injecté par Python.</string>
+               <string>Qt Designer placeholder: preview — image widget injected by Python.</string>
               </property>
               <property name="wordWrap">
                <bool>true</bool>
@@ -955,7 +955,7 @@ QToolButton { padding: 5px 8px; }</string>
          <item>
           <widget class="QGroupBox" name="quickOptionsGroup">
            <property name="title">
-            <string>Options rapides</string>
+            <string>Quick options</string>
            </property>
            <layout class="QGridLayout" name="quickOptionsLayout">
             <property name="leftMargin">
@@ -973,7 +973,7 @@ QToolButton { padding: 5px 8px; }</string>
             <item row="0" column="0">
              <widget class="QLabel" name="qualityLabel">
               <property name="text">
-               <string>Qualité</string>
+               <string>Quality</string>
               </property>
              </widget>
             </item>
@@ -999,7 +999,7 @@ QToolButton { padding: 5px 8px; }</string>
             <item row="1" column="0" colspan="2">
              <widget class="QCheckBox" name="cb_lowlat">
               <property name="text">
-               <string>Faible latence</string>
+               <string>Low latency</string>
               </property>
               <property name="checked">
                <bool>true</bool>
@@ -1009,7 +1009,7 @@ QToolButton { padding: 5px 8px; }</string>
             <item row="2" column="0" colspan="2">
              <widget class="QCheckBox" name="cb_show_labels">
               <property name="text">
-               <string>Étiquettes</string>
+               <string>Labels</string>
               </property>
               <property name="checked">
                <bool>true</bool>
@@ -1022,10 +1022,10 @@ QToolButton { padding: 5px 8px; }</string>
          <item>
           <widget class="QLabel" name="lbl_preview_info">
            <property name="text">
-            <string>PDV : —
+            <string>Viewpoint: —
 Projection : —
-Azimut : — · Tangage : — · Roulis : —
-HFOV : — · VFOV : — · Distance max : —</string>
+Azimuth : — · Pitch : — · Roll : —
+HFOV : — · VFOV : — · Max distance: —</string>
            </property>
            <property name="wordWrap">
             <bool>true</bool>

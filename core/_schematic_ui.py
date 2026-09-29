@@ -15,10 +15,10 @@ from ._schematic_symbols import get_symbol_library
 
 MOTIF_TAXONOMY = {
     "vegetation": {
-        "label": "Végétation",
+        "label": 'Vegetation',
         "families": [
-            ("all", "Toutes végétations"),
-            ("conifers", "Résineux"),
+            ("all", 'All vegetation'),
+            ("conifers", 'Conifers'),
             ("deciduous", "Caducs"),
             ("shrubs_groves", "Arbustes / bosquets"),
             ("hedges", "Haies"),
@@ -46,45 +46,45 @@ MOTIF_TAXONOMY = {
         ],
     },
     "agriculture_objects": {
-        "label": "Agriculture / mobilier / objets",
+        "label": 'Agriculture / furniture / objects',
         "families": [
-            ("all", "Tous objets / mobilier"),
-            ("hay_bales", "Bottes de foin"),
-            ("fences", "Clôtures"),
-            ("farm_equipment", "Matériel agricole"),
-            ("furniture_equipment", "Mobilier / équipements"),
-            ("buildings_structures", "Bâtiments / ouvrages"),
-            ("other_objects", "Autres objets"),
+            ("all", 'All objects / furniture'),
+            ("hay_bales", 'Hay bales'),
+            ("fences", 'Fences'),
+            ("farm_equipment", 'Agricultural machinery'),
+            ("furniture_equipment", 'Furniture / equipment'),
+            ("buildings_structures", 'Buildings / structures'),
+            ("other_objects", 'Other objects'),
         ],
     },
     "vehicles": {
-        "label": "Véhicules",
+        "label": 'Vehicles',
         "families": [
-            ("all", "Tous véhicules"),
+            ("all", 'All vehicles'),
             ("cars", "Voiture"),
             ("tractors", "Tracteur"),
             ("harvesters", "Moissonneuse"),
             ("utility", "Utilitaire"),
-            ("other_vehicles", "Autres véhicules"),
+            ("other_vehicles", 'Other vehicles'),
         ],
     },
     "solar_panels": {
         "label": "Panneaux solaires",
         "families": [
             ("all", "Tous panneaux solaires"),
-            ("pv_tables", "Tables photovoltaïques fixes"),
+            ("pv_tables", 'Fixed photovoltaic tables'),
             ("vertical_panels", "Panneaux verticaux"),
             ("trackers", "Trackers mono-axe"),
-            ("other_solar", "Autres modèles"),
+            ("other_solar", 'Autres models'),
         ],
     },
     "wind_turbines": {
-        "label": "Éoliennes",
+        "label": 'Wind turbines',
         "families": [
-            ("all", "Tous modèles d’éoliennes"),
+            ("all", 'All wind-turbine models'),
             ("standard_3_blade", "Standard 3 pales"),
-            ("silhouettes", "Silhouettes personnalisées"),
-            ("other_turbines", "Autres modèles"),
+            ("silhouettes", 'Custom silhouettes'),
+            ("other_turbines", 'Autres models'),
         ],
     },
 }
@@ -225,7 +225,7 @@ def populate_symbol_combo(combo, plugin_dir: str, current_id: str = "", geometry
     combo.blockSignals(True)
     try:
         combo.clear()
-        combo.addItem(tr("— Rendu géométrique classique —"), "")
+        combo.addItem(tr('— Classic geometric rendering —'), "")
         selected = 0
         defs = [d for d in lib.definitions() if _definition_matches(d, type_code, family_code, geometry_name)]
         for idx, definition in enumerate(defs, start=1):
@@ -266,7 +266,7 @@ def browse_symbol_library(parent, combo, plugin_dir: str, geometry_name: str = "
             d = defs[row]
             geom = ", ".join(d.get("geometry", []) or [])
             dt, df = symbol_taxonomy(d)
-            desc.setText(tr(f"{d.get('description','')}\nType : {taxonomy_label(dt)} · Famille : {family_label(dt, df)} · Géométrie : {geom} · Générateur : {d.get('generator','')}"))
+            desc.setText(tr(f"{d.get('description','')}\nType: {taxonomy_label(dt)} · Family: {family_label(dt, df)} · Geometry: {geom} · Generator: {d.get('generator','')}"))
         else:
             desc.clear()
 
@@ -294,8 +294,8 @@ def edit_symbol_params(parent, definition, current_params):
     dlg = QDialog(parent)
     plugin_dir = os.path.dirname(os.path.dirname(__file__))
     uic.loadUi(_ui_path('schematic_params_dialog.ui', plugin_dir), dlg)
-    dlg.setWindowTitle(tr(f"Paramètres — {definition.get('name', definition.get('id',''))}"))
-    dlg.lblTitle.setText(tr("Les valeurs ci-dessous remplacent les valeurs de la bibliothèque pour cette couche. Laisser sans surcharge conserve les champs/défauts définis dans le JSON."))
+    dlg.setWindowTitle(tr(f"Settings — {definition.get('name', definition.get('id',''))}"))
+    dlg.lblTitle.setText(tr('The values below override library values for this layer. Leaving an override unset preserves the fields/defaults defined in the JSON.'))
     form = dlg.paramsForm
     widgets = {}
     params = definition.get("parameters", {}) or {}
@@ -309,12 +309,12 @@ def edit_symbol_params(parent, definition, current_params):
             sp = QDoubleSpinBox(); sp.setRange(0.01, 100000.0); sp.setDecimals(3)
             has_override = name in current
             sp.setValue(float(current.get(name, default or 0.0)))
-            cb_layer = QCheckBox(tr("Hauteur couche"))
-            cb_layer.setToolTip(tr("Utilise le champ/hauteur 2,5D spécifique de la couche s'il est défini ; sinon le défaut de la bibliothèque."))
+            cb_layer = QCheckBox(tr('Layer height'))
+            cb_layer.setToolTip(tr('Uses the layer-specific 2.5D height field/value when defined; otherwise the library default.'))
             cb_layer.setChecked(not has_override)
             sp.setEnabled(has_override)
             cb_layer.toggled.connect(lambda checked, s=sp: s.setEnabled(not checked))
-            reset = QPushButton(tr("Défaut"))
+            reset = QPushButton(tr('Default'))
             def _reset_layer_height(_=False, s=sp, c=cb_layer, v=float(default or 0.0)):
                 s.setValue(v); c.setChecked(True)
             reset.clicked.connect(_reset_layer_height)
@@ -366,7 +366,7 @@ def edit_symbol_params(parent, definition, current_params):
             _set_color_button(btn, current.get(name, default))
             def _pick_color(_=False, b=btn, d=default):
                 base = QColor(str(b.property("qcv_color") or d or "#000000"))
-                c = QColorDialog.getColor(base, dlg, tr("Choisir la couleur"))
+                c = QColorDialog.getColor(base, dlg, tr('Choose color'))
                 if c.isValid(): _set_color_button(b, c.name())
             btn.clicked.connect(_pick_color)
             widgets[name] = ("color", btn, default)
@@ -384,7 +384,7 @@ def edit_symbol_params(parent, definition, current_params):
                 try: sp.setSingleStep(float(raw.get("step")))
                 except Exception as _qcv_exc: _qcv_suppress(_qcv_exc, "core/_schematic_ui.py:401")
             sp.setValue(float(current.get(name, default or 0.0)))
-            reset = QPushButton(tr("Défaut"))
+            reset = QPushButton(tr('Default'))
             reset.clicked.connect(lambda _=False, s=sp, v=float(default or 0.0): s.setValue(v))
             row.addWidget(sp, 1); row.addWidget(reset)
             widgets[name] = ("number", sp, default)
@@ -524,7 +524,7 @@ def _choose_import_family(parent, type_code: str, family_code: str):
     dlg=QDialog(parent)
     plugin_dir=os.path.dirname(os.path.dirname(__file__))
     uic.loadUi(_ui_path('schematic_import_category_dialog.ui', plugin_dir), dlg)
-    dlg.lblType.setText(tr(f"Type : {taxonomy_label(type_code)}"))
+    dlg.lblType.setText(tr(f"Type: {taxonomy_label(type_code)}"))
     combo=dlg.cmbFamily
     for code,label in (MOTIF_TAXONOMY.get(type_code,{}).get('families') or []):
         if code != 'all': combo.addItem(tr(label),code)
@@ -542,12 +542,12 @@ def select_symbol_assets(parent, plugin_dir: str, current_paths=None, type_code:
     uic.loadUi(_ui_path('schematic_models_dialog.ui', plugin_dir), dlg)
     title=dlg.lblTitle; hint=dlg.lblHint; lst=dlg.lstModels
     title.setText(tr(f"{taxonomy_label(type_code)} · {family_label(type_code, family_code)}"))
-    hint.setText(tr('Seuls les modèles compatibles avec ce type de motif sont affichés. Vous pouvez en sélectionner jusqu’à 3 ; ils seront alternés de façon stable le long des alignements.'))
+    hint.setText(tr('Only models compatible with this symbol type are shown. You may select up to 3; they will alternate consistently along alignments.'))
     files_cache=[]
     def reload_list():
         nonlocal files_cache
         lst.clear(); files_cache=[]
-        for label,folder in [('Interne',internal),('Utilisateur',user)]:
+        for label,folder in [('Built-in',internal),('User',user)]:
             if not os.path.isdir(folder): continue
             for name in sorted(os.listdir(folder)):
                 if not name.lower().endswith(('.svg','.png')): continue
@@ -566,7 +566,7 @@ def select_symbol_assets(parent, plugin_dir: str, current_paths=None, type_code:
         fam = _choose_import_family(dlg, type_code, family_code)
         if not fam:
             return
-        paths,_=QFileDialog.getOpenFileNames(dlg,tr('Importer des modèles'),user,tr('Images vectorielles ou PNG (*.svg *.png)'))
+        paths,_=QFileDialog.getOpenFileNames(dlg,tr('Import models'),user,tr('Vector images or PNG (*.svg *.png)'))
         if not paths:
             return
         catalog=_load_user_catalog()
@@ -575,9 +575,9 @@ def select_symbol_assets(parent, plugin_dir: str, current_paths=None, type_code:
                 dst=os.path.join(user,os.path.basename(src)); shutil.copy2(src,dst)
                 catalog[os.path.basename(dst)]={'type':type_code,'family':fam,'memberships':[[type_code,fam]]}
             except Exception as exc:
-                qcv_log(f"Échec import {src}: {exc}", 'LIBRARY', 'WARNING')
+                qcv_log(f"Import failed: {src}: {exc}", 'LIBRARY', 'WARNING')
         _save_user_catalog(catalog); reload_list()
-        qcv_log(f"Bibliothèque utilisateur mise à jour dans {user}", 'LIBRARY', 'SUCCESS')
+        qcv_log(f"User library updated in {user}", 'LIBRARY', 'SUCCESS')
     btn_import.clicked.connect(do_import)
     bb=dlg.buttonBox
     bb.accepted.connect(dlg.accept); bb.rejected.connect(dlg.reject)
@@ -587,6 +587,6 @@ def select_symbol_assets(parent, plugin_dir: str, current_paths=None, type_code:
         it=lst.item(i)
         if it.checkState()==QC.Qt_CheckState_Checked: out.append(str(it.data(32)))
     if len(out)>3:
-        QMessageBox.warning(parent,tr('QCALVIEW'),tr('Sélection limitée à 3 modèles. Les trois premiers ont été conservés.'))
+        QMessageBox.warning(parent,tr('QCALVIEW'),tr('Selection is limited to 3 models. The first three were kept.'))
         out=out[:3]
     return out

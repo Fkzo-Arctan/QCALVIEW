@@ -2,6 +2,7 @@ from __future__ import annotations
 from ._i18n import tr
 from ._compat import QC, dialog_exec
 import functools
+import logging
 import time
 from collections import defaultdict
 from contextlib import contextmanager
@@ -62,11 +63,11 @@ class LightProfiler:
     def report_text(self) -> str:
         report = self.get_report()
         if not report:
-            return "Aucune donnée de profiling enregistrée."
-        lines: List[str] = ["Rapport de performance", ""]
+            return 'No profiling data recorded.'
+        lines: List[str] = ['Performance report', ""]
         for name, stats in report.items():
             lines.append(
-                f"• {name} — appels: {int(stats['count'])}, "
+                f"• {name} — calls: {int(stats['count'])}, "
                 f"moy: {stats['avg_ms']:.1f} ms, "
                 f"min: {stats['min_ms']:.1f} ms, "
                 f"max: {stats['max_ms']:.1f} ms, "
@@ -79,7 +80,7 @@ class LightProfiler:
         if QgsMessageLog is not None and Qgis is not None:
             QgsMessageLog.logMessage(tr(text), tag, QC.Qgis_MessageLevel_Info)
         else:
-            print(text)
+            logging.getLogger("QCALVIEW").info(text)
 
 
 _PROFILER = LightProfiler()

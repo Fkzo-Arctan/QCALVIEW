@@ -2,7 +2,7 @@
   <img src="docs/images/qcalview-banner.webp" alt="QCALVIEW - Overlay photos and vector data" width="100%">
 </p>
 
-# QCALVIEW â€” ALPHA-40.20.5
+# QCALVIEW | 40.21
 
 **Visual Simulation & Geomatics for QGIS**
 
@@ -22,17 +22,17 @@ QCALVIEW is an open-source QGIS plugin developed by **Fabrice Kerzerho - ArcTanÂ
 - QGIS 3.44.x / Qt5
 - QGIS 4.x / Qt6
 
-## Experimental status
+## Release status
 
-ALPHA-40.20.5 is an **experimental QGIS plugin**. Interfaces and rendering behaviour may still change. Results should be checked on representative projects before production use.
+QCALVIEW 40.21 is prepared for publication on the standard QGIS plugin channel. Core calibration, projected-layer, terrain, viewer and export workflows are available as regular plugin functionality. Some optional advanced tools remain explicitly marked as experimental and may still evolve. Results should always be checked on representative projects before production use.
 
-For public testing, the Experimental Tools tab exposes only:
+The Experimental Tools tab currently exposes:
 
 - Projection grid
 - Azimuth ruler
 - Interactive monoplotting
 
-Other internal experimental modules remain unavailable in public builds.
+Other internal development modules remain unavailable in public builds.
 
 ## Coordinate systems
 

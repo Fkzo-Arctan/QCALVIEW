@@ -69,7 +69,7 @@ def refresh_terrain_requirement_ui(self):
                 label.setVisible(False)
             else:
                 label.setText(tr(
-                    "MNT/MNS requis pour le rendu : sélectionnez un raster de topographie."
+                    'DEM/DSM required for rendering: select a terrain raster.'
                 ))
                 label.setVisible(True)
         except Exception as exc:
@@ -78,8 +78,8 @@ def refresh_terrain_requirement_ui(self):
         combo = getattr(self, "cmb_dem", None)
         if combo is not None:
             combo.setToolTip(tr(
-                "QCALVIEW nécessite un modèle numérique de terrain ou de surface "
-                "explicitement sélectionné avant tout rendu."
+                "QCALVIEW requires a digital terrain or surface model "
+                "explicitly selected before any rendering."
             ))
     except Exception as exc:
         _qcv_suppress(exc, "core/_terrain_guard.py:suppressed")
@@ -120,15 +120,15 @@ def validate_terrain_layer(self, notify=True, purpose="render"):
     if str(purpose).lower().startswith("export"):
         QMessageBox.warning(
             self,
-            tr("QCALVIEW — MNT/MNS requis"),
+            tr('QCALVIEW — DEM/DSM required'),
             tr(
-                "Export impossible : aucun MNT/MNS valide n’est sélectionné.\n\n"
-                "Sélectionnez un raster de topographie dans l’onglet Relief, "
-                "puis relancez l’export."
+                "Export unavailable: no valid DEM/DSM is selected.\n\n"
+                "Select a terrain raster in the Terrain tab, "
+                "then run the export again."
             ),
         )
         qcv_log(
-            "Export bloqué : aucun MNT/MNS valide sélectionné.",
+            'Export blocked: no valid DEM/DSM selected.',
             "TERRAIN/GUARD",
             "WARNING",
         )
@@ -137,7 +137,7 @@ def validate_terrain_layer(self, notify=True, purpose="render"):
     if not bool(getattr(self, "_terrain_guard_warned", False)):
         setattr(self, "_terrain_guard_warned", True)
         qcv_log(
-            "Rendu suspendu : aucun MNT/MNS valide sélectionné.",
+            'Rendering suspended: no valid DEM/DSM selected.',
             "TERRAIN/GUARD",
             "WARNING",
         )
