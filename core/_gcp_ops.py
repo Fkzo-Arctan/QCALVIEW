@@ -182,7 +182,14 @@ def _draw_calib_grid(self, p, cam_pt, cam_z, cam_crs, proj, W, H, yaw_eff, pitch
     rxy = (math.cos(yr), -math.sin(yr))         
     Cx = cam_pt.x() + D * fxy[0]
     Cy = cam_pt.y() + D * fxy[1]
-    cam_ground_z = cam_z - float(self.d_camheight.value())
+    # Calibration grid is based on ground Z, not on the absolute camera Z.
+    if self.cb_alt_absolute.isChecked():
+        try:
+            cam_ground_z = float(z_sampler(cam_pt)) if z_sampler is not None else 0.0
+        except Exception:
+            cam_ground_z = 0.0
+    else:
+        cam_ground_z = cam_z - float(self.d_camheight.value())
     Z0 = cam_ground_z
     if self.cb_calib_snap_dem.isChecked() and z_sampler is not None:
         try:
@@ -551,7 +558,8 @@ def _solve_camera(self):
             cam_ground_z = float(z_sampler(QgsPointXY(cam_pt.x(), cam_pt.y())))
         except Exception:
             cam_ground_z = 0.0
-    cam_z = cam_ground_z + float(self.d_camheight.value())
+    from ._vertical_reference import camera_z
+    cam_z = camera_z(cam_ground_z, self.d_camheight.value(), self.cb_alt_absolute.isChecked())
 
 
     W_full, H_full = int(self.spin_w.value()), int(self.spin_h.value())
@@ -840,7 +848,8 @@ def _on_map_pick_set_view(self, map_pt):
                     z_sampler, _ = self._make_z_sampler(dem_layer, work_crs)
                     z_cam_ground = float(z_sampler(QgsPointXY(cam_pt.x(), cam_pt.y())))
                     z_tgt = float(z_sampler(QgsPointXY(pt_work.x(), pt_work.y())))
-                    cam_z = z_cam_ground + float(self.d_camheight.value())
+                    from ._vertical_reference import camera_z
+                    cam_z = camera_z(z_cam_ground, self.d_camheight.value(), self.cb_alt_absolute.isChecked())
                     dist_xy = math.hypot(dx, dy)
                     if dist_xy > 1e-6:
                         pitch_deg = math.degrees(math.atan2(z_tgt - cam_z, dist_xy))

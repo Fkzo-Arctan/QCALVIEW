@@ -93,7 +93,8 @@ def _monoplot_current_camera_context(self):
             z_sampler_view = None
             cam_ground_z = 0.0
     z_sampler_active = z_sampler_view if curvature_enabled else z_sampler_raw
-    cam_z = cam_ground_z + float(self.d_camheight.value())
+    from ._vertical_reference import camera_z
+    cam_z = camera_z(cam_ground_z, self.d_camheight.value(), self.cb_alt_absolute.isChecked())
     proj = str(self.cmb_proj.currentText()).strip().upper()
     is360 = bool(self._is360_mode()) if hasattr(self, '_is360_mode') else bool(self.cb_360.isChecked())
     yaw_eff = float(self.d_yaw.value()) + float(self.d_yaw_offset.value())

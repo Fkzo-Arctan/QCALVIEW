@@ -1,7 +1,7 @@
 from ._exceptions import qcv_suppress_exception as _qcv_suppress
 from ._i18n import tr
 from ._compat import QC, dialog_exec
-import os, sys, math, json, re, pathlib, functools, itertools, typing, csv, shutil, subprocess, tempfile
+import os, math, json, re, pathlib, functools, itertools, typing, csv, shutil, tempfile
 from qgis.PyQt import QtCore, QtGui, QtWidgets
 from qgis.core import QgsCoordinateReferenceSystem, QgsCoordinateTransform, QgsPointXY, QgsProject
 try:
@@ -39,12 +39,9 @@ def _plugin_root_dir(self):
 
 def _get_embedded_piexif(self):
 
-    plugin_root = _plugin_root_dir(self)
-    vendor_dir = os.path.join(plugin_root, 'vendor')
-    if vendor_dir not in sys.path:
-        sys.path.insert(0, vendor_dir)
+    # Import vendored source without changing sys.path for the whole QGIS process.
     try:
-        import piexif  
+        from ..vendor import piexif
         return piexif, None
     except Exception as e:
         return None, f"Bundled piexif not found or could not be loaded: {e}"
@@ -200,10 +197,14 @@ def _export_metadata_payload(self, out_path, layer, feat):
     lon, lat = coords
     z_ground = _camera_geom_z(feat)
     try:
-        obs_h = float(state.get('qcv_alt', getattr(self, 'd_camheight', None).value() if getattr(self, 'd_camheight', None) else 1.7) or 1.7)
+        obs_h = float(state.get('qcv_alt', getattr(self, 'd_camheight', None).value() if getattr(self, 'd_camheight', None) else 1.7))
     except Exception:
         obs_h = 1.7
-    altitude = (float(z_ground) if z_ground is not None else 0.0) + obs_h
+    absolute_mode = bool(int(state.get('qcv_altabs', 0) or 0))
+    altitude = obs_h if absolute_mode else (float(z_ground) if z_ground is not None else 0.0) + obs_h
+    from ._vertical_reference import configured_vertical_crs
+    crs_alt, _ = configured_vertical_crs(QgsProject.instance()) if absolute_mode else (None, '')
+    altitude_authid = str(crs_alt.authid() or '') if crs_alt is not None else ''
     yaw = float(state.get('qcv_yaw', getattr(self, 'd_yaw', None).value() if getattr(self, 'd_yaw', None) else 0.0) or 0.0) % 360.0
     pitch = float(state.get('qcv_pitch', getattr(self, 'd_pitch', None).value() if getattr(self, 'd_pitch', None) else 0.0) or 0.0)
     roll = float(state.get('qcv_roll', getattr(self, 'd_roll', None).value() if getattr(self, 'd_roll', None) else 0.0) or 0.0)
@@ -217,14 +218,16 @@ def _export_metadata_payload(self, out_path, layer, feat):
             iw = img.width() or iw
             ih = img.height() or ih
     title = _export_title_for_feature(self, layer, feat, out_path)
-    desc = f"{title} - Azimuth {_fmt_num(yaw,1)} deg - HFOV {_fmt_num(hfov,1,True)} deg - Observer alt. {obs_h:.2f} m"
-    desc_rich = f"{title} – Azimuth {_fmt_num(yaw,1)}° – HFOV {_fmt_num(hfov,1,True)}° – Observer alt. {obs_h:.2f} m"
+    desc = f"{title} - Azimuth {_fmt_num(yaw,1)} deg - HFOV {_fmt_num(hfov,1,True)} deg - {'Absolute camera Z' if absolute_mode else 'Observer height'} {obs_h:.2f} m"
+    desc_rich = f"{title} – Azimuth {_fmt_num(yaw,1)}° – HFOV {_fmt_num(hfov,1,True)}° – {'Absolute camera Z' if absolute_mode else 'Observer height'} {obs_h:.2f} m"
     comments = [
         'QCALVIEW',
         f'title={title}',
         f'id_metier={_camera_feature_value(layer, feat, "qcv_id", "") or ""}',
         f'numero_pdv={_camera_feature_value(layer, feat, "IDPTV", "") or ""}',
-        f'hauteur_observateur_m={obs_h:.2f}',
+        f'mode_altitude={"absolue" if absolute_mode else "hauteur"}',
+        f'reference_altimetrique={altitude_authid or "non definie"}',
+        f'valeur_altitude_ou_hauteur_m={obs_h:.2f}',
         f'hfov_deg={_fmt_num(hfov,1)}',
         f'vfov_deg={_fmt_num(vfov,1)}',
         f'pitch_deg={_fmt_num(pitch,1)}',
@@ -256,7 +259,9 @@ def _export_metadata_payload(self, out_path, layer, feat):
         'yaw': yaw, 'pitch': pitch, 'roll': roll, 'hfov': hfov, 'vfov': vfov,
         'iw': iw, 'ih': ih, 'title': title, 'description': desc, 'description_rich': desc_rich, 'comment': '\n'.join(comments),
         'datetime': dt_str, 'author': author, 'copyright': copyright_txt,
-        'projection': proj, 'observer_height': obs_h,
+        'projection': proj, 'observer_height': obs_h if not absolute_mode else None,
+        'altitude_mode': 'absolute' if absolute_mode else 'relative',
+        'altitude_crs': altitude_authid, 'absolute_camera_z': obs_h if absolute_mode else None,
         'export_datetime_iso': QtCore.QDateTime.currentDateTime().toString(QC.Qt_DateFormat_ISODate),
         'qcv_id': _camera_feature_value(layer, feat, 'qcv_id', '') or '',
         'idptv': _camera_feature_value(layer, feat, 'IDPTV', '') or '',
@@ -368,7 +373,10 @@ def _build_xmp_packet(self, payload):
         qv('vfovDeg', _fmt_num(payload.get('vfov', 0), 1)),
         qv('pitchDeg', _fmt_num(payload.get('pitch', 0), 1)),
         qv('rollDeg', _fmt_num(payload.get('roll', 0), 1)),
-        qv('observerHeightM', f"{float(payload.get('observer_height', 0)):.2f}"),
+        (qv('observerHeightM', f"{float(payload['observer_height']):.2f}") if payload.get('observer_height') is not None else ''),
+        qv('altitudeMode', payload.get('altitude_mode', 'relative')),
+        qv('verticalCrs', payload.get('altitude_crs', '')),
+        (qv('cameraAbsoluteZM', f"{float(payload['absolute_camera_z']):.2f}") if payload.get('absolute_camera_z') is not None else ''),
         qv('projection', payload.get('projection', '')),
         qv('modeProjection', payload.get('projection', '')),
         qv('exportWidth', payload.get('iw', '')),
@@ -394,6 +402,8 @@ def _build_xmp_packet(self, payload):
       GPano:PoseHeadingDegrees="{_xml_text(_fmt_num(payload.get('yaw', 0),1))}"
       GPano:InitialViewHeadingDegrees="{_xml_text(_fmt_num(payload.get('yaw', 0),1))}"
       GPano:InitialHorizontalFOVDegrees="{_xml_text(_fmt_num(payload.get('hfov', 0),1))}" />'''
+    gps_altitude_xmp = (f"<exif:GPSAltitude>{float(payload['altitude']):.2f}</exif:GPSAltitude>"
+                        if payload.get('altitude_mode') != 'absolute' else '')
     return f'''<?xpacket begin="﻿" id="W5M0MpCehiHzreSzNTczkc9d"?>
 <x:xmpmeta xmlns:x="adobe:ns:meta/">
   <rdf:RDF xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#">
@@ -412,7 +422,7 @@ def _build_xmp_packet(self, payload):
       <xmp:MetadataDate>{_xml_text(payload.get('export_datetime_iso', ''))}</xmp:MetadataDate>
       <exif:GPSLatitude>{_xml_text(payload.get('lat', ''))}</exif:GPSLatitude>
       <exif:GPSLongitude>{_xml_text(payload.get('lon', ''))}</exif:GPSLongitude>
-      <exif:GPSAltitude>{_xml_text(f"{float(payload.get('altitude', 0)):.2f}")}</exif:GPSAltitude>
+      {gps_altitude_xmp}
       <exif:GPSImgDirection>{_xml_text(_fmt_num(payload.get('yaw', 0),1))}</exif:GPSImgDirection>
       <qcalview:TechnicalBlock>{comment}</qcalview:TechnicalBlock>
       {qcal}
@@ -452,9 +462,10 @@ def _write_metadata_with_exiftool(self, out_path, layer, feat):
         exif_dict['GPS'][piexif.GPSIFD.GPSLatitude] = _deg_to_dms_rationals(payload['lat'])
         exif_dict['GPS'][piexif.GPSIFD.GPSLongitudeRef] = 'E' if payload['lon'] >= 0 else 'W'
         exif_dict['GPS'][piexif.GPSIFD.GPSLongitude] = _deg_to_dms_rationals(payload['lon'])
-        exif_dict['GPS'][piexif.GPSIFD.GPSAltitudeRef] = 0
         from PIL import TiffImagePlugin
-        exif_dict['GPS'][piexif.GPSIFD.GPSAltitude] = TiffImagePlugin.IFDRational(int(round(max(0.0, float(payload['altitude'])) * 100)), 100)
+        if payload.get('altitude_mode') != 'absolute':
+            exif_dict['GPS'][piexif.GPSIFD.GPSAltitudeRef] = 0
+            exif_dict['GPS'][piexif.GPSIFD.GPSAltitude] = TiffImagePlugin.IFDRational(int(round(max(0.0, float(payload['altitude'])) * 100)), 100)
         exif_dict['GPS'][piexif.GPSIFD.GPSImgDirectionRef] = 'T'
         exif_dict['GPS'][piexif.GPSIFD.GPSImgDirection] = TiffImagePlugin.IFDRational(int(round((float(payload['yaw']) % 360.0) * 10)), 10)
         exif_bytes = piexif.dump(exif_dict)
@@ -757,6 +768,7 @@ def _collect_camera_export_rows(self):
             'vfov': state.get('qcv_vfov', ''),
             'hfov_auto': state.get('qcv_ahf', ''),
             'altitude': state.get('qcv_alt', ''),
+            'altitude_absolute': int(state.get('qcv_altabs', 0) or 0),
             'offset_h': state.get('qcv_ofh', ''),
             'offset_v': state.get('qcv_ofv', ''),
             'offset_mode': state.get('qcv_ofmd', ''),

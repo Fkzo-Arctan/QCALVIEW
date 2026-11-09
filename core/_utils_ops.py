@@ -766,9 +766,18 @@ def _to_pixmap(src) -> QPixmap:
 
 class _ImageViewer(QDialog):
     imageClicked = pyqtSignal(float, float)
-    def __init__(self, parent=None, owner=None):
+    def __init__(self, parent=None, owner=None, viewer_id=1):
         super().__init__(parent)
         self._owner = owner
+        self._viewer_id = int(viewer_id or 1)
+        self._pdv_fid = getattr(owner, '_camera_current_fid', None) if owner is not None else None
+        self._camera_state = {}
+        self._render_generation = -1
+        self._source_photo_path = ''
+        self._source_photo_signature = None
+        self._embedded = False
+        self._independent_rect = []
+        self._force_close = False
         self.setWindowTitle(tr('QCALVIEW — Viewer'))
         self.setModal(False)
         try:
@@ -819,6 +828,10 @@ class _ImageViewer(QDialog):
         self._overlay_pix.setZValue(10)
         self._overlay_pix.setVisible(False)
         self._scene.addItem(tr(self._overlay_pix))
+        # Multi-View must not reuse the coordinator's shared overlay_image when
+        # another terminal becomes active.  Keep the last rendered overlay owned
+        # by this viewer so context switches can restore it without a redraw.
+        self._overlay_snapshot = None
         btn_plus = QPushButton(tr("Zoom +"))
         btn_moins = QPushButton(tr("Zoom −"))
         btn_fit = QPushButton(tr('Fit'))
@@ -826,6 +839,21 @@ class _ImageViewer(QDialog):
         btn_capture = QPushButton(tr("Capture…"))
         btn_export_full = QPushButton(tr("Export…"))
         btn_refresh = QPushButton(tr('↻ Refresh'))
+        btn_save_pdv = QPushButton(tr('Save viewpoint state'))
+        btn_new_view = QPushButton(tr('New view'))
+        btn_quad = QPushButton(tr('Quad view'))
+        btn_close_view = QPushButton(tr('Close view'))
+        # Quad View uses a deliberately reduced command strip.  These compact
+        # controls call the exact same actions as the full window controls.
+        btn_save_compact = QPushButton(tr('Save'))
+        btn_save_compact.setToolTip(tr('Save viewpoint state'))
+        btn_close_compact = QPushButton('×')
+        btn_close_compact.setToolTip(tr('Close view'))
+        lbl_view_compact = QLabel(f"V{self._viewer_id}")
+        try:
+            lbl_view_compact.setStyleSheet('font-weight:600;')
+        except Exception as _qcv_exc:
+            _qcv_suppress(_qcv_exc, 'core/_utils_ops.py:viewer-compact-id-style')
         chk_live = QCheckBox(tr("Live"))
         chk_live.setChecked(bool(getattr(owner, '_camera_live_enabled', False)) if owner is not None else False)
         chk_live.setToolTip(tr('Automatically refreshes the viewer after a viewpoint or projected layer changes (after release/stabilisation).'))
@@ -834,11 +862,11 @@ class _ImageViewer(QDialog):
         cmb_pdv = QComboBox()
         cmb_pdv.setMinimumWidth(150)
         cmb_pdv.setToolTip(tr('Direct access to a viewpoint; ordering follows the order field configured in QCALVIEW.'))
-        info = QLabel(tr('Tip: use the wheel to zoom and drag to pan.'))
+        lbl_pdv = QLabel(tr("Viewpoint"))
         lbl_op = QLabel(tr('Opacity'))
         sld_op = QSlider(QC.Qt_Orientation_Horizontal)
         sld_op.setRange(0, 100)
-        sld_op.setValue(100)            
+        sld_op.setValue(100)
         sld_op.setMinimumWidth(60)
         sld_op.setMaximumWidth(140)
         chk_overlay = QCheckBox(tr("Overlay"))
@@ -847,25 +875,29 @@ class _ImageViewer(QDialog):
         info.setStyleSheet("color: #666;")
         info.setMinimumWidth(0)
         info.setSizePolicy(QC.QSizePolicy_Policy_Ignored, QC.QSizePolicy_Policy_Fixed)
+
         top = QHBoxLayout()
+        top.setSpacing(4)
+        top.addWidget(lbl_view_compact)
         for b in (btn_plus, btn_moins, btn_100, btn_fit, btn_capture, btn_export_full, btn_refresh, btn_prev_pdv, btn_next_pdv):
             try:
                 b.setMinimumWidth(0)
                 b.setSizePolicy(QC.QSizePolicy_Policy_Maximum, QC.QSizePolicy_Policy_Fixed)
             except Exception as _qcv_exc:
-                _qcv_suppress(_qcv_exc, "core/_utils_ops.py:893")
+                _qcv_suppress(_qcv_exc, "core/_utils_ops.py:viewer-toolbar-size")
             top.addWidget(b)
-        top.addSpacing(8)
-        top.addWidget(QLabel(tr("Viewpoint")))
+        top.addSpacing(6)
+        top.addWidget(lbl_pdv)
         top.addWidget(cmb_pdv)
+        top.addWidget(btn_save_compact)
         top.addWidget(chk_live)
-        top.addSpacing(12)
+        top.addSpacing(8)
         top.addWidget(chk_overlay)
-        top.addSpacing(12)
         top.addWidget(lbl_op)
         top.addWidget(sld_op)
         top.addStretch(1)
         top.addWidget(info)
+        top.addWidget(btn_close_compact)
 
         self._info_panel = QLabel(tr('Information\n—'))
         self._info_panel.setWordWrap(True)
@@ -877,10 +909,28 @@ class _ImageViewer(QDialog):
             self._info_panel.setMaximumHeight(16777215)
             self._info_panel.setSizePolicy(QC.QSizePolicy_Policy_Fixed, QC.QSizePolicy_Policy_Ignored)
         except Exception as _qcv_exc:
-            _qcv_suppress(_qcv_exc, "core/_utils_ops.py:917")
+            _qcv_suppress(_qcv_exc, "core/_utils_ops.py:viewer-info-size")
         self._info_panel.setStyleSheet("background:#202629; color:#e9eef2; padding:10px; border-radius:6px;")
 
         lay = QVBoxLayout(self)
+        lay.setContentsMargins(6, 6, 6, 6)
+        lay.setSpacing(4)
+        full_header = QWidget(self)
+        multiview_top = QHBoxLayout(full_header)
+        multiview_top.setContentsMargins(0, 0, 0, 0)
+        multiview_top.setSpacing(4)
+        lbl_view_id = QLabel(f"{tr('Viewer')} {self._viewer_id}")
+        try:
+            lbl_view_id.setStyleSheet('font-weight:600;')
+        except Exception as _qcv_exc:
+            _qcv_suppress(_qcv_exc, 'core/_utils_ops.py:viewer-id-style')
+        multiview_top.addWidget(lbl_view_id)
+        multiview_top.addWidget(btn_save_pdv)
+        multiview_top.addStretch(1)
+        multiview_top.addWidget(btn_new_view)
+        multiview_top.addWidget(btn_quad)
+        multiview_top.addWidget(btn_close_view)
+        lay.addWidget(full_header)
         lay.addLayout(top)
         body = QHBoxLayout()
         body.setContentsMargins(0, 0, 0, 0)
@@ -895,22 +945,25 @@ class _ImageViewer(QDialog):
         btn_capture.clicked.connect(self.export_window_capture)
         btn_export_full.clicked.connect(self.export_full_resolution)
         btn_refresh.clicked.connect(self._refresh_from_owner)
+        btn_save_pdv.clicked.connect(self._save_viewpoint_state)
+        btn_save_compact.clicked.connect(self._save_viewpoint_state)
+        btn_new_view.clicked.connect(self._new_view)
+        btn_quad.clicked.connect(self._toggle_quad_view)
+        btn_close_view.clicked.connect(self.close)
+        btn_close_compact.clicked.connect(self.close)
         btn_prev_pdv.clicked.connect(lambda: self._navigate_pdv(-1))
         btn_next_pdv.clicked.connect(lambda: self._navigate_pdv(+1))
         cmb_pdv.currentIndexChanged.connect(self._on_viewer_pdv_changed)
         chk_live.toggled.connect(self._on_live_toggled)
-
 
         def _apply_opacity(val):
             self._overlay_pix.setOpacity(val / 100.0)
         sld_op.valueChanged.connect(_apply_opacity)
         _apply_opacity(100)
 
-
         def _toggle_overlay(checked):
             self._overlay_pix.setVisible(checked and not self._overlay_pix.pixmap().isNull())
         chk_overlay.toggled.connect(_toggle_overlay)
-
 
         QShortcut(QKeySequence("+"), self, activated=lambda: self._zoom(1.25))
         QShortcut(QKeySequence("-"), self, activated=lambda: self._zoom(0.8))
@@ -923,15 +976,40 @@ class _ImageViewer(QDialog):
         self._chk_overlay = chk_overlay
         self._cmb_pdv = cmb_pdv
         self._chk_live = chk_live
+        self._btn_save_pdv = btn_save_pdv
+        self._btn_save_compact = btn_save_compact
+        self._btn_new_view = btn_new_view
+        self._btn_quad = btn_quad
+        self._btn_close_view = btn_close_view
+        self._btn_close_compact = btn_close_compact
+        self._lbl_view_id = lbl_view_id
+        self._lbl_view_compact = lbl_view_compact
+        self._lbl_pdv = lbl_pdv
+        self._lbl_opacity = lbl_op
+        self._viewer_tip_label = info
+        self._quad_hide_controls = (
+            btn_plus, btn_moins, btn_capture, btn_export_full,
+            btn_prev_pdv, btn_next_pdv, chk_live, lbl_pdv, lbl_op, info,
+        )
+        self._quad_keep_controls = (
+            btn_100, btn_fit, btn_refresh, cmb_pdv,
+            btn_save_compact, chk_overlay, sld_op, btn_close_compact,
+            lbl_view_compact,
+        )
+        self._full_header_widget = full_header
+        self._full_header_controls = (
+            lbl_view_id, btn_save_pdv, btn_new_view, btn_quad, btn_close_view,
+        )
         self._pdv_sync_guard = False
         self.sync_pdv_controls()
+        self._apply_presentation_mode()
 
         self._scale = 1.0
         self._has_pix = False
         self._settings = QSettings("ArcTan", "QCALVIEW")
         self._geometry_restored = False
         try:
-            geom = self._settings.value("QCALVIEW/ui/viewer_geometry", None)
+            geom = self._settings.value(f"QCALVIEW/ui/viewer_geometry_{self._viewer_id}", None)
             if geom:
                 self.restoreGeometry(geom)
                 self._geometry_restored = True
@@ -941,6 +1019,11 @@ class _ImageViewer(QDialog):
         except Exception:
             self.resize(1100, 700)
             self._geometry_restored = True
+        try:
+            g = self.geometry()
+            self._independent_rect = [int(g.x()), int(g.y()), int(g.width()), int(g.height())]
+        except Exception as _qcv_exc:
+            _qcv_suppress(_qcv_exc, 'core/_utils_ops.py:viewer-initial-geometry')
         self.update_info()
 
     def sync_pdv_controls(self):
@@ -955,7 +1038,9 @@ class _ImageViewer(QDialog):
             combo.clear()
             for i in range(src.count()):
                 combo.addItem(tr(src.itemText(i)), src.itemData(i))
-            fid = getattr(owner, '_camera_current_fid', None)
+            fid = getattr(self, '_pdv_fid', None)
+            if fid is None:
+                fid = getattr(owner, '_camera_current_fid', None)
             idx = combo.findData(int(fid)) if fid is not None else src.currentIndex()
             if idx >= 0:
                 combo.setCurrentIndex(idx)
@@ -977,21 +1062,28 @@ class _ImageViewer(QDialog):
         if fid is None:
             return
         try:
-            owner._camera_select_combo_feature_by_fid(int(fid), autoload=True)
+            coord = getattr(owner, '_multiview', None)
+            if coord is not None:
+                coord.assign_pdv(self, int(fid))
+            else:
+                owner._camera_select_combo_feature_by_fid(int(fid), autoload=True)
             self.sync_pdv_controls()
             self.update_info()
         except Exception as exc:
             try:
                 owner.iface.messageBar().pushWarning(tr('QCALVIEW'), tr(f'Unable to change viewpoint: {exc}'))
             except Exception as _qcv_exc:
-                _qcv_suppress(_qcv_exc, "core/_utils_ops.py:1030")
+                _qcv_suppress(_qcv_exc, "core/_utils_ops.py:viewer-pdv-change")
 
     def _navigate_pdv(self, delta):
         owner = getattr(self, '_owner', None)
         if owner is None:
             return
         try:
-            if int(delta) < 0:
+            coord = getattr(owner, '_multiview', None)
+            if coord is not None:
+                coord.navigate(self, delta)
+            elif int(delta) < 0:
                 owner._camera_prev_feature()
             else:
                 owner._camera_next_feature()
@@ -1001,7 +1093,115 @@ class _ImageViewer(QDialog):
             try:
                 owner.iface.messageBar().pushWarning(tr('QCALVIEW'), tr(f'Unable to navigate viewpoints: {exc}'))
             except Exception as _qcv_exc:
-                _qcv_suppress(_qcv_exc, "core/_utils_ops.py:1047")
+                _qcv_suppress(_qcv_exc, "core/_utils_ops.py:viewer-navigate")
+
+    def _save_viewpoint_state(self):
+        owner = getattr(self, '_owner', None)
+        if owner is None:
+            return
+        try:
+            coord = getattr(owner, '_multiview', None)
+            if coord is not None:
+                coord.save_viewer_state(self)
+            else:
+                owner._camera_save_current_feature()
+        except Exception as exc:
+            _qcv_suppress(exc, 'core/_utils_ops.py:save-viewpoint-state')
+
+    def _new_view(self):
+        owner = getattr(self, '_owner', None)
+        coord = getattr(owner, '_multiview', None) if owner is not None else None
+        if coord is not None:
+            state = coord.capture_viewer_state(self)
+            coord.create_viewer(pdv_fid=getattr(self, '_pdv_fid', None), camera_state=state)
+
+    def _toggle_quad_view(self):
+        owner = getattr(self, '_owner', None)
+        coord = getattr(owner, '_multiview', None) if owner is not None else None
+        if coord is not None:
+            coord.toggle_quad()
+
+    def set_active(self, active):
+        try:
+            if active:
+                self.setStyleSheet('QDialog { border: 2px solid #4c9aff; }')
+            else:
+                self.setStyleSheet('')
+        except Exception as exc:
+            _qcv_suppress(exc, 'core/_utils_ops.py:viewer-active-style')
+
+    def _apply_presentation_mode(self):
+        """Switch between the full standalone viewer UI and compact Quad UI."""
+        embedded = bool(getattr(self, '_embedded', False))
+        try:
+            header = getattr(self, '_full_header_widget', None)
+            if header is not None:
+                header.setVisible(not embedded)
+            for widget in tuple(getattr(self, '_full_header_controls', ()) or ()):
+                widget.setVisible(not embedded)
+            for widget in tuple(getattr(self, '_quad_hide_controls', ()) or ()):
+                widget.setVisible(not embedded)
+            for widget in tuple(getattr(self, '_quad_keep_controls', ()) or ()):
+                widget.setVisible(True)
+            # Compact duplicates only exist to keep each Quad cell usable without
+            # repeating the heavy two-row standalone viewer header.
+            for name in ('_btn_save_compact', '_btn_close_compact', '_lbl_view_compact'):
+                widget = getattr(self, name, None)
+                if widget is not None:
+                    widget.setVisible(embedded)
+            panel = getattr(self, '_info_panel', None)
+            if panel is not None:
+                panel.setVisible(not embedded)
+            combo = getattr(self, '_cmb_pdv', None)
+            if combo is not None:
+                if embedded:
+                    combo.setMinimumWidth(90)
+                    combo.setMaximumWidth(170)
+                else:
+                    combo.setMinimumWidth(150)
+                    combo.setMaximumWidth(16777215)
+            slider = getattr(self, '_sld_op', None)
+            if slider is not None:
+                slider.setMaximumWidth(90 if embedded else 140)
+            refresh = None
+            for widget in tuple(getattr(self, '_quad_keep_controls', ()) or ()):
+                try:
+                    if isinstance(widget, QPushButton) and widget.text() in (tr('↻ Refresh'), '↻'):
+                        refresh = widget
+                        break
+                except Exception as exc:
+                    _qcv_suppress(exc, 'core/_utils_ops.py:viewer-find-refresh')
+            if refresh is not None:
+                refresh.setText('↻' if embedded else tr('↻ Refresh'))
+                refresh.setToolTip(tr('↻ Refresh'))
+        except Exception as exc:
+            _qcv_suppress(exc, 'core/_utils_ops.py:viewer-presentation-mode')
+
+    def _set_embedded(self, embedded, parent=None):
+        embedded = bool(embedded)
+        try:
+            if embedded and not self._embedded:
+                g = self.geometry()
+                if int(g.width()) > 100 and int(g.height()) > 100:
+                    self._independent_rect = [int(g.x()), int(g.y()), int(g.width()), int(g.height())]
+            self._embedded = embedded
+            self.hide()
+            if embedded:
+                self.setParent(parent)
+                self.setWindowFlags(QC.Qt_WindowType_Widget)
+                self.setSizeGripEnabled(False)
+            else:
+                self.setParent(parent)
+                self.setWindowFlags(QC.Qt_WindowType_Window | QC.Qt_WindowType_WindowMinMaxButtonsHint | QC.Qt_WindowType_WindowCloseButtonHint)
+                self.setSizeGripEnabled(True)
+            self._apply_presentation_mode()
+            self.show()
+            if not embedded:
+                vals = list(getattr(self, '_independent_rect', []) or [])
+                if len(vals) == 4 and int(vals[2]) > 100 and int(vals[3]) > 100:
+                    self.setGeometry(int(vals[0]), int(vals[1]), int(vals[2]), int(vals[3]))
+        except Exception as exc:
+            _qcv_suppress(exc, 'core/_utils_ops.py:viewer-embed')
 
     def _on_live_toggled(self, checked):
         owner = getattr(self, '_owner', None)
@@ -1011,12 +1211,27 @@ class _ImageViewer(QDialog):
             owner._camera_set_live_enabled(bool(checked))
         except Exception:
             owner._camera_live_enabled = bool(checked)
+        coord = getattr(owner, '_multiview', None)
+        if coord is not None:
+            for viewer in list(coord.viewers):
+                chk = getattr(viewer, '_chk_live', None)
+                if chk is None or chk is self._chk_live:
+                    continue
+                try:
+                    old = chk.blockSignals(True)
+                    chk.setChecked(bool(checked))
+                    chk.blockSignals(old)
+                except Exception as exc:
+                    _qcv_suppress(exc, 'core/_utils_ops.py:sync-live')
 
     def _refresh_from_owner(self):
         owner = getattr(self, '_owner', None)
         if owner is None:
             return
         try:
+            coord = getattr(owner, '_multiview', None)
+            if coord is not None and coord.active_viewer is not self:
+                coord.activate_viewer(self, load=True, render=False)
             owner._camera_refresh_current_view(force=True)
         except Exception as exc:
             try:
@@ -1025,7 +1240,7 @@ class _ImageViewer(QDialog):
                 try:
                     owner.iface.messageBar().pushWarning(tr('QCALVIEW'), tr(f'Refresh failed: {exc}'))
                 except Exception as _qcv_exc:
-                    _qcv_suppress(_qcv_exc, "core/_utils_ops.py:1071")
+                    _qcv_suppress(_qcv_exc, 'core/_utils_ops.py:viewer-refresh')
 
     def resizeEvent(self, ev):
         try:
@@ -1034,15 +1249,27 @@ class _ImageViewer(QDialog):
             _qcv_suppress(_qcv_exc, "core/_utils_ops.py:1077")
 
         try:
-            self._settings.setValue("QCALVIEW/ui/viewer_geometry", self.saveGeometry())
+            if not self._embedded:
+                self._settings.setValue(f"QCALVIEW/ui/viewer_geometry_{self._viewer_id}", self.saveGeometry())
+                coord = getattr(getattr(self, '_owner', None), '_multiview', None)
+                if coord is not None:
+                    coord.schedule_persist()
         except Exception as _qcv_exc:
-            _qcv_suppress(_qcv_exc, "core/_utils_ops.py:1082")
+            _qcv_suppress(_qcv_exc, 'core/_utils_ops.py:viewer-resize')
 
     def closeEvent(self, ev):
         try:
-            self._settings.setValue("QCALVIEW/ui/viewer_geometry", self.saveGeometry())
+            if not self._embedded:
+                self._settings.setValue(f"QCALVIEW/ui/viewer_geometry_{self._viewer_id}", self.saveGeometry())
         except Exception as _qcv_exc:
-            _qcv_suppress(_qcv_exc, "core/_utils_ops.py:1088")
+            _qcv_suppress(_qcv_exc, "core/_utils_ops.py:viewer-close-geometry")
+        owner = getattr(self, '_owner', None)
+        coord = getattr(owner, '_multiview', None) if owner is not None else None
+        if coord is not None and not bool(getattr(self, '_force_close', False)):
+            try:
+                coord.remove_viewer(self)
+            except Exception as exc:
+                _qcv_suppress(exc, 'core/_utils_ops.py:viewer-close-remove')
         super().closeEvent(ev)
 
     def update_info(self):
@@ -1051,38 +1278,45 @@ class _ImageViewer(QDialog):
             self._info_panel.setText(tr('Information\n—'))
             return
         try:
-            photo = os.path.basename(getattr(owner, "photo_path", "") or "") or "—"
-            pdv = "—"
-            try:
-                pdv = owner.cmb_cam_feature.currentText().strip() or "—"
-            except Exception as _qcv_exc:
-                _qcv_suppress(_qcv_exc, "core/_utils_ops.py:1102")
-            yaw = float(owner.d_yaw.value()) if hasattr(owner, "d_yaw") else 0.0
-            pitch = float(owner.d_pitch.value()) if hasattr(owner, "d_pitch") else 0.0
-            roll = float(owner.d_roll.value()) if hasattr(owner, "d_roll") else 0.0
-            hfov = float(owner.d_hfov.value()) if hasattr(owner, "d_hfov") else 0.0
-            vfov = float(owner.d_vfov.value()) if hasattr(owner, "d_vfov") else 0.0
-            hcam = float(owner.d_camheight.value()) if hasattr(owner, "d_camheight") else 0.0
-            proj = str(owner.cmb_proj.currentText()) if hasattr(owner, "cmb_proj") else "—"
+            is_active = self is getattr(getattr(owner, '_multiview', None), 'active_viewer', None) or getattr(owner, 'viewer', None) is self
+            state = dict(getattr(self, '_camera_state', {}) or {})
+            if is_active:
+                try:
+                    from ._camera_layer_ops import _camera_collect_ui_state
+                    state = dict(_camera_collect_ui_state(owner) or state)
+                    self._camera_state = dict(state)
+                except Exception as _qcv_exc:
+                    _qcv_suppress(_qcv_exc, 'core/_utils_ops.py:viewer-info-state')
+            photo_path = state.get('qcv_img') or (getattr(owner, 'photo_path', '') if is_active else '')
+            photo = os.path.basename(str(photo_path or '')) or '—'
+            pdv = self._cmb_pdv.currentText().strip() if getattr(self, '_cmb_pdv', None) is not None else '—'
+            yaw = float(state.get('qcv_yaw', owner.d_yaw.value() if is_active else 0.0))
+            pitch = float(state.get('qcv_pitch', owner.d_pitch.value() if is_active else 0.0))
+            roll = float(state.get('qcv_roll', owner.d_roll.value() if is_active else 0.0))
+            hfov = float(state.get('qcv_hfov', owner.d_hfov.value() if is_active else 0.0))
+            vfov = float(state.get('qcv_vfov', owner.d_vfov.value() if is_active else 0.0))
+            hcam = float(state.get('qcv_alt', owner.d_camheight.value() if is_active else 0.0))
+            altabs = bool(int(state.get('qcv_altabs', owner.cb_alt_absolute.isChecked() if is_active else 0) or 0))
+            proj = str(state.get('qcv_proj', owner.cmb_proj.currentText() if is_active else '—'))
             x = y = None
-            crs_authid = ""
+            crs_authid = ''
             try:
-                if hasattr(owner, "_current_camera_xy_project_crs"):
-                    x, y, crs_authid = owner._current_camera_xy_project_crs()
+                layer = owner.cmb_camera.currentLayer() if getattr(owner, 'cmb_camera', None) is not None else None
+                fid = getattr(self, '_pdv_fid', None)
+                feat = layer.getFeature(int(fid)) if layer is not None and fid is not None else None
+                if feat is not None and feat.isValid() and not feat.geometry().isEmpty():
+                    pt = feat.geometry().asPoint()
+                    x, y = float(pt.x()), float(pt.y())
+                    crs_authid = str(layer.crs().authid() or '')
             except Exception as _qcv_exc:
-                _qcv_suppress(_qcv_exc, "core/_utils_ops.py:1116")
-            xy = "X : —\nY : —" if x is None or y is None else f"X : {x:,.2f}\nY : {y:,.2f}".replace(",", " ")
+                _qcv_suppress(_qcv_exc, 'core/_utils_ops.py:viewer-info-xy')
+            xy = 'X : —\nY : —' if x is None or y is None else f"X : {x:,.2f}\nY : {y:,.2f}".replace(',', ' ')
             if crs_authid:
                 xy += f"\nCRS : {crs_authid}"
-            try:
-                self.sync_pdv_controls()
-                self.setWindowTitle(tr(f"QCALVIEW — Viewer — {pdv}"))
-            except Exception as _qcv_exc:
-                _qcv_suppress(_qcv_exc, "core/_utils_ops.py:1124")
-            self._info_panel.setText(
-                tr(f"<b>Information</b><br>"
+            self.setWindowTitle(f"{tr('QCALVIEW — Viewer')} {self._viewer_id} — {pdv}")
+            info_html = tr(f"<b>Information</b><br>"
                 f"{xy.replace(chr(10), '<br>')}<br>"
-                f"Camera height: {hcam:.2f} m<br>"
+                f"{tr('Camera absolute Z') if altabs else tr('Camera height')}: {hcam:.2f} m<br>"
                 f"Azimuth: {yaw:.1f}°<br>"
                 f"Pitch: {pitch:.1f}°<br>"
                 f"Roll: {roll:.1f}°<br>"
@@ -1091,7 +1325,11 @@ class _ImageViewer(QDialog):
                 f"Projection: {proj}<br>"
                 f"Image : {photo}<br>"
                 f"Viewpoint: {pdv}")
-            )
+            self._info_panel.setText(info_html)
+            try:
+                self._lbl_view_compact.setToolTip(info_html)
+            except Exception as _qcv_exc:
+                _qcv_suppress(_qcv_exc, 'core/_utils_ops.py:viewer-compact-tooltip')
         except Exception:
             self._info_panel.setText(tr('Information<br>—'))
 
@@ -1129,6 +1367,12 @@ class _ImageViewer(QDialog):
 
     def export_full_resolution(self):
         owner = getattr(self, "_owner", None)
+        try:
+            coord = getattr(owner, '_multiview', None) if owner is not None else None
+            if coord is not None and coord.active_viewer is not self:
+                coord.activate_viewer(self, load=True, render=False)
+        except Exception as _qcv_exc:
+            _qcv_suppress(_qcv_exc, 'core/_utils_ops.py:viewer-export-activate')
         validator = getattr(owner, '_validate_terrain_layer', None) if owner is not None else None
         if callable(validator) and not validator(notify=True, purpose='export'):
             return
@@ -1231,6 +1475,13 @@ class _ImageViewer(QDialog):
         if pm.isNull():
             self.clear_overlay(); return
         try:
+            # Store the untransformed overlay for this terminal. QPixmap display
+            # transforms are viewer-specific; the snapshot remains render-space.
+            self._overlay_snapshot = pm.toImage().copy()
+        except Exception as _qcv_exc:
+            self._overlay_snapshot = None
+            _qcv_suppress(_qcv_exc, 'core/_utils_ops.py:overlay-snapshot')
+        try:
             pm.setDevicePixelRatio(1.0)
         except Exception as _qcv_exc:
             _qcv_suppress(_qcv_exc, "core/_utils_ops.py:1268")
@@ -1264,6 +1515,7 @@ class _ImageViewer(QDialog):
         self.update_info()
 
     def clear_overlay(self):
+        self._overlay_snapshot = None
         self._overlay_pix.setPixmap(QPixmap())
         self._overlay_pix.setVisible(False)
         owner = getattr(self, '_owner', None)
@@ -1563,6 +1815,23 @@ class _ImageViewer(QDialog):
                 _qcv_suppress(_qcv_exc, "core/_utils_ops.py:clear_pick_markers")
 
     def eventFilter(self, obj, ev):
+        if obj is self._view.viewport() and ev.type() == QC.QEvent_Type_MouseButtonDblClick:
+            owner = getattr(self, '_owner', None)
+            coord = getattr(owner, '_multiview', None) if owner is not None else None
+            if coord is not None:
+                coord.activate_viewer(self, load=True, render=False)
+                coord.toggle_viewer_maximize(self)
+                return True
+        if obj is self._view.viewport() and ev.type() == QC.QEvent_Type_MouseButtonPress:
+            owner = getattr(self, '_owner', None)
+            coord = getattr(owner, '_multiview', None) if owner is not None else None
+            if coord is not None and coord.active_viewer is not self:
+                # A terminal that is already current keeps its own cached overlay
+                # and switches instantly.  If scene_generation moved while this
+                # view was inactive (notably pano+raster in R6), render it once now
+                # that it becomes active instead of forcing a manual Refresh.
+                stale = int(getattr(self, '_render_generation', -1)) != int(getattr(coord, 'scene_generation', 0))
+                coord.activate_viewer(self, load=True, render=stale)
         if obj is self._view.viewport() and ev.type() == QC.QEvent_Type_Wheel:
             self.wheelEvent(ev)
             return True
@@ -1638,9 +1907,21 @@ class _ImageViewer(QDialog):
 
 
 def open_viewer(self):
+    coord = getattr(self, '_multiview', None)
+    if coord is not None:
+        viewer = coord.active_viewer
+        if viewer is None or viewer not in coord.viewers:
+            viewer = coord.create_viewer()
+        elif coord.mode == 'quad':
+            coord.show_quad()
+        else:
+            viewer._set_embedded(False, self.iface.mainWindow())
+            viewer.show()
+            viewer.raise_()
+            viewer.activateWindow()
+        return viewer
+
     src = getattr(self, "image", None) or getattr(self, "photo_path", None)
-
-
     if src is None:
         try:
             src = self._make_schematic_base(int(self.spin_w.value()), int(self.spin_h.value()), for_export=False)
@@ -1655,23 +1936,15 @@ def open_viewer(self):
             self.viewer.imageClicked.connect(self._on_viewer_image_clicked)
             self._viewer_click_connected = True
         except Exception as _qcv_exc:
-            _qcv_suppress(_qcv_exc, "core/_utils_ops.py:1353")
-
+            _qcv_suppress(_qcv_exc, 'core/_utils_ops.py:viewer-click-connect')
     self.viewer.update_image(src)
     self.viewer.set_image_pick_active(bool(getattr(self, "_image_pick_mode", None)))
-
-
     ov = getattr(self, "overlay_image", None) or getattr(self, "overlay_path", None)
     if ov is not None:
         self.viewer.update_overlay(ov)
     else:
-        self.viewer.clear_overlay()    
-
-
-    try:
-        self.viewer.update_info()
-    except Exception as _qcv_exc:
-        _qcv_suppress(_qcv_exc, "core/_utils_ops.py:1368")
+        self.viewer.clear_overlay()
+    self.viewer.update_info()
     self.viewer.show()
     self.viewer.raise_()
     self.viewer.activateWindow()
@@ -3052,6 +3325,25 @@ def _watch_overlay_layer(self, layer):
 
         def _on_overlay_changed(*a, _lid=layer.id(), **k):
             _invalidate_overlay_layer_cache(self, _lid)
+            try:
+                mv = getattr(self, '_multiview', None)
+                if mv is not None and mv.has_viewers():
+                    # Context swaps performed by the central coordinator may emit
+                    # renderer/style signals. They are not scene edits and must not
+                    # schedule another render pass.
+                    if mv.internal:
+                        return
+                    mv.notify_scene_changed(reason='overlay-layer')
+                    # Multi-View scene edits are always live by design. Refresh
+                    # the active view too; secondary views are coordinated centrally.
+                    timer = getattr(self, '_camera_live_refresh_timer', None)
+                    if timer is not None:
+                        timer.start(140)
+                    else:
+                        QTimer.singleShot(140, lambda: getattr(self, '_camera_refresh_current_view', lambda **_: None)(force=False))
+                    return
+            except Exception as _qcv_exc:
+                _qcv_suppress(_qcv_exc, 'core/_utils_ops.py:multiview-overlay-change')
             if not bool(getattr(self, '_camera_live_enabled', False)):
                 return
             try:
@@ -3059,7 +3351,6 @@ def _watch_overlay_layer(self, layer):
                 if timer is not None:
                     timer.start(250)
                 else:
-
                     QTimer.singleShot(250, lambda: getattr(self, '_camera_refresh_current_view', lambda **_: None)(force=False))
             except Exception as _qcv_exc:
                 _qcv_suppress(_qcv_exc, "core/_utils_ops.py:2488")
@@ -4100,14 +4391,27 @@ def _get_base_scaled(self, W, H):
     return img
 
 def _refresh_preview_and_viewer(self):
-    try: self.render_preview()
-    except Exception as _qcv_exc: _qcv_suppress(_qcv_exc, "core/_utils_ops.py:3385")
+    try:
+        self.render_preview()
+    except Exception as _qcv_exc:
+        _qcv_suppress(_qcv_exc, "core/_utils_ops.py:3385")
+
+    # Multi-View owns the displayed overlay while it is swapping PDV/camera
+    # contexts. overlay_image is a single renderer field and can still belong
+    # to the previously active viewer at this point. Copying it here is what
+    # makes the newly selected terminal display the previous PDV overlay.
+    if bool(getattr(self, '_multiview_internal_render', False)):
+        return
+
     try:
         if getattr(self, "viewer", None):
             ov = getattr(self, "overlay_image", None) or getattr(self, "overlay_path", None)
-            if ov is not None: self.viewer.update_overlay(ov)
-            else:              self.viewer.clear_overlay()
-    except Exception as _qcv_exc: _qcv_suppress(_qcv_exc, "core/_utils_ops.py:3391")
+            if ov is not None:
+                self.viewer.update_overlay(ov)
+            else:
+                self.viewer.clear_overlay()
+    except Exception as _qcv_exc:
+        _qcv_suppress(_qcv_exc, "core/_utils_ops.py:3391")
 
 def _mb(self):
 

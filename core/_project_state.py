@@ -113,7 +113,7 @@ def project_capture_global_relief(self):
         'dem_layer_id': '',
         'relief_mode': 'none',
         'use_dem_z': _widget_bool(self, 'cb_use_dem_z', False),
-        'dem_step': _widget_float(self, 'spin_dem_step', 150.0),
+        'dem_step': _widget_float(self, 'spin_dem_step', 25.0),
         'dem_width': _widget_int(self, 'spin_dem_width', 1),
         'wire_dashed': _widget_bool(self, 'cb_wire_dashed', False),
         'wire_mode': 0,

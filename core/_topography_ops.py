@@ -49,7 +49,7 @@ def build_adaptive_grid(
 
 def build_radial_distances(d_step_min: float, maxdist: float) -> np.ndarray:
 
-    d_step_min = max(1.0, float(d_step_min))
+    d_step_min = max(0.5, float(d_step_min))
     maxdist = max(d_step_min, float(maxdist))
     vals = []
     d = d_step_min

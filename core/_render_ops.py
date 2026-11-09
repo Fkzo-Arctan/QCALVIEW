@@ -44,7 +44,7 @@ from ._panorama_primitives import (
     PanoramicPrimitive2D, PanoramicFace, is_panorama_context, project_panorama_primitive,
     unwrap_x_continuous, unwrap_closed_ring, iter_viewport_copies,
     surface_faces_from_primitive, wall_faces_from_primitives,
-    panorama_faces_from_world_mesh, project_panorama_path_safe,
+    panorama_faces_from_world_mesh, panorama_wall_faces_from_world_paths, project_panorama_path_safe,
 )
 from ._memory_guard import (
     prepare_panorama_preview, format_guard_status, release_stale_panorama_buffers, prune_base_cache_for_size,
@@ -504,6 +504,8 @@ def _render_debounce_delay_ms(self, sender=None):
 
 def render_preview(self):
 
+    if bool(getattr(self, '_multiview_internal_render', False)):
+        return
     if int(getattr(self, '_render_suspend_count', 0) or 0) > 0:
         self._render_resume_requested = True
         return
@@ -527,6 +529,12 @@ def render_preview(self):
         self._render_scheduled_generation = int(self._render_request_generation)
     except Exception:
         self._render_scheduled_generation = 0
+    try:
+        mv = getattr(self, '_multiview', None)
+        if mv is not None and not mv.internal:
+            mv.notify_camera_interaction()
+    except Exception as _qcv_exc:
+        _qcv_suppress(_qcv_exc, 'core/_render_ops.py:multiview-notify')
     scheduler = getattr(self, "render_scheduler", None)
     if scheduler is not None:
         try:
@@ -722,18 +730,21 @@ def _render_preview_now(self):
         except Exception as _qcv_exc:
             _qcv_suppress(_qcv_exc, "core/_render_ops.py:preview_monoplot_overlay")
         qp.end()
-        self.last_preview = composed
-        preview_transform = QC.Qt_TransformationMode_FastTransformation if render_quality == 'low' else QC.Qt_TransformationMode_SmoothTransformation
-        self.preview.setPixmap(QPixmap.fromImage(composed).scaled(self.preview.size(), QC.Qt_AspectRatioMode_KeepAspectRatio, preview_transform))
-        try:
-            if hasattr(self, '_monoplot_refresh_list'):
-                self._monoplot_refresh_list()
-        except Exception as _qcv_exc:
-            _qcv_suppress(_qcv_exc, "core/_render_ops.py:779")
+        background_multiview = bool(getattr(self, '_multiview_background_render', False))
+        if not background_multiview:
+            self.last_preview = composed
+            preview_transform = QC.Qt_TransformationMode_FastTransformation if render_quality == 'low' else QC.Qt_TransformationMode_SmoothTransformation
+            self.preview.setPixmap(QPixmap.fromImage(composed).scaled(self.preview.size(), QC.Qt_AspectRatioMode_KeepAspectRatio, preview_transform))
+            try:
+                if hasattr(self, '_monoplot_refresh_list'):
+                    self._monoplot_refresh_list()
+            except Exception as _qcv_exc:
+                _qcv_suppress(_qcv_exc, "core/_render_ops.py:multiview-preview")
 
-        if self.viewer is not None and self.viewer.isVisible():
+        if self.viewer is not None and (self.viewer.isVisible() or background_multiview):
             prev_pm = self.viewer._pix.pixmap() if hasattr(self.viewer, "_pix") else QPixmap()
-            viewer_full_res = bool(getattr(self, '_viewer_full_res', False)) and render_quality == 'high'
+            viewer_full_res = (bool(getattr(self, '_viewer_full_res', False)) and render_quality == 'high'
+                               and not background_multiview)
             if panorama_ui and bool((getattr(self, '_memory_guard_runtime', {}) or {}).get('disable_viewer_full_res', False)):
                 viewer_full_res = False
 
@@ -780,6 +791,12 @@ def _render_preview_now(self):
                 self.viewer.update_overlay(ov_view)
             else:
                 self.viewer.clear_overlay()
+        try:
+            mv = getattr(self, '_multiview', None)
+            if mv is not None:
+                mv.on_frame_rendered(getattr(self, 'viewer', None))
+        except Exception as _qcv_exc:
+            _qcv_suppress(_qcv_exc, 'core/_render_ops.py:multiview-frame')
 
     except Exception as e:
         err = QImage(820, 60, QC.QImage_Format_Format_ARGB32_Premultiplied)
@@ -961,7 +978,8 @@ def _render_overlay(self, width, height):
             except Exception: cam_ground_z = 0.0
 
         cam_height = float(self.d_camheight.value())
-        cam_z = cam_ground_z + cam_height
+        from ._vertical_reference import camera_z
+        cam_z = camera_z(cam_ground_z, cam_height, bool(self.cb_alt_absolute.isChecked()))
         vector_z_sampler_raw = z_sampler if bool(getattr(self, "cb_use_dem_z", None) and self.cb_use_dem_z.isChecked()) else None
         vector_z_sampler = _make_pov_curved_sampler(self, vector_z_sampler_raw, cam_pt, k_refraction=0.0)
         self._draw_gcps_overlay(p, width, height)
@@ -1468,12 +1486,10 @@ def _render_overlay(self, width, height):
                                 )
 
 
-                                n=int(xyz_base.shape[0]); wall_xyz=np.vstack([xyz_base,xyz_top]); wall_tri=[]
-                                for ii in range(n-1):
-                                    jj=ii+1; wall_tri.append((ii,jj,n+jj)); wall_tri.append((ii,n+jj,n+ii))
-                                wall_faces=panorama_faces_from_world_mesh(
-                                    ctx_line,wall_xyz,wall_tri,effective_maxdist,wrap_width=(wrap_width or None),
-                                    role='line_wall',metadata={'projection_family':'PANORAMA','layer_id':lyr.id(),'fid':int(feat.id())},
+                                wall_faces=panorama_wall_faces_from_world_paths(
+                                    ctx_line,xyz_base,xyz_top,effective_maxdist,wrap_width=(wrap_width or None),
+                                    closed=False,role='line_wall',
+                                    metadata={'projection_family':'PANORAMA','layer_id':lyr.id(),'fid':int(feat.id())},
                                     render_quality=render_quality,extra_face_budget=_pano_surface_extra_budget,pole_guard_px=2.5
                                 )
                                 if wall_faces:
@@ -1584,15 +1600,10 @@ def _render_overlay(self, width, height):
                                 )
 
                                 if xyz_top is not None and bool(getattr(sty_eff,'fill_walls',True)):
-                                    n=int(xyz_base.shape[0])
-                                    wall_xyz=np.vstack([xyz_base,xyz_top])
-                                    wall_tri=[]
-                                    for i in range(n):
-                                        j=(i+1)%n
-                                        wall_tri.append((i,j,n+j)); wall_tri.append((i,n+j,n+i))
-                                    wall_faces=panorama_faces_from_world_mesh(
-                                        ctx_poly,wall_xyz,wall_tri,effective_maxdist,wrap_width=wrap_width,
-                                        role='wall',metadata={'projection_family':'PANORAMA','layer_id':lyr.id(),'fid':int(feat.id())},
+                                    wall_faces=panorama_wall_faces_from_world_paths(
+                                        ctx_poly,xyz_base,xyz_top,effective_maxdist,wrap_width=wrap_width,
+                                        closed=True,role='wall',
+                                        metadata={'projection_family':'PANORAMA','layer_id':lyr.id(),'fid':int(feat.id())},
                                         render_quality=render_quality,extra_face_budget=_pano_surface_extra_budget,
                                         pole_guard_px=2.5
                                     )
@@ -1945,6 +1956,7 @@ def _overlay_params_key(self, width: int, height: int):
         round(self.d_hfov.value(), 6), round(self.d_vfov.value(), 6),
         round(yaw_eff, 6), round(self.d_pitch.value(), 6), round(self.d_roll.value(), 6),
         round(float(self.d_camheight.value()), 3),
+        bool(self.cb_alt_absolute.isChecked()),
 
         self.cmb_proj.currentText(), bool(self._is360_mode()) if hasattr(self, '_is360_mode') else bool(self.cb_360.isChecked()),
         round(max(0.0, self.d_maxdist.value()), 3),
@@ -7766,7 +7778,7 @@ def _build_horizon_cache(self, *args, **kwargs):
     cx, cy = float(cam_pt.x()), float(cam_pt.y())
     maxdist = float(maxdist or 20000.0)
     az_step = max(0.05, float(az_step))
-    rad_step = max(1.0, float(rad_step))
+    rad_step = max(0.5, float(rad_step))
     half = (180.0 if is360 else float(HFOV) * 0.5)
     az0, az1 = float(yaw) - half, float(yaw) + half
     n_bins = max(36, int(math.ceil((az1 - az0) / az_step)))
@@ -8291,7 +8303,7 @@ def _draw_dem_ridgelines(self, painter, cam_pt, cam_z, cam_crs, proj, width, hei
 
     ridge_gap = float(self.d_ridge_gap.value()) if hasattr(self, 'd_ridge_gap') else 250.0
     ridge_prom = float(self.d_ridge_prom.value()) if hasattr(self, 'd_ridge_prom') else 2.0
-    base_spacing = float(self.spin_dem_step.value()) if hasattr(self, 'spin_dem_step') else 150.0
+    base_spacing = float(self.spin_dem_step.value()) if hasattr(self, 'spin_dem_step') else 25.0
     if str(proj or '').strip().upper() in ('EQUIRECT', 'EQUIRECTANGULAR', 'CYLINDRICAL'):
         try:
             _guard_step = _active_panorama_guard(self).get('dem_step_min')

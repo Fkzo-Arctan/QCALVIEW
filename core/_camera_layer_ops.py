@@ -23,6 +23,7 @@ QCV_CAMERA_FIELDS = [
     ("qcv_vfov", QC.QMetaType_Type_Double, 20, 6, ["qcv_vfov"]),
     ("qcv_ahf", QC.QMetaType_Type_Int, 0, 0, ["qcv_ahf"]),
     ("qcv_alt", QC.QMetaType_Type_Double, 20, 6, ["qcv_alt", "qcv_cam_h"]),
+    ("qcv_altabs", QC.QMetaType_Type_Int, 0, 0, ["qcv_altabs"]),
     ("qcv_ofh", QC.QMetaType_Type_Double, 20, 6, ["qcv_ofh", "qcv_off_h"]),
     ("qcv_ofv", QC.QMetaType_Type_Double, 20, 6, ["qcv_ofv", "qcv_off_v"]),
     ("qcv_ofmd", QC.QMetaType_Type_Int, 0, 0, ["qcv_ofmd", "qcv_off_mode", "qcv_ofmod"]),
@@ -755,8 +756,14 @@ def _camera_restore_visual_state(self, fid):
 
     # The top theme selector is project-global; never change it per viewpoint.
     try:
-        getattr(self, '_overlay_cache', {}).clear()
-        getattr(self, '_geom_cache', {}).clear()
+        mv = getattr(self, '_multiview', None)
+        multiview_active = bool(mv is not None and mv.has_viewers())
+        # Multi-View keeps the heavy scene caches shared. Overlay keys already
+        # contain the complete camera/settings/style signature and geometry keys
+        # contain camera position/FOV/layer revision/quality.
+        if not multiview_active:
+            getattr(self, '_overlay_cache', {}).clear()
+            getattr(self, '_geom_cache', {}).clear()
     except Exception as _qcv_exc:
         _qcv_suppress(_qcv_exc, "core/_camera_layer_ops.py:758")
     try:
@@ -1034,6 +1041,7 @@ def _camera_default_state(self):
         'qcv_vfov': float(self.d_vfov.value()),
         'qcv_ahf': 1 if self.cb_auto_hfov.isChecked() else 0,
         'qcv_alt': float(self.d_camheight.value()) if hasattr(self, 'd_camheight') else 1.7,
+        'qcv_altabs': 0,
         'qcv_ofh': float(self.spin_off_h.value()),
         'qcv_ofv': float(self.spin_off_v.value()),
         'qcv_ofmd': int(self.cmb_off_mode.currentIndex()),
@@ -1499,6 +1507,17 @@ def _camera_on_geometry_changed(self, fid, *args):
             'core/_camera_layer_ops.py:_camera_on_geometry_changed:fov',
         )
 
+    try:
+        mv = getattr(self, '_multiview', None)
+        if mv is not None and mv.has_viewers():
+            mv.notify_scene_changed(reason='viewpoint-geometry')
+            if is_current:
+                self._camera_live_pending_fid = fid
+                self._camera_live_refresh_timer.start(140)
+            return
+    except Exception as _qcv_exc:
+        _qcv_suppress(_qcv_exc, 'core/_camera_layer_ops.py:multiview-geometry')
+
     if not is_current or not bool(getattr(self, '_camera_live_enabled', False)):
         return
 
@@ -1513,7 +1532,8 @@ def _camera_on_geometry_changed(self, fid, *args):
 
 
 def _camera_live_refresh_current(self):
-    if not bool(getattr(self, '_camera_live_enabled', False)):
+    mv = getattr(self, '_multiview', None)
+    if not bool(getattr(self, '_camera_live_enabled', False)) and not (mv is not None and mv.has_viewers()):
         return
     _camera_refresh_current_view(self, force=False)
 
@@ -1631,52 +1651,96 @@ def _camera_load_photo_from_path(self, path):
     path = str(path)
     if not path or not os.path.exists(path):
         raise FileNotFoundError(path)
-    working_image, source_info = load_working_image(path)
+
+    mv = getattr(self, '_multiview', None)
+    multiview_active = bool(mv is not None and mv.has_viewers())
+    cached = mv.photo_cache_get(path) if multiview_active else None
+    if cached is not None:
+        working_image = cached.get('image')
+        source_info = dict(cached.get('source_info') or {})
+        photo_meta = dict(cached.get('photo_meta') or {})
+    else:
+        working_image, source_info = load_working_image(path)
+        photo_meta = _camera_read_photo_metadata(path)
+        if multiview_active:
+            try:
+                mv.photo_cache_put(path, working_image, source_info, photo_meta)
+            except Exception as exc:
+                _qcv_suppress(exc, 'core/_camera_layer_ops.py:multiview-photo-cache-put')
+
     self.photo_path = path
     self.image = working_image
     self._photo_source_info = dict(source_info or {})
     self._photo_is_proxy = bool(self._photo_source_info.get('proxy', False))
     self._camera_current_photo_path = path
-    photo_meta = _camera_read_photo_metadata(path)
     try:
         self._camera_last_photo_meta = dict(photo_meta)
     except Exception:
         self._camera_last_photo_meta = photo_meta
-    try:
-        self._base_cache.clear()
-    except Exception as _qcv_exc:
-        _qcv_suppress(_qcv_exc, "core/_camera_layer_ops.py:1176")
-    try:
-        self._z_cache.clear()
-    except Exception as _qcv_exc:
-        _qcv_suppress(_qcv_exc, "core/_camera_layer_ops.py:1180")
-    try:
-        self._horizon = None
-        self._horizon_params = None
-    except Exception as _qcv_exc:
-        _qcv_suppress(_qcv_exc, "core/_camera_layer_ops.py:1185")
-    try:
-        getattr(self, '_overlay_cache', {}).clear()
-    except Exception as _qcv_exc:
-        _qcv_suppress(_qcv_exc, "core/_camera_layer_ops.py:1189")
-    try:
-        getattr(self, '_geom_cache', {}).clear()
-    except Exception as _qcv_exc:
-        _qcv_suppress(_qcv_exc, "core/_camera_layer_ops.py:1193")
-    try:
-        self._layer_cache_versions = {}
-    except Exception as _qcv_exc:
-        _qcv_suppress(_qcv_exc, "core/_camera_layer_ops.py:1197")
+
+    if multiview_active:
+        # Scaled photo bases are keyed by photo path and geometry/render caches are
+        # already keyed by camera, size, layer revision and quality. Keep them
+        # across terminal swaps. If the file was re-read, remove only stale scaled
+        # entries for that path rather than flushing the shared scene.
+        if cached is None:
+            try:
+                for key in list(getattr(self, '_base_cache', {}).keys()):
+                    if isinstance(key, tuple) and key and str(key[0]) == path:
+                        self._base_cache.pop(key, None)
+            except Exception as exc:
+                _qcv_suppress(exc, 'core/_camera_layer_ops.py:multiview-base-cache')
+        try:
+            self._horizon = None
+            self._horizon_params = None
+        except Exception as exc:
+            _qcv_suppress(exc, 'core/_camera_layer_ops.py:multiview-horizon-reset')
+    else:
+        try:
+            self._base_cache.clear()
+        except Exception as _qcv_exc:
+            _qcv_suppress(_qcv_exc, 'core/_camera_layer_ops.py:photo-base-cache')
+        try:
+            self._z_cache.clear()
+        except Exception as _qcv_exc:
+            _qcv_suppress(_qcv_exc, 'core/_camera_layer_ops.py:photo-z-cache')
+        try:
+            self._horizon = None
+            self._horizon_params = None
+        except Exception as _qcv_exc:
+            _qcv_suppress(_qcv_exc, 'core/_camera_layer_ops.py:photo-horizon')
+        try:
+            getattr(self, '_overlay_cache', {}).clear()
+        except Exception as _qcv_exc:
+            _qcv_suppress(_qcv_exc, 'core/_camera_layer_ops.py:photo-overlay-cache')
+        try:
+            getattr(self, '_geom_cache', {}).clear()
+        except Exception as _qcv_exc:
+            _qcv_suppress(_qcv_exc, 'core/_camera_layer_ops.py:photo-geom-cache')
+        try:
+            self._layer_cache_versions = {}
+        except Exception as _qcv_exc:
+            _qcv_suppress(_qcv_exc, 'core/_camera_layer_ops.py:photo-layer-cache')
+
     try:
         _camera_apply_photo_metadata_to_ui(self, photo_meta)
     except Exception as _qcv_exc:
-        _qcv_suppress(_qcv_exc, "core/_camera_layer_ops.py:1201")
+        _qcv_suppress(_qcv_exc, 'core/_camera_layer_ops.py:photo-metadata-ui')
     try:
-        if getattr(self, 'viewer', None):
-
-            self.viewer.update_image(self.image)
+        viewer = getattr(self, 'viewer', None)
+        if viewer is not None:
+            signature = mv._photo_signature(path) if multiview_active else None
+            already_loaded = bool(
+                multiview_active
+                and str(getattr(viewer, '_source_photo_path', '') or '') == path
+                and getattr(viewer, '_source_photo_signature', None) == signature
+            )
+            if not already_loaded:
+                viewer.update_image(self.image)
+                viewer._source_photo_path = path
+                viewer._source_photo_signature = signature
     except Exception as _qcv_exc:
-        _qcv_suppress(_qcv_exc, "core/_camera_layer_ops.py:1207")
+        _qcv_suppress(_qcv_exc, 'core/_camera_layer_ops.py:photo-viewer-image')
     return photo_meta
 
 
@@ -1730,6 +1794,7 @@ def _camera_state_from_feature(self, layer, feat, photo_meta=None):
         'qcv_vfov': float(_camera_feature_value(layer, feat, 'qcv_vfov', defaults.get('qcv_vfov', 40.0)) or 40.0),
         'qcv_ahf': auto_hfov,
         'qcv_alt': float(_camera_feature_value(layer, feat, 'qcv_alt', z_geom if z_geom is not None else alt_default) or (z_geom if z_geom is not None else alt_default)),
+        'qcv_altabs': int(_camera_feature_value(layer, feat, 'qcv_altabs', 0) or 0),
         'qcv_ofh': float(_camera_feature_value(layer, feat, 'qcv_ofh', defaults.get('qcv_ofh', 0.0)) or 0.0),
         'qcv_ofv': float(_camera_feature_value(layer, feat, 'qcv_ofv', defaults.get('qcv_ofv', 0.0)) or 0.0),
         'qcv_ofmd': int(_camera_feature_value(layer, feat, 'qcv_ofmd', defaults.get('qcv_ofmd', 0)) or 0),
@@ -1757,7 +1822,7 @@ def _camera_state_from_feature(self, layer, feat, photo_meta=None):
 def _camera_apply_state(self, state):
     widgets = [
         self.cmb_proj, self.cb_360, self.d_yaw, self.d_pitch, self.d_roll,
-        self.cb_auto_hfov, self.d_hfov, self.d_vfov, self.d_camheight, self.spin_off_h, self.spin_off_v,
+        self.cb_auto_hfov, self.d_hfov, self.d_vfov, self.d_camheight, self.cb_alt_absolute, self.spin_off_h, self.spin_off_v,
         self.cmb_off_mode, self.d_maxdist, self.spin_w, self.spin_h, self.d_focal, self.d_sensorw,
     ]
     for w in widgets:
@@ -1784,6 +1849,7 @@ def _camera_apply_state(self, state):
         self.d_hfov.setValue(float(_camera_pick_state_value(state, 'qcv_hfov', self.d_hfov.value())))
         self.d_vfov.setValue(float(_camera_pick_state_value(state, 'qcv_vfov', self.d_vfov.value())))
         self.d_camheight.setValue(float(_camera_pick_state_value(state, 'qcv_alt', self.d_camheight.value())))
+        self.cb_alt_absolute.setChecked(bool(int(_camera_pick_state_value(state, 'qcv_altabs', 0) or 0)))
         self.spin_off_h.setValue(float(_camera_pick_state_value(state, 'qcv_ofh', self.spin_off_h.value())))
         self.spin_off_v.setValue(float(_camera_pick_state_value(state, 'qcv_ofv', self.spin_off_v.value())))
         self.cmb_off_mode.setCurrentIndex(int(_camera_pick_state_value(state, 'qcv_ofmd', self.cmb_off_mode.currentIndex())))
@@ -1829,6 +1895,7 @@ def _camera_collect_ui_state(self):
         'qcv_vfov': float(self.d_vfov.value()),
         'qcv_ahf': 1 if self.cb_auto_hfov.isChecked() else 0,
         'qcv_alt': float(self.d_camheight.value()),
+        'qcv_altabs': int(bool(self.cb_alt_absolute.isChecked())),
         'qcv_ofh': float(self.spin_off_h.value()),
         'qcv_ofv': float(self.spin_off_v.value()),
         'qcv_ofmd': int(self.cmb_off_mode.currentIndex()),
@@ -1968,9 +2035,14 @@ def _camera_load_current_feature(self, auto=False):
                         int(self.spin_w.value()), int(self.spin_h.value()), for_export=False))
                 except Exception as _qcv_exc:
                     _qcv_suppress(_qcv_exc, "core/_camera_layer_ops.py:1489")
-            ov = getattr(self, 'overlay_image', None) or getattr(self, 'overlay_path', None)
-            if ov is not None:
-                self.viewer.update_overlay(ov)
+            # During a Multi-View context switch overlay_image still belongs
+            # to the previously active terminal until the coordinator restores the
+            # selected viewer snapshot (or renders it).  Copying it here is what
+            # caused V2/V3/V4 to display the previous viewpoint's overlay on click.
+            if not bool(getattr(self, '_multiview_internal_render', False)):
+                ov = getattr(self, 'overlay_image', None) or getattr(self, 'overlay_path', None)
+                if ov is not None:
+                    self.viewer.update_overlay(ov)
     except Exception as _qcv_exc:
         _qcv_suppress(_qcv_exc, "core/_camera_layer_ops.py:1494")
     status = f"Viewpoint loaded: {title}"
@@ -2382,7 +2454,9 @@ def _camera_on_feature_changed(self, *_):
     except Exception:
         new_fid = None
     old_fid = getattr(self, '_camera_current_fid', None)
-    if old_fid is not None and new_fid is not None and old_fid != new_fid and not getattr(self, '_camera_loading_feature', False):
+    if (old_fid is not None and new_fid is not None and old_fid != new_fid
+            and not getattr(self, '_camera_loading_feature', False)
+            and not bool(getattr(self, '_multiview_internal_render', False))):
         try:
             _camera_capture_current_draft(self, old_fid)
         except Exception as _qcv_exc:
@@ -2420,3 +2494,9 @@ def _camera_on_feature_changed(self, *_):
             self.viewer.update_info()
     except Exception as _qcv_exc:
         _qcv_suppress(_qcv_exc, "core/_camera_layer_ops.py:1902")
+    try:
+        mv = getattr(self, '_multiview', None)
+        if mv is not None:
+            mv.owner_pdv_changed(new_fid)
+    except Exception as _qcv_exc:
+        _qcv_suppress(_qcv_exc, 'core/_camera_layer_ops.py:multiview-owner-pdv')

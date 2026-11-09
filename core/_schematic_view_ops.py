@@ -151,15 +151,18 @@ def _activate_schematic_view(self):
         self._camera_last_photo_meta = {}
     except Exception as _qcv_exc:
         _qcv_suppress(_qcv_exc, "core/_schematic_view_ops.py:161")
-    _schematic_invalidate_base(self)
-    try:
-        getattr(self, "_overlay_cache", {}).clear()
-    except Exception as _qcv_exc:
-        _qcv_suppress(_qcv_exc, "core/_schematic_view_ops.py:166")
-    try:
-        getattr(self, "_geom_cache", {}).clear()
-    except Exception as _qcv_exc:
-        _qcv_suppress(_qcv_exc, "core/_schematic_view_ops.py:170")
+    mv = getattr(self, '_multiview', None)
+    multiview_active = bool(mv is not None and mv.has_viewers())
+    if not multiview_active:
+        _schematic_invalidate_base(self)
+        try:
+            getattr(self, "_overlay_cache", {}).clear()
+        except Exception as _qcv_exc:
+            _qcv_suppress(_qcv_exc, "core/_schematic_view_ops.py:166")
+        try:
+            getattr(self, "_geom_cache", {}).clear()
+        except Exception as _qcv_exc:
+            _qcv_suppress(_qcv_exc, "core/_schematic_view_ops.py:170")
 
 
 def _is_schematic_view(self):

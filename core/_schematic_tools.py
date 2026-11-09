@@ -373,7 +373,8 @@ def calculate_hedge_occlusion_dialog(
         if dem is not None and dem.isValid():
             z_sampler, _ = dock._make_z_sampler(dem, cam_crs)
         cam_ground = float(z_sampler(cam_pt)) if z_sampler is not None else 0.0
-        cam_z = cam_ground + float(dock.d_camheight.value())
+        from ._vertical_reference import camera_z
+        cam_z = camera_z(cam_ground, dock.d_camheight.value(), dock.cb_alt_absolute.isChecked())
     except Exception as e:
         QMessageBox.warning(dock, tr('Screening height'), tr(f"Unable to determine the current viewpoint: {e}"))
         return None

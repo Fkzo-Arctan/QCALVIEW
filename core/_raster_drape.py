@@ -32,24 +32,42 @@ def raster_declared_as_elevation(layer):
 
 
 def raster_looks_like_dem(layer):
-    """Use QGIS' own DEM heuristic, while honoring explicit elevation settings."""
+    """Accept any valid, georeferenced, single-band numeric raster as DEM/DSM.
+
+    Do not rely on QGIS' name/content heuristic: a constant elevation raster
+    (min == max) is just as valid as a varied terrain raster.
+    This is a *candidate* check; it cannot establish that pixel values are
+    elevations, so selecting the correct surface remains the user's choice.
+    """
     if not isinstance(layer, QgsRasterLayer):
         return False
     try:
-        if not layer.isValid():
+        if not layer.isValid() or int(layer.bandCount()) != 1:
             return False
-    except Exception:
-        return False
-    if raster_declared_as_elevation(layer):
+        if not layer.crs().isValid():
+            return False
+        if int(layer.width()) <= 0 or int(layer.height()) <= 0:
+            return False
+        extent = layer.extent()
+        if extent is None or extent.isEmpty():
+            return False
+        provider = layer.dataProvider()
+        if provider is None:
+            return False
+        data_type = provider.dataType(1)
+        # QGIS 3 and QGIS 4 use enum objects of slightly different types.
+        # Their symbolic name is enough to exclude image/complex/unknown bands,
+        # while retaining Byte, Int*, UInt*, Float32 and Float64.
+        type_name = str(getattr(data_type, 'name', data_type)).upper()
+        if any(token in type_name for token in ('ARGB', 'UNKNOWN', 'COMPLEX', 'CFLOAT', 'CINT')):
+            return False
         return True
-    try:
-        return bool(QgsRasterLayerElevationProperties.layerLooksLikeDem(layer))
     except Exception:
         return False
 
 
 def refresh_dem_raster_filter(self, *_args):
-    """Restrict the Relief selector to probable DEMs unless the user asks for all rasters."""
+    """Offer numeric single-band georeferenced surfaces, regardless of their name."""
     combo = getattr(self, "cmb_dem", None)
     if combo is None:
         return
@@ -87,7 +105,7 @@ def refresh_dem_raster_filter(self, *_args):
         if show_all:
             combo.setToolTip(tr('All QGIS/GDAL raster layers in the project are shown. Check that the selected layer actually contains elevations.'))
         else:
-            combo.setToolTip(tr('List limited to rasters QGIS identifies as probable DEM/DSM layers or explicitly declared elevation surfaces.'))
+            combo.setToolTip(tr('All valid georeferenced single-band numeric rasters are offered, including constant elevation rasters. Verify that values represent elevations.'))
     except Exception as _qcv_exc:
         _qcv_suppress(_qcv_exc, "core/_raster_drape.py:91")
 

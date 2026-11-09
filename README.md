@@ -2,7 +2,7 @@
   <img src="docs/images/qcalview-banner.webp" alt="QCALVIEW - Overlay photos and vector data" width="100%">
 </p>
 
-# QCALVIEW | 40.21
+# QCALVIEW | 40.22
 
 **Visual Simulation & Geomatics for QGIS**
 
@@ -12,6 +12,10 @@ QCALVIEW is an open-source QGIS plugin developed by **Fabrice Kerzerho - ArcTanÂ
 - ArcTanÂ°: https://arctan.fr
 - Contact: contact@arctan.fr
 
+
+## Python dependencies
+
+QCALVIEW uses NumPy and QGIS PyQt. Pillow (PIL) is optional and is used for EXIF metadata export; other functionality does not require EXIF writing.
 
 ## Rendering prerequisite
 
@@ -24,7 +28,7 @@ QCALVIEW is an open-source QGIS plugin developed by **Fabrice Kerzerho - ArcTanÂ
 
 ## Release status
 
-QCALVIEW 40.21 is prepared for publication on the standard QGIS plugin channel. Core calibration, projected-layer, terrain, viewer and export workflows are available as regular plugin functionality. Some optional advanced tools remain explicitly marked as experimental and may still evolve. Results should always be checked on representative projects before production use.
+QCALVIEW 40.22 extends the stable QGIS plugin with Multi-View while retaining the 40.21 rendering and project-state behaviour. Core calibration, projected-layer, terrain, viewer and export workflows are available as regular plugin functionality. Some optional advanced tools remain explicitly marked as experimental and may still evolve. Results should always be checked on representative projects before production use.
 
 The Experimental Tools tab currently exposes:
 
@@ -33,6 +37,24 @@ The Experimental Tools tab currently exposes:
 - Interactive monoplotting
 
 Other internal development modules remain unavailable in public builds.
+
+## Multi-View (40.22)
+
+QCALVIEW can open up to four viewpoint viewers simultaneously. Each viewer keeps its own temporary camera state and can be reassigned to another viewpoint. Clicking a viewer makes it active and synchronizes the QCALVIEW cockpit with that viewer.
+
+Two presentation modes are available: independent windows and an integrated Quad View. Rendering remains centrally coordinated and sequential. Camera-only changes such as azimuth, pitch, roll or FOV refresh only the active viewer. Shared-scene edits, such as changes to projected QGIS objects, are propagated to the other open views through lightweight secondary passes followed by high-quality refinement. Heavy geometry/overlay caches remain shared by the QCALVIEW core, with a bounded cache of up to four decoded photo sources to avoid repeated disk decoding while switching terminals.
+
+Each viewer provides **Save viewpoint state**, which writes the same parameters + visual state as the former dock button, but explicitly for the viewpoint assigned to that viewer. In Quad View the interface switches to a compact per-view command strip and hides the large information side panel; full controls remain available in separate-window mode. Multi-View layout, assigned viewpoints and temporary camera states are stored in the QGIS project.
+
+## Absolute camera altitude and vertical reference (40.22)
+
+The **Absolute alt. / Alt. absolue** checkbox next to **Alt./Z** switches the active viewpoint between the historical **DEM elevation + camera height** interpretation (unchecked, default) and a direct **absolute camera elevation** (checked). The mode is saved individually in the `qcv_altabs` field; use **Create QCALVIEW fields** for previously existing viewpoint layers.
+
+In **Settings > Variables > Vertical reference**, use the **QGIS project vertical CRS** (default) or explicitly select a **vertical EPSG CRS for QCALVIEW**. The project setting must be valid before enabling absolute altitude. QCALVIEW never assumes that the DEM's horizontal CRS also defines its vertical datum. When DEM/camera vertical references differ, no height conversion or certified elevation comparison is performed. When the raster's vertical reference is unspecified, the reported difference (Î”Z) is *indicative only*.
+
+QCALVIEW does not apply QNH, geoid or other vertical datum transformations. Always verify the source photo's elevation datum before using absolute heights.
+
+**Language fix:** QCALVIEW translations are now scoped to the plugin, avoiding interference with QGIS native menus and context actions.
 
 ## Coordinate systems
 

@@ -1,5 +1,5 @@
 from .core._exceptions import qcv_suppress_exception as _qcv_suppress
-from .core._i18n import tr
+from .core._i18n import tr, translate_designer_shell
 from .core._log import qcv_log
 from .core._compat import QC, dialog_exec
 import os, json, math, html
@@ -27,6 +27,11 @@ from .core._cache_manager import SmartCacheManager
 from .core._adaptive_render import AdaptiveRenderScheduler
 from .core._profiler import get_profiler
 from .core._release import PUBLIC_ADVANCED_TOOLS_LIMITED
+from .core._multiview import MultiViewCoordinator
+from .core._vertical_reference import (
+    configured_vertical_crs, raster_vertical_crs, vertical_comparison,
+    VERTICAL_MODE_KEY, VERTICAL_CRS_KEY,
+)
 
 
 def _settings_key(*parts):
@@ -77,6 +82,40 @@ class AzimuthSpinBox(QDoubleSpinBox):
             self.setValue(value)
         except Exception:
             super().stepBy(steps)
+
+
+class TerrainSamplingSpinBox(QDoubleSpinBox):
+    """Fine terrain steps with practical presets; custom typed values remain valid."""
+    PRESETS = (0.5, 1.0, 2.0, 2.5, 5.0, 10.0, 20.0, 25.0,
+               50.0, 100.0, 150.0, 200.0, 500.0, 1000.0, 2000.0)
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.setRange(0.5, 2000.0)
+        self.setDecimals(2)
+        self.setSingleStep(0.5)
+        self.setKeyboardTracking(False)
+        self.setValue(25.0)
+        self.setSuffix(tr(' m'))
+        self.setToolTip(tr('Terrain grid spacing: 0.5, 1, 2, 2.5, 5 m and larger. '
+                           'Use the arrows for presets or enter a custom value. '
+                           'Small spacing over large areas can be expensive.'))
+
+    def stepBy(self, steps):
+        # Arrows traverse the useful resolutions instead of only adding 0.5 m.
+        import bisect
+        steps = int(steps)
+        if not steps:
+            return
+        value = float(self.value())
+        presets = self.PRESETS
+        if steps > 0:
+            index = bisect.bisect_right(presets, value + 1e-9)
+            index = min(len(presets) - 1, index + steps - 1)
+        else:
+            index = bisect.bisect_left(presets, value - 1e-9) - 1
+            index = max(0, index + steps + 1)
+        self.setValue(presets[index])
 
 
 class QCalViewDock(QDockWidget):
@@ -163,6 +202,9 @@ class QCalViewDock(QDockWidget):
         self._camera_autosave_timer.timeout.connect(self._camera_autosave_timeout)
         self._camera_feature_refresh_timer.timeout.connect(self._camera_refresh_feature_list)
         self._settings = QSettings("ArcTan", "QCALVIEW")
+        self._multiview = MultiViewCoordinator(self)
+        self._multiview_internal_render = False
+        self._multiview_background_render = False
         self._ui_initializing = True
         self._export_tab_loaded = False
         self._theme_combo_loaded = False
@@ -228,7 +270,18 @@ class QCalViewDock(QDockWidget):
         self.d_sensorw = QDoubleSpinBox(); self.d_sensorw.setRange(0.1, 100.0); self.d_sensorw.setDecimals(3); self.d_sensorw.setValue(36.0); self.d_sensorw.setSuffix(tr(" mm"))
         self.d_sensorw.setVisible(False)
         self.cb_auto_hfov = QCheckBox(tr('Auto HFOV (optical metadata)')); self.cb_auto_hfov.setChecked(True)
-        self.d_camheight = QDoubleSpinBox(); self.d_camheight.setRange(0.0, 2000.0); self.d_camheight.setDecimals(2); self.d_camheight.setValue(1.7); self.d_camheight.setSuffix(tr(" m"))
+        self.d_camheight = QDoubleSpinBox(); self.d_camheight.setRange(-12000.0, 30000.0); self.d_camheight.setDecimals(2); self.d_camheight.setValue(1.7); self.d_camheight.setSuffix(tr(" m"))
+        self.cb_alt_absolute = QCheckBox(tr('Absolute alt.'))
+        self.cb_alt_absolute.setChecked(False)
+        self.cb_alt_absolute.setToolTip(tr('Interpret Alt./Z as absolute camera elevation in the selected vertical CRS. No datum transformation is applied.'))
+        self.lbl_alt_ref_status = QLabel('')
+        self.lbl_alt_ref_status.setWordWrap(True)
+        self.lbl_alt_ref_status.setVisible(False)
+        self.lbl_alt_ref_status.setStyleSheet('color:#a35a00; font-size:10px;')
+        self._alt_diag_timer = QTimer(self)
+        self._alt_diag_timer.setSingleShot(True)
+        self._alt_diag_timer.setInterval(350)
+        self._alt_diag_timer.timeout.connect(self._update_absolute_altitude_status)
         self.btn_schematic_bg_color = QPushButton(tr("#F2F2F2"))
         self.cb_schematic_bg_transparent = QCheckBox(tr('Transparent PNG background'))
         try:
@@ -348,7 +401,13 @@ class QCalViewDock(QDockWidget):
             except Exception as _qcv_exc:
                 _qcv_suppress(_qcv_exc, "qcalview_dock.py:373")
 
-        _grid_card(0, 0, "Orientation", _compact_row(("Azim.", self.d_yaw), ("Tang.", self.d_pitch), ("Pas", self.cmb_orientation_step), ("Roul.", self.d_roll), ("Alt./Z", self.d_camheight)))
+        orientation_panel = QWidget()
+        orientation_layout = QVBoxLayout(orientation_panel)
+        orientation_layout.setContentsMargins(0, 0, 0, 0)
+        orientation_layout.setSpacing(3)
+        orientation_layout.addWidget(_compact_row(("Azim.", self.d_yaw), ("Tang.", self.d_pitch), ("Pas", self.cmb_orientation_step), ("Roul.", self.d_roll), ("Alt./Z", self.d_camheight), self.cb_alt_absolute))
+        orientation_layout.addWidget(self.lbl_alt_ref_status)
+        _grid_card(0, 0, "Orientation", orientation_panel)
         _grid_card(0, 1, "Projection", _compact_row(self.cmb_proj, self.cb_360, ("Distance", self.d_maxdist)))
         _grid_card(0, 2, 'Settings camera', _compact_row(("HFOV", self.d_hfov), ("VFOV", self.d_vfov), self.cb_auto_hfov, ("L", self.spin_w), ("H", self.spin_h), ("Focale", self.d_focal)))
         _grid_card(1, 0, "Guides image", guides_row)
@@ -415,7 +474,7 @@ class QCalViewDock(QDockWidget):
         self.btn_cam_source_schema.setToolTip(tr('Detach the photograph for this viewpoint and save a schematic view.'))
         f2.addRow(tr(self.cb_cam_show_all))
         self.btn_cam_save.setToolTip(tr('Saves camera parameters and the viewpoint visual state: layers, styles, opacities, rules/categories, theme and QCALVIEW settings.'))
-        f2.addRow(tr('Synchronization'), _compact_row(self.btn_cam_load, self.btn_cam_save, self.btn_cam_fields))
+        f2.addRow(tr('Synchronization'), _compact_row(self.btn_cam_load, self.btn_cam_fields))
         f2.addRow(tr(self.lbl_cam_status))
         self.grp_camera_layer.setContentLayout(f2)
         self.tab_camera_layout.addWidget(self.grp_camera_layer)
@@ -449,7 +508,7 @@ class QCalViewDock(QDockWidget):
         self.tab_camera_layout.addWidget(self.grp_exp)
         self.grp_exp.setVisible(False)  
         self.lbl_experimental_notice = QLabel(
-            tr('QCALVIEW 40.21 — Some optional tools remain under active development. Their behaviour and interface may still change.')
+            tr('QCALVIEW 40.22 — Some optional tools remain under active development. Their behaviour and interface may still change.')
         )
         self.lbl_experimental_notice.setWordWrap(True)
         self.lbl_experimental_notice.setStyleSheet("color:#666; padding:4px 2px 8px 2px;")
@@ -545,7 +604,7 @@ class QCalViewDock(QDockWidget):
         self.combo_relief_mode = QComboBox()
         self.combo_relief_mode.addItems(tr(['None', 'Transparent (occluding)', "Opaque", "Wireframe", "Ridgelines", "Skyline"]))
         self.combo_relief_mode.setCurrentIndex(0)
-        self.spin_dem_step = QDoubleSpinBox(); self.spin_dem_step.setRange(5.0, 2000.0); self.spin_dem_step.setValue(150.0); self.spin_dem_step.setSuffix(tr(" m"))
+        self.spin_dem_step = TerrainSamplingSpinBox()
         self.btn_dem_color = QPushButton(tr('Relief color…')); self._dem_color = QColor(255, 255, 0, 220)
         self.spin_dem_width = QSpinBox(); self.spin_dem_width.setRange(1, 6); self.spin_dem_width.setValue(1)
         self.spin_dem_alpha = QSpinBox(); self.spin_dem_alpha.setRange(0, 255); self.spin_dem_alpha.setValue(220); self.spin_dem_alpha.setVisible(False)
@@ -562,7 +621,7 @@ class QCalViewDock(QDockWidget):
         form_dem.addRow(tr('DEM/DSM raster'), self.cmb_dem)
         self.cb_dem_show_all_rasters = QCheckBox(tr('Show all rasters'))
         self.cb_dem_show_all_rasters.setChecked(False)
-        self.cb_dem_show_all_rasters.setToolTip(tr('Disables the DEM filter and shows all QGIS/GDAL-compatible QgsRasterLayer layers in the project.'))
+        self.cb_dem_show_all_rasters.setToolTip(tr('Shows all rasters, including multiband imagery. By default, all georeferenced single-band numeric rasters are offered.'))
         form_dem.addRow("", self.cb_dem_show_all_rasters)
         form_dem.addRow("", self.lbl_dem_required)
         form_dem.addRow(tr(self.cb_use_dem_z))
@@ -653,7 +712,7 @@ class QCalViewDock(QDockWidget):
         fo = QFormLayout(content_occ)
         self.cb_occ_layers = QCheckBox(tr("_legacy_occ_layers")); self.cb_occ_layers.setChecked(False); self.cb_occ_layers.setVisible(False)
         self.d_az_step = QDoubleSpinBox(); self.d_az_step.setRange(0.1, 5.0); self.d_az_step.setDecimals(2); self.d_az_step.setValue(0.5); self.d_az_step.setSuffix(tr(" °"))
-        self.d_rad_step = QDoubleSpinBox(); self.d_rad_step.setRange(1.0, 500.0); self.d_rad_step.setDecimals(1); self.d_rad_step.setValue(50.0); self.d_rad_step.setSuffix(tr(" m"))
+        self.d_rad_step = QDoubleSpinBox(); self.d_rad_step.setRange(0.5, 500.0); self.d_rad_step.setDecimals(2); self.d_rad_step.setValue(50.0); self.d_rad_step.setSuffix(tr(" m"))
         self.d_eps = QDoubleSpinBox(); self.d_eps.setRange(0.0, 1.0); self.d_eps.setDecimals(2); self.d_eps.setValue(0.20); self.d_eps.setSuffix(tr(" °"))
         self.cb_occ_objects = QCheckBox(tr('Inter-object occlusion (legacy panorama)')); self.cb_occ_objects.setChecked(True); self.cb_occ_objects.setVisible(False)
         self.cb_transparent_objects = QCheckBox(tr('Force all layers transparent (legacy global mode)')); self.cb_transparent_objects.setChecked(False)
@@ -967,6 +1026,17 @@ class QCalViewDock(QDockWidget):
             _qcv_suppress(_qcv_exc, "qcalview_dock.py:965")
 
         self.cb_auto_hfov.toggled.connect(self._toggle_hfov_enable)
+        self.cb_alt_absolute.toggled.connect(self._on_absolute_altitude_toggled)
+        self.cb_alt_absolute.toggled.connect(self._camera_schedule_autosave)
+        self.cb_alt_absolute.toggled.connect(self.render_preview)
+        self.cb_alt_absolute.toggled.connect(self._schedule_absolute_altitude_status)
+        self.d_camheight.valueChanged.connect(self._schedule_absolute_altitude_status)
+        self.cmb_dem.layerChanged.connect(self._schedule_absolute_altitude_status)
+        self.cmb_cam_feature.currentIndexChanged.connect(self._schedule_absolute_altitude_status)
+        try:
+            QgsProject.instance().verticalCrsChanged.connect(self._schedule_absolute_altitude_status)
+        except (AttributeError, TypeError):
+            pass
         self.btn_dem_color.clicked.connect(self._pick_dem_color)
         self.btn_dem_color.clicked.connect(self._project_relief_control_changed)
         self.cmb_camera.layerChanged.connect(self._on_camera_layer_changed)
@@ -1260,6 +1330,7 @@ class QCalViewDock(QDockWidget):
             'qcv_hfov': float(self.d_hfov.value()),
             'qcv_vfov': float(self.d_vfov.value()),
             'qcv_alt': float(self.d_camheight.value()),
+            'qcv_altabs': 0,
             'qcv_ofh': float(self.spin_off_h.value()),
             'qcv_ofv': float(self.spin_off_v.value()),
             'qcv_ofmd': int(self.cmb_off_mode.currentIndex()),
@@ -1280,6 +1351,7 @@ class QCalViewDock(QDockWidget):
             _qcv_suppress(_qcv_exc, "qcalview_dock.py:1266")
         self._update_ui_summary()
         QTimer.singleShot(0, self._project_restore_global_state)
+        QTimer.singleShot(80, self._multiview.restore_project_state)
         QTimer.singleShot(20, lambda: self._validate_terrain_layer(notify=True, purpose="startup"))
 
 
@@ -1290,6 +1362,7 @@ class QCalViewDock(QDockWidget):
         if not os.path.exists(ui_path):
             raise RuntimeError(f"Fichier UI introuvable : {ui_path}")
         uic.loadUi(ui_path, root)
+        translate_designer_shell(root)  # No global translator: QGIS context menus remain untouched.
         if not root.styleSheet().strip():
 
             root.setStyleSheet("""
@@ -1977,6 +2050,80 @@ class QCalViewDock(QDockWidget):
         except Exception as _qcv_exc:
             _qcv_suppress(_qcv_exc, "qcalview_dock.py:1959")
 
+    def _schedule_absolute_altitude_status(self, *_args):
+        if hasattr(self, '_alt_diag_timer') and not getattr(self, '_ui_initializing', False):
+            self._alt_diag_timer.start()
+
+    def _on_absolute_altitude_toggled(self, checked):
+        # Loading an existing viewpoint should never trigger a modal dialog.
+        if not checked or getattr(self, '_camera_loading_feature', False) or getattr(self, '_ui_initializing', False):
+            return
+        vcrs, _ = configured_vertical_crs(QgsProject.instance())
+        if vcrs is not None:
+            return
+        self.cb_alt_absolute.blockSignals(True)
+        self.cb_alt_absolute.setChecked(False)
+        self.cb_alt_absolute.blockSignals(False)
+        answer = QMessageBox.question(
+            self, tr('Missing vertical reference'),
+            tr('A valid vertical CRS must be set before enabling absolute altitude. Open QCALVIEW settings?'),
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+            QMessageBox.StandardButton.Yes,
+        )
+        if answer == QMessageBox.StandardButton.Yes:
+            self.open_settings_dialog()
+            vcrs, _ = configured_vertical_crs(QgsProject.instance())
+            if vcrs is not None:
+                self.cb_alt_absolute.setChecked(True)
+        self._schedule_absolute_altitude_status()
+
+    def _update_absolute_altitude_status(self):
+        label = getattr(self, 'lbl_alt_ref_status', None)
+        if label is None:
+            return
+        if not self.cb_alt_absolute.isChecked():
+            label.hide()
+            return
+        label.show()
+        vcrs, source = configured_vertical_crs(QgsProject.instance())
+        if vcrs is None:
+            label.setText(tr('Missing vertical CRS: define it in the QGIS project or QCALVIEW settings.'))
+            label.setStyleSheet('color:#ba2929; font-size:10px;')
+            return
+        name = str(vcrs.authid() or vcrs.description() or '?')
+        base = tr('Camera vertical CRS: %1 (%2).').replace('%1', name).replace('%2',
+            tr('QGIS project') if source == 'project' else tr('specific selection'))
+        dem = self.cmb_dem.currentLayer() if hasattr(self, 'cmb_dem') else None
+        if not isinstance(dem, QgsRasterLayer) or not dem.isValid():
+            label.setText(base + ' ' + tr('No DEM selected: ΔZ unavailable.'))
+            label.setStyleSheet('color:#a35a00; font-size:10px;')
+            return
+        compatibility = vertical_comparison(vcrs, raster_vertical_crs(dem))
+        if compatibility == 'mismatch':
+            label.setText(base + ' ' + tr('Vertical CRS mismatch: ΔZ unavailable; no automatic conversion.'))
+            label.setStyleSheet('color:#ba2929; font-size:10px;')
+            return
+        warning = (tr('DEM vertical CRS unknown: ΔZ is indicative only (not certified).')
+                   if compatibility == 'unknown' else tr('Compatible vertical CRSs.'))
+        dz_text = ''
+        try:
+            feat = self._camera_current_feature()
+            if feat is not None and feat.isValid():
+                cam_pt, cam_crs = self._camera_point_in_work_crs(feat)
+                dem_pt = cam_pt
+                if cam_crs != dem.crs():
+                    dem_pt = QgsCoordinateTransform(cam_crs, dem.crs(), QgsProject.instance()).transform(cam_pt)
+                ground_z, ok = dem.dataProvider().sample(dem_pt, 1)
+                if bool(ok) and math.isfinite(float(ground_z)):
+                    dz = float(self.d_camheight.value()) - float(ground_z)
+                    dz_text = ' · ΔZ = {:+.2f} m'.format(dz)
+                    if compatibility == 'compatible' and dz < -0.1:
+                        warning += ' ' + tr('Camera below the terrain.')
+        except Exception as exc:
+            qcv_log(f'Altitude diagnostic unavailable: {exc}', 'ALTITUDE', 'WARNING')
+        label.setText(base + ' ' + warning + dz_text)
+        label.setStyleSheet('color:#a35a00; font-size:10px;' if compatibility == 'unknown' else 'color:#247043; font-size:10px;')
+
     def open_settings_dialog(self):
         dlg = QDialog(self)
         dlg.setWindowTitle(tr('QCALVIEW — Settings and version'))
@@ -2034,6 +2181,35 @@ class QCalViewDock(QDockWidget):
         row_out = QWidget(); row_lay = QHBoxLayout(row_out); row_lay.setContentsMargins(0,0,0,0); row_lay.setSpacing(6)
         row_lay.addWidget(txt_default_out, 1); row_lay.addWidget(btn_default_out)
         btn_default_out.clicked.connect(lambda: (lambda d=QFileDialog.getExistingDirectory(dlg, tr('Default output folder'), txt_default_out.text()): txt_default_out.setText(tr(d)) if d else None)())
+        # Project-local vertical datum preference. Does not change QGIS project CRS.
+        from qgis.gui import QgsProjectionSelectionWidget, QgsCoordinateReferenceSystemProxyModel
+        from .core._vertical_reference import _vertical_component
+        project = QgsProject.instance()
+        _, vertical_mode = configured_vertical_crs(project)
+        cmb_vertical_mode = QComboBox()
+        cmb_vertical_mode.addItem(tr('Use QGIS project vertical CRS'), 'project')
+        cmb_vertical_mode.addItem(tr('Use specific QCALVIEW vertical CRS'), 'custom')
+        cmb_vertical_mode.setCurrentIndex(1 if vertical_mode == 'custom' else 0)
+        vertical_selector = QgsProjectionSelectionWidget(dlg)
+        vertical_selector.setFilters(QgsCoordinateReferenceSystemProxyModel.FilterVertical)
+        custom_authid = str(project.readEntry('QCALVIEW', VERTICAL_CRS_KEY, '')[0] or '').strip()
+        if custom_authid:
+            selected = QgsCoordinateReferenceSystem(custom_authid)
+            if _vertical_component(selected) is not None:
+                vertical_selector.setCrs(selected)
+        vertical_selector.setEnabled(cmb_vertical_mode.currentData() == 'custom')
+        cmb_vertical_mode.currentIndexChanged.connect(
+            lambda *_: vertical_selector.setEnabled(cmb_vertical_mode.currentData() == 'custom'))
+        project_vertical = project.verticalCrs()
+        project_vertical_name = str(project_vertical.authid() or project_vertical.description()) if project_vertical.isValid() else tr('Not defined')
+        label_project_vertical = QLabel(tr('QGIS project vertical CRS: %1').replace('%1', project_vertical_name))
+        label_project_vertical.setWordWrap(True)
+        note_vertical = QLabel(tr('The camera and DEM vertical references must be compatible. No automatic height conversion.'))
+        note_vertical.setWordWrap(True)
+        form_vars.addRow(tr('Vertical reference'), cmb_vertical_mode)
+        form_vars.addRow('', label_project_vertical)
+        form_vars.addRow(tr('Specific vertical CRS'), vertical_selector)
+        form_vars.addRow('', note_vertical)
         form_vars.addRow(tr('Body radius'), spin_earth_radius)
         form_vars.addRow(tr('Maximum projected layers'), spin_max_layers)
         form_vars.addRow(tr('Maximum features per layer'), spin_max_features)
@@ -2042,7 +2218,7 @@ class QCalViewDock(QDockWidget):
 
         version = QLabel(
             tr("<b>QCALVIEW</b><br>"
-            "Version 40.21<br>"
+            "Version 40.22<br>"
             "Visual simulation &amp; geomatics for QGIS<br>"
             "Developed by Fabrice Kerzerho — ArcTan°<br>"
             "© 2026 Fabrice Kerzerho — ArcTan°<br>"
@@ -2080,7 +2256,16 @@ class QCalViewDock(QDockWidget):
 
         buttons = QDialogButtonBox(QC.QDialogButtonBox_StandardButton_Ok | QC.QDialogButtonBox_StandardButton_Cancel)
         lay.addWidget(buttons)
-        buttons.accepted.connect(dlg.accept)
+        def _accept_settings():
+            if cmb_vertical_mode.currentData() == 'custom':
+                candidate = vertical_selector.crs()
+                if (candidate is None or not candidate.isValid()
+                        or not candidate.authid() or _vertical_component(candidate) is None):
+                    QMessageBox.warning(dlg, tr('Vertical reference'),
+                        tr('Please select a valid vertical CRS (not a horizontal CRS).'))
+                    return
+            dlg.accept()
+        buttons.accepted.connect(_accept_settings)
         buttons.rejected.connect(dlg.reject)
 
         if dialog_exec(dlg) == QC.QDialog_DialogCode_Accepted:
@@ -2093,6 +2278,9 @@ class QCalViewDock(QDockWidget):
                 self._settings.setValue("QCALVIEW/ui/low_latency_preview", bool(chk_lowlat.isChecked()))
                 self._settings.setValue("QCALVIEW/ui/show_preview_labels", bool(chk_labels.isChecked()))
                 self._settings.setValue("QCALVIEW/export_write_metadata", bool(chk_meta.isChecked()))
+                project.writeEntry('QCALVIEW', VERTICAL_MODE_KEY, str(cmb_vertical_mode.currentData()))
+                if cmb_vertical_mode.currentData() == 'custom':
+                    project.writeEntry('QCALVIEW', VERTICAL_CRS_KEY, str(vertical_selector.crs().authid()))
                 self._settings.setValue("QCALVIEW/physics/earth_radius_km", float(spin_earth_radius.value()))
                 self._settings.setValue("QCALVIEW/limits/max_overlay_layers", int(spin_max_layers.value()))
                 self._settings.setValue("QCALVIEW/limits/max_features_per_layer", int(spin_max_features.value()))
@@ -2109,6 +2297,7 @@ class QCalViewDock(QDockWidget):
             except Exception as _qcv_exc:
                 _qcv_suppress(_qcv_exc, "qcalview_dock.py:2094")
             self._update_ui_summary()
+            self._schedule_absolute_altitude_status()
 
     def _toggle_experimental_ui(self, checked):
         try:
@@ -2466,6 +2655,13 @@ class QCalViewDock(QDockWidget):
 
         try:
             self._save_main_geometry()
+            try:
+                mv = getattr(self, '_multiview', None)
+                if mv is not None:
+                    mv.persist_project_state()
+                    mv.close_all()
+            except Exception as _qcv_exc:
+                _qcv_suppress(_qcv_exc, "qcalview_dock.py:close-multiview")
             viewer = getattr(self, "viewer", None)
             if viewer is not None:
                 try:
@@ -2516,6 +2712,16 @@ def _do_render_with_quality(self, quality: str):
             _qcv_suppress(_qcv_exc, "qcalview_dock.py:2492")
 
 def force_refresh_now(self):
+
+    # A manual full refresh must take ownership of the single renderer.  Cancel
+    # pending Multi-View background passes first; they will be re-scheduled after
+    # the active refresh by the normal scene-change path if required.
+    try:
+        _mv = getattr(self, '_multiview', None)
+        if _mv is not None and hasattr(_mv, 'cancel_secondary_work'):
+            _mv.cancel_secondary_work()
+    except Exception as _qcv_exc:
+        _qcv_suppress(_qcv_exc, 'qcalview_dock.py:force-refresh-cancel-secondary')
 
     try:
         self._render_request_generation = int(getattr(self, '_render_request_generation', 0)) + 1

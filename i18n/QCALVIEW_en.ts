@@ -2158,5 +2158,45 @@ HFOV : — · VFOV : — · Max distance: —</translation>
       <source>📊 Performance report</source>
       <translation>📊 Performance report</translation>
     </message>
-  </context>
+    <message>
+      <source>Save viewpoint state</source>
+      <translation>Save viewpoint state</translation>
+    </message>
+    <message>
+      <source>New view</source>
+      <translation>New view</translation>
+    </message>
+    <message>
+      <source>Quad view</source>
+      <translation>Quad view</translation>
+    </message>
+    <message>
+      <source>QCALVIEW — Multi-View</source>
+      <translation>QCALVIEW — Multi-View</translation>
+    </message>
+    <message>
+      <source>Multi-View</source>
+      <translation>Multi-View</translation>
+    </message>
+    <message>
+      <source>Switch layout</source>
+      <translation>Switch layout</translation>
+    </message>
+    <message>
+      <source>Separate windows</source>
+      <translation>Separate windows</translation>
+    </message>
+    <message>
+      <source>A maximum of four viewers can be opened.</source>
+      <translation>A maximum of four viewers can be opened.</translation>
+    </message>
+    <message>
+      <source>Save</source>
+      <translation>Save</translation>
+    </message>
+    <message>
+      <source>Close view</source>
+      <translation>Close view</translation>
+    </message>
+  <message><source>Absolute alt.</source><translation>Absolute alt.</translation></message><message><source>Interpret Alt./Z as absolute camera elevation in the selected vertical CRS. No datum transformation is applied.</source><translation>Interpret Alt./Z as absolute camera elevation in the selected vertical CRS. No datum transformation is applied.</translation></message><message><source>Missing vertical reference</source><translation>Missing vertical reference</translation></message><message><source>A valid vertical CRS must be set before enabling absolute altitude. Open QCALVIEW settings?</source><translation>A valid vertical CRS must be set before enabling absolute altitude. Open QCALVIEW settings?</translation></message><message><source>Missing vertical CRS: define it in the QGIS project or QCALVIEW settings.</source><translation>Missing vertical CRS: define it in the QGIS project or QCALVIEW settings.</translation></message><message><source>Camera vertical CRS: %1 (%2).</source><translation>Camera vertical CRS: %1 (%2).</translation></message><message><source>QGIS project</source><translation>QGIS project</translation></message><message><source>specific selection</source><translation>specific selection</translation></message><message><source>No DEM selected: ΔZ unavailable.</source><translation>No DEM selected: ΔZ unavailable.</translation></message><message><source>Vertical CRS mismatch: ΔZ unavailable; no automatic conversion.</source><translation>Vertical CRS mismatch: ΔZ unavailable; no automatic conversion.</translation></message><message><source>DEM vertical CRS unknown: ΔZ is indicative only (not certified).</source><translation>DEM vertical CRS unknown: ΔZ is indicative only (not certified).</translation></message><message><source>Compatible vertical CRSs.</source><translation>Compatible vertical CRSs.</translation></message><message><source>Camera below the terrain.</source><translation>Camera below the terrain.</translation></message><message><source>Use QGIS project vertical CRS</source><translation>Use QGIS project vertical CRS</translation></message><message><source>Use specific QCALVIEW vertical CRS</source><translation>Use specific QCALVIEW vertical CRS</translation></message><message><source>Not defined</source><translation>Not defined</translation></message><message><source>QGIS project vertical CRS: %1</source><translation>QGIS project vertical CRS: %1</translation></message><message><source>The camera and DEM vertical references must be compatible. No automatic height conversion.</source><translation>The camera and DEM vertical references must be compatible. No automatic height conversion.</translation></message><message><source>Vertical reference</source><translation>Vertical reference</translation></message><message><source>Specific vertical CRS</source><translation>Specific vertical CRS</translation></message><message><source>Please select a valid vertical CRS (not a horizontal CRS).</source><translation>Please select a valid vertical CRS (not a horizontal CRS).</translation></message><message><source>Camera absolute Z</source><translation>Camera absolute Z</translation></message><message><source>Camera height</source><translation>Camera height</translation></message><message><source>All valid georeferenced single-band numeric rasters are offered, including constant elevation rasters. Verify that values represent elevations.</source><translation>All valid georeferenced single-band numeric rasters are offered, including constant elevation rasters. Verify that values represent elevations.</translation></message><message><source>Shows all rasters, including multiband imagery. By default, all georeferenced single-band numeric rasters are offered.</source><translation>Shows all rasters, including multiband imagery. By default, all georeferenced single-band numeric rasters are offered.</translation></message><message><source>Terrain grid spacing: 0.5, 1, 2, 2.5, 5 m and larger. Use the arrows for presets or enter a custom value. Small spacing over large areas can be expensive.</source><translation>Terrain grid spacing: 0.5, 1, 2, 2.5, 5 m and larger. Use the arrows for presets or enter a custom value. Small spacing over large areas can be expensive.</translation></message><message><source>QCALVIEW 40.22 — Some optional tools remain under active development. Their behaviour and interface may still change.</source><translation>QCALVIEW 40.22 — Some optional tools remain under active development. Their behaviour and interface may still change.</translation></message><message><source>&lt;b&gt;QCALVIEW&lt;/b&gt;&lt;br&gt;Version 40.22&lt;br&gt;Visual simulation &amp;amp; geomatics for QGIS&lt;br&gt;Developed by Fabrice Kerzerho — ArcTan°&lt;br&gt;© 2026 Fabrice Kerzerho — ArcTan°&lt;br&gt;GNU GPL v3 or later&lt;br&gt;&lt;br&gt;&lt;a href='https://www.qcalview.com'&gt;qcalview.com&lt;/a&gt;</source><translation>&lt;b&gt;QCALVIEW&lt;/b&gt;&lt;br&gt;Version 40.22&lt;br&gt;Visual simulation &amp;amp; geomatics for QGIS&lt;br&gt;Developed by Fabrice Kerzerho — ArcTan°&lt;br&gt;© 2026 Fabrice Kerzerho — ArcTan°&lt;br&gt;GNU GPL v3 or later&lt;br&gt;&lt;br&gt;&lt;a href='https://www.qcalview.com'&gt;qcalview.com&lt;/a&gt;</translation></message></context>
 </TS>

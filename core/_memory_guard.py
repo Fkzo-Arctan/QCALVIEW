@@ -386,7 +386,7 @@ def prepare_panorama_preview(owner, requested_w: int, requested_h: int,
         dem_step = 50.0
     try:
         az_step = max(0.05, float(owner.d_az_step.value()))
-        rad_step = max(1.0, float(owner.d_rad_step.value()))
+        rad_step = max(0.5, float(owner.d_rad_step.value()))
     except Exception:
         az_step, rad_step = 0.5, 50.0
 

@@ -455,12 +455,42 @@ def _panorama_beta_limits(ctx, pole_guard_px=2.0):
     return -math.pi*0.5+1e-6, math.pi*0.5-1e-6
 
 
+def _normalized_dist_limit(dist_max):
+    """Return a plain finite positive Python float, or None.
+
+    Panorama refinement calls the scalar projector very frequently.  Normalising the
+    optional distance limit once avoids repeated coercions while deep inside adaptive
+    subdivision and keeps the hot path restricted to ordinary Python floats.
+    """
+    if dist_max is None:
+        return None
+    try:
+        d = dist_max if type(dist_max) is float else float(dist_max)
+    except (TypeError, ValueError, OverflowError):
+        return None
+    return d if math.isfinite(d) and d > 0.0 else None
+
+
 def _camera_angle_point(ctx, xyz, dist_max=None):
     try:
         x,y,z=float(xyz[0]),float(xyz[1]),float(xyz[2])
-        dx=x-float(ctx['cx']); dy=y-float(ctx['cy']); dz=z-float(ctx['cam_z'])
-        if dist_max is not None and float(dist_max)>0 and dx*dx+dy*dy>float(dist_max)**2:
+        if not all(math.isfinite(v) for v in (x,y,z)):
             return None
+        cx=float(ctx['cx']); cy=float(ctx['cy']); cz=float(ctx['cam_z'])
+        if not all(math.isfinite(v) for v in (cx,cy,cz)):
+            return None
+        dx=x-cx; dy=y-cy; dz=z-cz
+        # Reject pathological coordinates before entering trigonometry.
+        if max(abs(dx),abs(dy),abs(dz)) > 1.0e100:
+            return None
+        dlim = dist_max if type(dist_max) is float else _normalized_dist_limit(dist_max)
+        if dlim is not None:
+            # Cheap axis rejection avoids the multiplication for obviously distant
+            # points and, importantly, does not repeatedly call float()/pow().
+            if abs(dx) > dlim or abs(dy) > dlim:
+                return None
+            if dx*dx + dy*dy > dlim*dlim:
+                return None
         r=ctx['r']; up=ctx['u']; f=ctx['f']
         xc=dx*float(r[0])+dy*float(r[1])+dz*float(r[2])
         yc=dx*float(f[0])+dy*float(f[1])+dz*float(f[2])
@@ -621,17 +651,36 @@ def panorama_faces_from_world_mesh(ctx, world_xyz, triangle_indices, dist_max=No
 
     xyz=np.asarray(world_xyz,dtype=np.float64)
     if xyz.ndim!=2 or xyz.shape[0]<3 or xyz.shape[1]<3: return []
+    dist_limit=_normalized_dist_limit(dist_max)
     tex=None
     if texture_uv is not None:
         try:
             tex=np.asarray(texture_uv,dtype=np.float64)
             if tex.ndim!=2 or tex.shape[0]!=xyz.shape[0] or tex.shape[1]!=2: tex=None
         except Exception: tex=None
-    alpha,beta,dep=panorama_angles_batch(ctx,xyz,dist_max=dist_max)
+    alpha,beta,dep=panorama_angles_batch(ctx,xyz,dist_max=dist_limit)
     lower,upper=_panorama_beta_limits(ctx,pole_guard_px=pole_guard_px)
     W=float(wrap_width or 0.0); md=dict(metadata or {}); out=[]
-    q=str(render_quality or 'high').lower(); max_depth=1 if q=='low' else 2
-    max_extra_per_source=1 if q=='low' else 3 if q=='normal' else 5
+    q=str(render_quality or 'high').lower()
+    # Filled polygon roofs need substantially more subdivision than terrain/raster
+    # source triangles.  In a panorama, a planar world-space triangle does not map
+    # to a planar screen-space triangle, especially close to the +/-180 degree seam.
+    # Keeping the historical shallow depth here made extruded polygon roofs take
+    # visible shortcuts while their wall outlines followed the correct curved path.
+    _role=str(role or 'surface').lower()
+    _polygon_surface=(_role in ('roof','polygon_surface','volume_roof'))
+    if _polygon_surface:
+        # R4 deliberately increased roof tessellation to preserve curved panoramic
+        # outlines, but bypassing the shared frame budget could multiply every source
+        # triangle by up to 64.  With raster drape + several viewers this can create a
+        # very large Python/NumPy/Qt working set and QGIS/Windows may terminate natively
+        # before Python can raise MemoryError.  R5 keeps the improved roof path but
+        # bounds both recursion and per-source expansion.
+        max_depth=3 if q=='low' else 4 if q=='normal' else 5
+        max_extra_per_source=7 if q=='low' else 15 if q=='normal' else 31
+    else:
+        max_depth=1 if q=='low' else 2
+        max_extra_per_source=1 if q=='low' else 3 if q=='normal' else 5
     for tri in triangle_indices or ():
         try:
             ids=tuple(int(i) for i in tri)
@@ -640,12 +689,12 @@ def panorama_faces_from_world_mesh(ctx, world_xyz, triangle_indices, dist_max=No
             for ii in ids:
                 pre=(float(alpha[ii]),float(beta[ii]),float(dep[ii]))
                 if not all(math.isfinite(v) for v in pre) or pre[2]<=0.0: verts=[]; break
-                verts.append(_make_angle_vertex(ctx,xyz[ii],tex=(None if tex is None else tex[ii]),dist_max=dist_max,pre=pre))
+                verts.append(_make_angle_vertex(ctx,xyz[ii],tex=(None if tex is None else tex[ii]),dist_max=dist_limit,pre=pre))
             if len(verts)!=3: continue
         except Exception as _qcv_exc:
             _qcv_suppress(_qcv_exc, "core/_panorama_primitives.py:670")
             continue
-        clipped=_clip_vertices_beta(ctx,verts,lower,upper,dist_max=dist_max)
+        clipped=_clip_vertices_beta(ctx,verts,lower,upper,dist_max=dist_limit)
         if len(clipped)<3: continue
 
         seeds=[[clipped[0],clipped[i],clipped[i+1]] for i in range(1,len(clipped)-1)]
@@ -660,22 +709,39 @@ def panorama_faces_from_world_mesh(ctx, world_xyz, triangle_indices, dist_max=No
                 # independently approximated curved edges no longer coincide exactly and thin
                 # transparent seams become visible.  Callers rendering a conforming mesh can
                 # therefore disable the per-triangle split and control tessellation at mesh level.
-                can_split=(bool(adaptive_split) and
-                           _triangle_quick_needs_split(ctx,cur,quality=q,wrap_width=W) and
-                           depth<max_depth and extras<max_extra_per_source)
+                _needs_split=(bool(adaptive_split) and
+                              _triangle_quick_needs_split(ctx,cur,quality=q,wrap_width=W))
+                if bool(adaptive_split) and _polygon_surface and not _needs_split:
+                    # Screen-space midpoint curvature catches the common case where a
+                    # long polygon edge looks almost harmless by chord length but bends
+                    # strongly after equirectangular/cylindrical projection.
+                    _roof_tol=3.0 if q=='low' else 1.5 if q=='normal' else 0.9
+                    try:
+                        for _ea,_eb in ((0,1),(1,2),(2,0)):
+                            _L,_E=_segment_midpoint_error(ctx,cur[_ea]['xyz'],cur[_eb]['xyz'],
+                                                         wrap_width=W,dist_max=dist_limit)
+                            if (not math.isfinite(_E)) or float(_E)>_roof_tol:
+                                _needs_split=True
+                                break
+                    except Exception:
+                        _needs_split=True
+                can_split=(_needs_split and depth<max_depth and extras<max_extra_per_source)
                 if can_split:
                     budget_ok=True
                     if isinstance(extra_face_budget,dict):
                         try: budget_ok=int(extra_face_budget.get('remaining',0))>0
                         except Exception: budget_ok=False
+                    # The shared frame budget is a hard safety limit in previews.
+                    # Once exhausted we still render the current triangle, but stop
+                    # subdividing it.  This preserves topology without unbounded growth.
                     if budget_ok:
-                        two=_split_triangle_longest_world(ctx,cur,dist_max=dist_max)
+                        two=_split_triangle_longest_world(ctx,cur,dist_max=dist_limit)
                         if two is not None:
                             if isinstance(extra_face_budget,dict):
                                 try: extra_face_budget['remaining']=max(0,int(extra_face_budget.get('remaining',0))-1)
                                 except Exception as _qcv_exc: _qcv_suppress(_qcv_exc, "core/_panorama_primitives.py:691")
                             for child in reversed(two):
-                                cclip=_clip_vertices_beta(ctx,child,lower,upper,dist_max=dist_max)
+                                cclip=_clip_vertices_beta(ctx,child,lower,upper,dist_max=dist_limit)
                                 if len(cclip)==3: stack.append((cclip,depth+1,extras+1))
                                 elif len(cclip)>3:
                                     for kk in range(1,len(cclip)-1): stack.append(([cclip[0],cclip[kk],cclip[kk+1]],depth+1,extras+1))
@@ -685,6 +751,224 @@ def panorama_faces_from_world_mesh(ctx, world_xyz, triangle_indices, dist_max=No
                                              role=str(role),metadata=dict(md)))
     return out
 
+
+
+def panorama_wall_faces_from_world_paths(ctx, base_xyz, top_xyz, dist_max=None, *,
+                                         wrap_width=None, closed=False, role='wall', metadata=None,
+                                         render_quality='high', extra_face_budget=None,
+                                         pole_guard_px=2.0):
+    """Project an extruded polyline/polygon wall as a coherent panorama strip.
+
+    Base and top edges are refined together and every leaf quad is unwrapped on one
+    angular branch before triangulation.  The refinement budget is intentionally a
+    *hard* limit: seam correctness comes from common-branch unwrapping, not from
+    unbounded recursive tessellation.
+    """
+    try:
+        base=np.asarray(base_xyz,dtype=np.float64)
+        top=np.asarray(top_xyz,dtype=np.float64)
+    except Exception:
+        return []
+    if (base.ndim!=2 or top.ndim!=2 or base.shape[1]<3 or top.shape[1]<3 or
+            base.shape[0]<2 or top.shape[0]!=base.shape[0]):
+        return []
+    finite=(np.isfinite(base[:,:3]).all(axis=1) & np.isfinite(top[:,:3]).all(axis=1))
+    if not bool(np.all(finite)):
+        return []
+
+    dist_limit=_normalized_dist_limit(dist_max)
+    n=int(base.shape[0])
+    if bool(closed) and n>=3:
+        try:
+            if (sum((float(base[0,c])-float(base[-1,c]))**2 for c in range(3))<1e-16 and
+                    sum((float(top[0,c])-float(top[-1,c]))**2 for c in range(3))<1e-16):
+                base=base[:-1]; top=top[:-1]; n-=1
+        except Exception as _qcv_exc:
+            _qcv_suppress(_qcv_exc, 'core/_panorama_primitives.py:wall-close-normalize')
+    if n<2:
+        return []
+
+    q=str(render_quality or 'high').lower()
+    # R6: horizontal subdivision only.  R3/R5 also tested the two vertical edges
+    # when deciding whether to split horizontally. A tall projected vertical edge
+    # is not shortened by bisecting the wall *along its path*, so it could keep the
+    # recursion "essential" all the way to max_depth for every source segment.
+    # That produced a large allocation spike with raster drape + Multi-View.
+    tol=2.5 if q=='low' else 1.5 if q=='normal' else 0.9
+    len_trigger=620.0 if q=='low' else 430.0 if q=='normal' else 300.0
+    max_depth=4 if q=='low' else 5
+    max_splits_per_segment=15 if q=='low' else 31
+    lower,upper=_panorama_beta_limits(ctx,pole_guard_px=pole_guard_px)
+    W=float(wrap_width or 0.0)
+    md=dict(metadata or {})
+    out=[]
+
+    try:
+        _cx=float(ctx['cx']); _cy=float(ctx['cy'])
+    except Exception:
+        _cx=_cy=0.0
+
+    def _inside_radius(pt):
+        if dist_limit is None:
+            return True
+        dx=float(pt[0])-_cx; dy=float(pt[1])-_cy
+        return dx*dx+dy*dy <= dist_limit*dist_limit
+
+    def _segment_intersects_radius(a,b):
+        """Whether XY segment can enter the max-distance circle."""
+        if dist_limit is None:
+            return True
+        ax=float(a[0])-_cx; ay=float(a[1])-_cy
+        bx=float(b[0])-_cx; by=float(b[1])-_cy
+        vx=bx-ax; vy=by-ay
+        vv=vx*vx+vy*vy
+        if vv<=1e-24:
+            return ax*ax+ay*ay <= dist_limit*dist_limit
+        t=-(ax*vx+ay*vy)/vv
+        t=max(0.0,min(1.0,t))
+        x=ax+t*vx; y=ay+t*vy
+        return x*x+y*y <= dist_limit*dist_limit
+
+    def _edge_metrics(a,b,qa,qb):
+        mid=tuple((float(a[c])+float(b[c]))*0.5 for c in range(3))
+        qm=_camera_angle_point(ctx,mid,dist_max=dist_limit)
+        if qa is None or qb is None or qm is None:
+            return math.inf,math.inf
+        aa=float(qa[0]); ab=_unwrap_alpha_near(float(qb[0]),aa)
+        am=_unwrap_alpha_near(float(qm[0]),0.5*(aa+ab))
+        pa=_map_panorama_angles(ctx,aa,float(qa[1]))
+        pb=_map_panorama_angles(ctx,ab,float(qb[1]))
+        pm=_map_panorama_angles(ctx,am,float(qm[1]))
+        if pa is None or pb is None or pm is None:
+            return math.inf,math.inf
+        length=math.hypot(pb[0]-pa[0],pb[1]-pa[1])
+        err=math.hypot(pm[0]-0.5*(pa[0]+pb[0]),pm[1]-0.5*(pa[1]+pb[1]))
+        return length,err
+
+    def _split_needed(b0,b1,t0,t1):
+        # Distance clipping is the only case where one endpoint can be rejected by
+        # _camera_angle_point while part of the segment is still visible. Refine that
+        # boundary, but do not recursively split segments wholly outside the radius.
+        in0=_inside_radius(b0); in1=_inside_radius(b1)
+        if dist_limit is not None:
+            if (not in0) and (not in1):
+                if not _segment_intersects_radius(b0,b1):
+                    return False,False
+                return True,True
+            if in0 != in1:
+                return True,True
+
+        qb0=_camera_angle_point(ctx,b0,dist_max=dist_limit)
+        qb1=_camera_angle_point(ctx,b1,dist_max=dist_limit)
+        qt0=_camera_angle_point(ctx,t0,dist_max=dist_limit)
+        qt1=_camera_angle_point(ctx,t1,dist_max=dist_limit)
+        if any(v is None for v in (qb0,qb1,qt0,qt1)):
+            # Invalid geometry/pole condition: refinement cannot make a corrupt
+            # endpoint valid. Let the leaf emitter discard it instead of exploding.
+            return False,False
+
+        max_len=0.0; max_err=0.0
+        for a,b,qa,qb in ((b0,b1,qb0,qb1),(t0,t1,qt0,qt1)):
+            L,E=_edge_metrics(a,b,qa,qb)
+            if not (math.isfinite(L) and math.isfinite(E)):
+                return False,False
+            max_len=max(max_len,float(L)); max_err=max(max_err,float(E))
+
+        # Only the pathwise angular span matters for a horizontal split. Vertical
+        # alpha differences are deliberately excluded because this split cannot
+        # reduce them.
+        ba0=float(qb0[0]); ba1=_unwrap_alpha_near(float(qb1[0]),ba0)
+        ta0=float(qt0[0]); ta1=_unwrap_alpha_near(float(qt1[0]),ta0)
+        span=max(abs(ba1-ba0),abs(ta1-ta0))
+        essential=(span>math.radians(32.0) or max_err>8.0 or max_len>900.0)
+        return (essential or max_err>tol or max_len>len_trigger),essential
+
+    def _emit_leaf(b0,b1,t0,t1):
+        verts=[_make_angle_vertex(ctx,b0,dist_max=dist_limit),
+               _make_angle_vertex(ctx,b1,dist_max=dist_limit),
+               _make_angle_vertex(ctx,t1,dist_max=dist_limit),
+               _make_angle_vertex(ctx,t0,dist_max=dist_limit)]
+        if any(v is None for v in verts):
+            return
+        clipped=_clip_vertices_beta(ctx,verts,lower,upper,dist_max=dist_limit)
+        if len(clipped)<3:
+            return
+
+        # One branch for the whole clipped quad/polygon. Triangles are created only
+        # after this common unwrap, which is the actual +/-180 degree seam fix.
+        al=[float(clipped[0]['alpha'])]
+        for v in clipped[1:]:
+            al.append(_unwrap_alpha_near(float(v['alpha']),al[-1]))
+        uv=[]; dep=[]; xyz=[]
+        for v,a in zip(clipped,al):
+            m=_map_panorama_angles(ctx,a,float(v['beta']))
+            if m is None:
+                return
+            uv.append(m); dep.append(float(v['depth'])); xyz.append(v['xyz'])
+        uv=np.asarray(uv,dtype=np.float64)
+        dep=np.asarray(dep,dtype=np.float64)
+        xyz=np.asarray(xyz,dtype=np.float64)
+        if not (_finite_uv_rows_scalar(uv,len(uv)) and _finite_positive_depth_scalar(dep,len(dep))):
+            return
+
+        if W>1.0:
+            base_uv=unwrap_x_continuous(uv,W)
+            shifts=_viewport_shift_indices(base_uv,W,margin_px=2.0)
+        else:
+            base_uv=uv; shifts=(0,)
+        for k in shifts:
+            uvc=base_uv.copy()
+            if W>1.0:
+                uvc[:,0]+=float(k)*W
+                stats=_small_finite_x_stats(uvc)
+                if stats is None or stats[1]<-2.0 or stats[0]>W+2.0:
+                    continue
+            for ii in range(1,len(uvc)-1):
+                ids=(0,ii,ii+1)
+                out.append(PanoramicFace(
+                    uv=np.asarray([uvc[j] for j in ids],dtype=np.float64),
+                    radial_depth=np.asarray([dep[j] for j in ids],dtype=np.float64),
+                    world_xyz=np.asarray([xyz[j] for j in ids],dtype=np.float64),
+                    texture_uv=None,role=str(role),metadata=dict(md),
+                ))
+
+    seg_count=n if bool(closed) else n-1
+    for i in range(max(0,seg_count)):
+        j=(i+1)%n
+        b0=tuple(float(v) for v in base[i,:3]); b1=tuple(float(v) for v in base[j,:3])
+        t0=tuple(float(v) for v in top[i,:3]); t1=tuple(float(v) for v in top[j,:3])
+        stack=[(b0,b1,t0,t1,0)]
+        splits_used=0
+        while stack:
+            cb0,cb1,ct0,ct1,depth=stack.pop()
+            split_state=_split_needed(cb0,cb1,ct0,ct1)
+            if isinstance(split_state,tuple):
+                need=bool(split_state[0])
+            else:
+                need=bool(split_state)
+            budget_ok=True
+            if isinstance(extra_face_budget,dict):
+                try:
+                    budget_ok=int(extra_face_budget.get('remaining',0))>0
+                except Exception:
+                    budget_ok=False
+            # R6 hard safety invariant: neither "essential" seam/path refinement nor
+            # any other reason may bypass the shared frame budget. Seam topology is
+            # already guaranteed by common-branch unwrapping in _emit_leaf().
+            if (need and depth<max_depth and splits_used<max_splits_per_segment and budget_ok):
+                bm=tuple((cb0[c]+cb1[c])*0.5 for c in range(3))
+                tm=tuple((ct0[c]+ct1[c])*0.5 for c in range(3))
+                splits_used+=1
+                if isinstance(extra_face_budget,dict):
+                    try:
+                        extra_face_budget['remaining']=max(0,int(extra_face_budget.get('remaining',0))-1)
+                    except Exception as _qcv_exc:
+                        _qcv_suppress(_qcv_exc,'core/_panorama_primitives.py:wall-budget-r6')
+                stack.append((bm,cb1,tm,ct1,depth+1))
+                stack.append((cb0,bm,ct0,tm,depth+1))
+                continue
+            _emit_leaf(cb0,cb1,ct0,ct1)
+    return out
 
 def _clip_world_segment_beta(ctx, a, b, lower, upper, dist_max=None):
     va=_make_angle_vertex(ctx,a,dist_max=dist_max); vb=_make_angle_vertex(ctx,b,dist_max=dist_max)
@@ -704,8 +988,9 @@ def _clip_world_segment_beta(ctx, a, b, lower, upper, dist_max=None):
 
 
 def _segment_midpoint_error(ctx, a, b, wrap_width=0.0, dist_max=None):
-    qa=_camera_angle_point(ctx,a,dist_max=dist_max); qb=_camera_angle_point(ctx,b,dist_max=dist_max)
-    mid=tuple((float(a[c])+float(b[c]))*0.5 for c in range(3)); qm=_camera_angle_point(ctx,mid,dist_max=dist_max)
+    dlim=dist_max if type(dist_max) is float else _normalized_dist_limit(dist_max)
+    qa=_camera_angle_point(ctx,a,dist_max=dlim); qb=_camera_angle_point(ctx,b,dist_max=dlim)
+    mid=tuple((float(a[c])+float(b[c]))*0.5 for c in range(3)); qm=_camera_angle_point(ctx,mid,dist_max=dlim)
     if qa is None or qb is None or qm is None: return math.inf,math.inf
     aa=float(qa[0]); ab=_unwrap_alpha_near(float(qb[0]),aa); am=_unwrap_alpha_near(float(qm[0]),0.5*(aa+ab))
     pa=_map_panorama_angles(ctx,aa,float(qa[1])); pb=_map_panorama_angles(ctx,ab,float(qb[1])); pm=_map_panorama_angles(ctx,am,float(qm[1]))
@@ -717,6 +1002,7 @@ def _segment_midpoint_error(ctx, a, b, wrap_width=0.0, dist_max=None):
 def project_panorama_path_safe(ctx, world_xyz, dist_max=None, *, closed=False, render_quality='high',
                                wrap_width=None, max_points=4096, budget_state=None, pole_guard_px=2.0):
 
+    dist_limit=_normalized_dist_limit(dist_max)
     a=np.asarray(world_xyz,dtype=np.float64)
     if a.ndim!=2 or a.shape[0]<2 or a.shape[1]<3:
         return PanoramicPrimitive2D('polyline',np.empty((0,2)),np.empty((0,)),np.empty((0,3)),closed=bool(closed))
@@ -734,7 +1020,7 @@ def project_panorama_path_safe(ctx, world_xyz, dist_max=None, *, closed=False, r
         p0=pts[si]; p1=pts[(si+1)%n]
         stack=[(p0,p1,0)] ; leaves=[]
         while stack and (len(uv_out)+len(leaves))<max_points:
-            aa,bb,depth=stack.pop(); L,E=_segment_midpoint_error(ctx,aa,bb,wrap_width=W,dist_max=dist_max)
+            aa,bb,depth=stack.pop(); L,E=_segment_midpoint_error(ctx,aa,bb,wrap_width=W,dist_max=dist_limit)
             split=(not math.isfinite(E)) or E>tol or (math.isfinite(L) and L>len_trigger)
             budget_ok=True
             if isinstance(budget_state,dict):
@@ -748,7 +1034,7 @@ def project_panorama_path_safe(ctx, world_xyz, dist_max=None, *, closed=False, r
                     except Exception as _qcv_exc: _qcv_suppress(_qcv_exc, "core/_panorama_primitives.py:763")
             else: leaves.append((aa,bb))
         for aa,bb in leaves:
-            seg=_clip_world_segment_beta(ctx,aa,bb,lower,upper,dist_max=dist_max)
+            seg=_clip_world_segment_beta(ctx,aa,bb,lower,upper,dist_max=dist_limit)
             if seg is None:
                 if run_open:
                     uv_out.append((math.nan,math.nan)); dep_out.append(math.inf); xyz_out.append((math.nan,math.nan,math.nan)); run_open=False
