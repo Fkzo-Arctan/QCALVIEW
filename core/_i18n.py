@@ -3,7 +3,8 @@ from __future__ import annotations
 
 import os
 import re
-import xml.etree.ElementTree as ET
+import json
+import logging
 from qgis.PyQt.QtCore import QLocale, QSettings
 
 _PLUGIN_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -11,6 +12,7 @@ _I18N_DIR = os.path.join(_PLUGIN_ROOT, 'i18n')
 _CONTEXT = 'QCALVIEW'
 _translation_memory = None
 _active_language = 'en'
+_LOGGER = logging.getLogger(__name__)
 
 
 def _normalise_locale(value):
@@ -30,8 +32,8 @@ def resolve_language():
             chosen = _normalise_locale(settings.value('locale/userLocale', ''))
             if chosen:
                 return 'fr' if chosen.lower().startswith('fr') else 'en'
-    except Exception:
-        pass
+    except (RuntimeError, TypeError, ValueError) as exc:
+        _LOGGER.debug('Unable to read QGIS locale override: %s', exc)
     try:
         locale_name = _normalise_locale(QLocale().name())
     except Exception:
@@ -56,35 +58,40 @@ def _placeholder_pattern(source):
     return re.compile('^' + ''.join(parts) + '$', re.S), groups
 
 
-class _TsRuntimeCatalog:
-    """Read only the plugin's own .ts file. No Qt translator installation."""
+class _JsonRuntimeCatalog:
+    """Load the plugin's compiled, bundled translation map as JSON.
 
-    def __init__(self, ts_path, parent=None):
+    The editable Qt Linguist .ts file is converted to JSON at packaging time.
+    No XML is parsed within QGIS and no global translator is installed.
+    """
+
+    def __init__(self, catalog_path, parent=None):
         self._by_context = {}
         self._by_source = {}
         self._patterns = []
-        self._load_ts(ts_path)
+        self._load_json(catalog_path)
 
     def isEmpty(self):
         return not bool(self._by_source)
 
-    def _load_ts(self, ts_path):
+    def _load_json(self, catalog_path):
         try:
-            root = ET.parse(ts_path).getroot()
-            for context in root.findall('context'):
-                context_name = context.findtext('name', '')
-                for msg in context.findall('message'):
-                    source = msg.findtext('source')
-                    translated = msg.find('translation')
-                    if (source is None or translated is None
-                            or translated.get('type') in ('unfinished', 'vanished', 'obsolete')):
+            with open(catalog_path, 'r', encoding='utf-8') as handle:
+                contexts = json.load(handle)
+            if not isinstance(contexts, dict):
+                raise ValueError('Translation catalog must be a JSON object')
+            for context_name, entries in contexts.items():
+                if not isinstance(context_name, str) or not isinstance(entries, dict):
+                    raise ValueError('Invalid translation context')
+                for source, translated in entries.items():
+                    if not isinstance(source, str) or not isinstance(translated, str):
+                        raise ValueError('Invalid translation pair')
+                    if not translated:
                         continue
-                    text = ''.join(translated.itertext())
-                    if not text:
-                        continue
-                    self._by_context[(context_name, source)] = text
-                    self._by_source.setdefault(source, text)
-        except (OSError, ET.ParseError):
+                    self._by_context[(context_name, source)] = translated
+                    self._by_source.setdefault(source, translated)
+        except (OSError, UnicodeError, json.JSONDecodeError, ValueError) as exc:
+            _LOGGER.warning('Cannot load QCALVIEW translations: %s', exc)
             self._by_context.clear()
             self._by_source.clear()
             return
@@ -93,7 +100,6 @@ class _TsRuntimeCatalog:
                 continue
             pattern, indices = _placeholder_pattern(source)
             if pattern is not None:
-                # Prefer the most specific template; generic %1 strings last.
                 specificity = len(re.sub(r'%[1-9][0-9]*', '', source))
                 self._patterns.append((specificity, pattern, indices, translated))
         self._patterns.sort(key=lambda p: p[0], reverse=True)
@@ -132,8 +138,8 @@ def install_qcalview_translator(parent=None):
     _active_language = resolve_language()
     _translation_memory = None
     if _active_language == 'fr':
-        path = os.path.join(_I18N_DIR, 'QCALVIEW_fr.ts')
-        catalog = _TsRuntimeCatalog(path)
+        path = os.path.join(_I18N_DIR, 'QCALVIEW_fr.json')
+        catalog = _JsonRuntimeCatalog(path)
         if not catalog.isEmpty():
             _translation_memory = catalog
     return None

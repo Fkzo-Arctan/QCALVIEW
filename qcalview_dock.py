@@ -2191,7 +2191,7 @@ class QCalViewDock(QDockWidget):
         cmb_vertical_mode.addItem(tr('Use specific QCALVIEW vertical CRS'), 'custom')
         cmb_vertical_mode.setCurrentIndex(1 if vertical_mode == 'custom' else 0)
         vertical_selector = QgsProjectionSelectionWidget(dlg)
-        vertical_selector.setFilters(QgsCoordinateReferenceSystemProxyModel.FilterVertical)
+        vertical_selector.setFilters(QgsCoordinateReferenceSystemProxyModel.Filter.FilterVertical)
         custom_authid = str(project.readEntry('QCALVIEW', VERTICAL_CRS_KEY, '')[0] or '').strip()
         if custom_authid:
             selected = QgsCoordinateReferenceSystem(custom_authid)
